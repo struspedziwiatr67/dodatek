@@ -3259,40 +3259,37 @@ if (typeof window.window.__adi_equipByNameSequence !== 'function') {
 
   console.log('[adi-bot] SMART TRAVERSAL ACTIVE (fixed, no ping-pong)');
 })();
-// ===== BOT VERSION BADGE (auto timestamp) =====
+
+
+
+// ===== BOT VERSION DISPLAY (bottom-right, Exp tab area compatible) =====
 (function(){
-  try{
-    // prevent duplicates (e.g. if script is injected twice)
-    if(document.getElementById('adi-bot-version')) return;
-
-    function fmtNow(){
-      try{ return new Date().toLocaleString('pl-PL'); }catch(_){ return String(new Date()); }
+  function addBotVersion(){
+    try{
+      if(document.getElementById('adi-bot-version')) return;
+      var el = document.createElement('div');
+      el.id = 'adi-bot-version';
+      var now = new Date();
+      el.textContent = 'bot ' + now.toLocaleString('pl-PL');
+      el.style.position = 'fixed';
+      el.style.right = '6px';
+      el.style.bottom = '6px';
+      el.style.fontSize = '9px';
+      el.style.opacity = '0.6';
+      el.style.color = '#fff';
+      el.style.zIndex = '999999';
+      el.style.pointerEvents = 'none';
+      el.style.fontFamily = 'Arial, sans-serif';
+      document.body.appendChild(el);
+    }catch(e){}
+  }
+  var tries=0;
+  var t=setInterval(function(){
+    tries++;
+    if(document.body){
+      addBotVersion();
+      clearInterval(t);
     }
-
-    function mount(){
-      try{
-        if(document.getElementById('adi-bot-version')) return;
-        if(!document.body){ return setTimeout(mount, 500); }
-
-        const el = document.createElement('div');
-        el.id = 'adi-bot-version';
-        el.textContent = 'bot ' + fmtNow();
-
-        el.style.position = 'fixed';
-        el.style.bottom = '3px';
-        el.style.right = '6px';
-        el.style.fontSize = '9px';
-        el.style.color = 'rgba(255,255,255,0.45)';
-        el.style.fontFamily = 'Arial, sans-serif';
-        el.style.zIndex = '999999';
-        el.style.pointerEvents = 'none';
-        el.style.userSelect = 'none';
-
-        document.body.appendChild(el);
-      }catch(_){}
-    }
-
-    setTimeout(mount, 2000);
-  }catch(_){}
+    if(tries>50) clearInterval(t);
+  },500);
 })();
-
