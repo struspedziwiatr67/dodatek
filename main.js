@@ -3213,7 +3213,7 @@ if (typeof window.window.__adi_equipByNameSequence !== 'function') {
     for(let i=0;i<allowedRaw.length;i++){
       const nm = allowedNorm[i];
       if(!visited.includes(nm)) return allowedRaw[i];
-    }
+    }chfh
     // wszystkie odwiedzone -> reset
     saveVisited([]);
     return allowedRaw[0];
