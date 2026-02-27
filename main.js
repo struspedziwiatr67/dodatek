@@ -3262,34 +3262,29 @@ if (typeof window.window.__adi_equipByNameSequence !== 'function') {
 
 
 
-// ===== BOT VERSION DISPLAY (bottom-right, Exp tab area compatible) =====
-(function(){
-  function addBotVersion(){
-    try{
-      if(document.getElementById('adi-bot-version')) return;
-      var el = document.createElement('div');
-      el.id = 'adi-bot-version';
-      var now = new Date();
-      el.textContent = 'bot ' + now.toLocaleString('pl-PL');
-      el.style.position = 'fixed';
-      el.style.right = '6px';
-      el.style.bottom = '6px';
-      el.style.fontSize = '9px';
-      el.style.opacity = '0.6';
-      el.style.color = '#fff';
-      el.style.zIndex = '999999';
-      el.style.pointerEvents = 'none';
-      el.style.fontFamily = 'Arial, sans-serif';
-      document.body.appendChild(el);
-    }catch(e){}
-  }
-  var tries=0;
-  var t=setInterval(function(){
-    tries++;
-    if(document.body){
-      addBotVersion();
-      clearInterval(t);
-    }
-    if(tries>50) clearInterval(t);
-  },500);
+// ===== BOT BUILD VERSION =====
+const BOT_BUILD_TIME = "2026-02-27 23:52:26";
+
+(function () {
+function showBotVersion() {
+    if (document.getElementById("adi-bot-build")) return;
+
+    const el = document.createElement("div");
+    el.id = "adi-bot-build";
+    el.textContent = "bot " + BOT_BUILD_TIME;
+
+    el.style.position = "fixed";
+    el.style.bottom = "3px";
+    el.style.right = "6px";
+    el.style.fontSize = "9px";
+    el.style.color = "rgba(255,255,255,0.45)";
+    el.style.fontFamily = "Arial";
+    el.style.zIndex = "999999";
+    el.style.pointerEvents = "none";
+
+    document.body.appendChild(el);
+}
+
+setTimeout(showBotVersion, 2000);
 })();
+// ===== END BOT BUILD VERSION =====
