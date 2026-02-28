@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Bot na exp (iframe-aware exhaustion + throttling + captcha->Discord + ping-pong trasy + only-selected-maps + elite toggle + group-size filter + heros->Discord + obrazki + fixy map/lvl/wt/grupy + FOW cache)
-// @version      2.17.3-autoskillfix
+// @version      2.17.3
 // @description  Bot z przechodzeniem map, anty-spam ataku, captcha->Discord, START/STOP, zbijanie wyczerpania, atak tylko na wybranych mapach, elity toggle, filtr grup, powiadomienia o herosach (bez Namiotu Tropicieli Herosów), normalizacja nazw map, odporne parsowanie lvli, poprawki 'wt', stabilny wybór grup przy mgle (cache max rozmiaru grupy)
 // @match        *://*/
 // @match        *://www.margonem.pl/*
@@ -72,107 +72,6 @@
     if(window.__adi_eliteGuardInstalled || tries > 60) clearInterval(intId); // ~30s
   }, 500);
 })();
-
-// ===== UI GUARD: auto-switch to OLD interface when NEW interface is detected =====
-// Działa niezależnie od START/STOP bota (sprawdza cały czas i klika tylko, gdy przycisk jest widoczny w DOM).
-(function(){
-  const CHECK_MS = 900;
-  const COOLDOWN_MS = 8000;
-  const AFTER_GEAR_WAIT_MS = 1000;
-  let __lastSwitchAt = 0;
-  let __afterGearUntil = 0;
-
-  function findOldUiSwitchButton(doc){
-    try{
-      if(!doc) return null;
-      // Przycisk w ustawieniach ma strukturę m.in.:
-      // <div class="button green small change-interface-btn"><div class="background"></div><div class="label">STARY INTERFEJS</div></div>
-      const label = doc.querySelector('.change-interface-btn .label');
-      if(label && /stary\s+interfejs/i.test(String(label.textContent||''))) {
-        return label.closest('.change-interface-btn') || label;
-      }
-      // fallback: czasem label może być inaczej zagnieżdżony
-      const btn = doc.querySelector('.change-interface-btn');
-      if(btn && /stary\s+interfejs/i.test(String(btn.textContent||''))) return btn;
-      return null;
-    }catch(e){ return null; }
-  }
-
-  function findGearConfigButton(doc){
-    try{
-      if(!doc) return null;
-      // Na nowym interfejsie przycisk "zębatki" ma zwykle klasy widget-button + widget-config
-      // Przykład z DOM: div.widget-button.green.widget-in-interface-bar.widget-config ...
-      return (
-        doc.querySelector('.widget-button.widget-config') ||
-        doc.querySelector('.widget-config.widget-button') ||
-        doc.querySelector('.widget-button[widget-name="config"], .widget-button[data-widget-name="config"]') ||
-        doc.querySelector('[widget-name="config"].widget-button, [data-widget-name="config"].widget-button')
-      );
-    }catch(e){ return null; }
-  }
-
-  function safeClick(el){
-    try{
-      if(!el) return false;
-      if(!(el instanceof Element)) return false;
-      const ev = (type)=>new MouseEvent(type,{bubbles:true,cancelable:true,view:window});
-      el.dispatchEvent(ev('mouseover'));
-      el.dispatchEvent(ev('mousedown'));
-      el.dispatchEvent(ev('mouseup'));
-      el.dispatchEvent(ev('click'));
-      return true;
-    }catch(e){
-      try{ el.click(); return true; }catch(_){ return false; }
-    }
-  }
-
-  function tick(){
-    try{
-      const now = Date.now();
-      if(now - __lastSwitchAt < COOLDOWN_MS) return;
-
-      // 1) Jeśli niedawno kliknęliśmy zębatkę, daj UI chwilę i spróbuj kliknąć "STARY INTERFEJS"
-      if(__afterGearUntil && now >= __afterGearUntil){
-        __afterGearUntil = 0;
-      }
-
-      let btn = findOldUiSwitchButton(document);
-      let gear = null;
-
-      if(!btn){
-        const iframes = document.querySelectorAll('iframe');
-        for(const fr of iframes){
-          try{
-            const d = fr.contentDocument || (fr.contentWindow && fr.contentWindow.document);
-            btn = btn || findOldUiSwitchButton(d);
-            gear = gear || findGearConfigButton(d);
-            if(btn) break;
-          }catch(_){ }
-        }
-      }
-
-      if(btn){
-        __lastSwitchAt = now;
-        safeClick(btn);
-        return;
-      }
-
-      // 2) Przycisk "STARY INTERFEJS" jest ukryty -> kliknij zębatkę i odczekaj 1s
-      if(!__afterGearUntil){
-        gear = gear || findGearConfigButton(document);
-        if(gear){
-          safeClick(gear);
-          __afterGearUntil = now + AFTER_GEAR_WAIT_MS;
-        }
-      }
-    }catch(e){}
-  }
-
-  setTimeout(tick, 600);
-  setInterval(tick, CHECK_MS);
-})();
-
 var TpG3Y86zpgrtWMzb, ZHN4ekpZ5m95pFbJ, YQTtmEs6a5mTXE5a;
 
 window.adiwilkTestBot = new function () {
@@ -491,59 +390,6 @@ Lvl: **${n.lvl ?? "?"}**`,
     window.ADI_MAP_GRAPH_READY = window.ADI_MAP_GRAPH_READY || false;
   })();
 
-
-  // --- Remote MAP GRAPH loader (GitHub) ---
-  // Primary URL: GitHub Pages; Fallback: raw.githubusercontent.com (usually has permissive CORS)
-  (function(){
-    const PRIMARY_GRAPH_URL = "https://struspedziwiatr67.github.io/margo/graph.json";
-    const FALLBACK_GRAPH_URL = "https://raw.githubusercontent.com/struspedziwiatr67/margo/main/graph.json";
-
-    async function fetchJson(url){
-      const res = await fetch(url + (url.includes("?") ? "&" : "?") + "v=" + Date.now(), { cache: "no-store" });
-      if(!res.ok) throw new Error("HTTP " + res.status);
-      return await res.json();
-    }
-
-    async function loadRemoteGraph(){
-      // If user has pasted a local graph, prefer it (do not overwrite).
-      try{
-        const raw = localStorage.getItem('adi-bot_graph_json');
-        if(raw && raw.trim().length > 2){
-          return; // keep local graph
-        }
-      }catch(_){}
-
-      try{
-        const graph = await fetchJson(PRIMARY_GRAPH_URL);
-        window.ADI_MAP_GRAPH = graph || {};
-        window.ADI_MAP_GRAPH_READY = true;
-        try{ localStorage.setItem('adi-bot_graph_json', JSON.stringify(window.ADI_MAP_GRAPH)); }catch(_){}
-        try{
-          const ta = document.querySelector('#adi-bot_graph');
-          if(ta) ta.value = JSON.stringify(window.ADI_MAP_GRAPH, null, 2);
-        }catch(_){}
-        console.log('[adi-bot] MAP_GRAPH loaded from GitHub Pages:', Object.keys(window.ADI_MAP_GRAPH||{}).length, 'nodes');
-      }catch(e1){
-        try{
-          const graph = await fetchJson(FALLBACK_GRAPH_URL);
-          window.ADI_MAP_GRAPH = graph || {};
-          window.ADI_MAP_GRAPH_READY = true;
-          try{ localStorage.setItem('adi-bot_graph_json', JSON.stringify(window.ADI_MAP_GRAPH)); }catch(_){}
-          try{
-            const ta = document.querySelector('#adi-bot_graph');
-            if(ta) ta.value = JSON.stringify(window.ADI_MAP_GRAPH, null, 2);
-          }catch(_){}
-          console.log('[adi-bot] MAP_GRAPH loaded from raw.githubusercontent.com:', Object.keys(window.ADI_MAP_GRAPH||{}).length, 'nodes');
-        }catch(e2){
-          console.warn('[adi-bot] Failed to load remote MAP_GRAPH (Pages + raw). You can still paste it in the UI.', e1, e2);
-        }
-      }
-    }
-
-    // start loading ASAP
-    try{ loadRemoteGraph(); }catch(_){}
-  })();
-
   (function(){
     try{
       const raw = localStorage.getItem('adi-bot_graph_json');
@@ -786,7 +632,7 @@ function setTempTarget(val){
   // === THROTTLE / DEBOUNCE ATAKU ===
   const ATTACK_GAP=900, ATTACK_SAME_TARGET_GAP=3000;
   let __lastAttackTime=0, __lastAttackTarget=null, __attackBanUntil=0;
-  async function safeAttack(targetId, cb){
+  function safeAttack(targetId, cb){
     const now=Date.now();
     // mapa na czarnej liście -> nie atakuj
     try{ if(typeof __adi_isAttackBlockedOnMap==='function' && __adi_isAttackBlockedOnMap()) return; }catch(_){ }
@@ -802,11 +648,6 @@ function setTempTarget(val){
     if(now-__lastAttackTime<ATTACK_GAP) return;
     if(__lastAttackTarget===targetId && (now-__lastAttackTime)<ATTACK_SAME_TARGET_GAP) return;
     __lastAttackTime=now; __lastAttackTarget=targetId;
-
-    // CAPTCHA GUARD
-    try{ await window.__adiCaptchaOnce(); }catch(_){ }
-    try{ if(window.__adiCaptchaGaveUp && window.__adiCaptchaGaveUp()) return; }catch(_){ }
-
     _g(`fight&a=attack&ff=1&id=-${targetId}`, function(res){
       if(res&&res.alert&&/z powodu ogromnej ilości|opóźnienia internetu/i.test(res.alert)) __attackBanUntil=Date.now()+10500;
       if(res&&res.alert&&/Przeciwnik walczy już z kimś/i.test(res.alert)){ addToGlobal(targetId); $m_id=undefined;  clearTargetLock();}
@@ -959,7 +800,6 @@ function setTempTarget(val){
 
     // logika ruch/atak + tryb wyczerpania
     if(!g.battle && !g.dead && start){
-      try{ __adiAutoHealTick(); }catch(_){}
       syncAutoExpowiskoUI();
       const exhEnabled=localStorage.getItem("adi-bot_exh_enabled")==="1";
       const exhTargetMap=(localStorage.getItem("adi-bot_exh_map")||"Dom Roana").trim();
@@ -1330,59 +1170,6 @@ function __adi_isAttackBlockedOnMap(){
   }
   function checkHeroHp(){ return (hero.hp/hero.maxhp)*100>70; }
 
-// ===== AUTOHEAL (na podstawie b.txt: szuka mikstur po stat: leczy/fullheal/perheal; odpala moveitem&id=slot&st=1) =====
-let __adiLastHealAt = 0;
-const __adiHealIgnoreNames = ['Kandyzowane wisienki w cukrze', 'Zielona pietruszka'];
-
-function __adiGetAutoHealEnabled(){
-  try{ return localStorage.getItem('adi-bot_autoheal')==='1'; }catch(_){ return false; }
-}
-function __adiGetAutoHealPct(){
-  try{
-    const v = parseInt(localStorage.getItem('adi-bot_autoheal_pct')||'85',10);
-    return Math.max(1, Math.min(99, Number.isFinite(v)?v:85));
-  }catch(_){ return 85; }
-}
-
-function __adiFindHealingPotionSlot(){
-  try{
-    if(!window.g || !g.item) return null;
-    const potionStats = ['leczy','fullheal','perheal'];
-    const potionBan = ['leczy=-','fightperheal'];
-    for(const i in g.item){
-      const it = g.item[i];
-      if(!it) continue;
-      const name = String(it.name||'');
-      const stat = String(it.stat||'');
-      const loc  = String(it.loc||'');
-      if(loc !== 'g') continue; // tylko z ekwipunku (jak w b.txt)
-      if(__adiHealIgnoreNames.includes(name)) continue;
-      if(potionStats.some(s=>stat.includes(s)) && !potionBan.some(s=>stat.includes(s))){
-        return i; // slot in g.item
-      }
-    }
-  }catch(_){}
-  return null;
-}
-
-function __adiAutoHealTick(){
-  try{
-    if(!__adiGetAutoHealEnabled()) return;
-    if(!window.hero || !hero.maxhp) return;
-    if(!window.g || g.dead || g.battle) return;
-    if(g.talk && g.talk.id && g.talk.id!==0) return; // nie lecz w dialogu
-    const now = Date.now();
-    if(now - __adiLastHealAt < 350) return; // throttle
-    const hpPct = Math.floor((hero.hp / hero.maxhp) * 100);
-    const thr = __adiGetAutoHealPct();
-    if(hpPct >= thr) return;
-    const slot = __adiFindHealingPotionSlot();
-    if(slot === null) return;
-    __adiLastHealAt = now;
-    _g(`moveitem&id=${slot}&st=1`);
-  }catch(_){}
-}
-
   function checkGrp(id){
     const npc=g.npc[id];
     try{ if(typeof __adiIsBlacklisted==='function' && __adiIsBlacklisted(id)) return false; }catch(_){ }
@@ -1542,6 +1329,66 @@ function __adiAutoHealTick(){
     // reszta expowisk
     for(let i=0;i<Object.keys(expowiska).length;i++){ let o=document.createElement(`option`); o.setAttribute(`value`,Object.keys(expowiska)[i]); o.text=Object.keys(expowiska)[i]; select.appendChild(o); }
     box.appendChild(select);
+    // --- Graf map (JSON) - lokalny ---
+    const graphWrap = document.createElement('div');
+    graphWrap.classList.add('adi-bot_box');
+    graphWrap.style.marginTop = '6px';
+    graphWrap.setAttribute('tip','Wklej tutaj graf map (JSON). Zostanie zapisany lokalnie.');
+    const graphLabel = document.createElement('div');
+    graphLabel.textContent = 'Graf map (JSON):';
+    graphLabel.style.margin = '4px 0';
+    const graphArea = document.createElement('textarea');
+    graphArea.id = 'adi-bot_graph';
+    graphArea.classList.add('adi-bot_inputs');
+    graphArea.style.width = '100%';
+    graphArea.style.minHeight = '120px';
+    graphArea.placeholder = '{ \"Stare Ruiny\": [ {\"to\": \"...\", \"via\": {\"x\":123,\"y\":456}} ] }';
+    try{ graphArea.value = localStorage.getItem('adi-bot_graph_json') || ''; }catch(_){}
+    const graphRow = document.createElement('div');
+    graphRow.style.display='flex'; graphRow.style.gap='6px'; graphRow.style.alignItems='center'; graphRow.style.marginTop='4px';
+    const btnSaveGraph = document.createElement('button');
+    btnSaveGraph.textContent = 'Zapisz graf';
+    btnSaveGraph.classList.add('adi-bot_btn');
+    const btnClearGraph = document.createElement('button');
+    btnClearGraph.textContent = 'Wyczyść';
+    btnClearGraph.classList.add('adi-bot_btn');
+    const graphStatus = document.createElement('span');
+    graphStatus.id = 'adi-bot_graph_status';
+    graphStatus.style.fontSize='11px'; graphStatus.style.opacity='0.8';
+    function setGraphStatus(msg, ok){
+      graphStatus.textContent = msg;
+      graphStatus.style.color = ok ? '#3cb371' : '#f08080';
+    }
+    btnSaveGraph.addEventListener('click', ()=>{
+      const txt = graphArea.value.trim();
+      if(!txt){ localStorage.removeItem('adi-bot_graph_json'); window.ADI_MAP_GRAPH={}; window.ADI_MAP_GRAPH_READY=false; setGraphStatus('Usunięto graf.', true); return; }
+      try{
+        const obj = JSON.parse(txt);
+        if(typeof obj!=='object' || Array.isArray(obj)) throw new Error('JSON musi być obiektem {mapa:[...]...}');
+        localStorage.setItem('adi-bot_graph_json', txt);
+        window.ADI_MAP_GRAPH = obj;
+        window.ADI_MAP_GRAPH_READY = true;
+        setGraphStatus('Zapisano. Wczytano '+Object.keys(obj).length+' węzłów.', true);
+        console.log('[adi-bot] MAP_GRAPH saved & loaded from UI:', Object.keys(obj).length, 'nodes');
+      }catch(e){
+        setGraphStatus('Błędny JSON: '+e.message, false);
+      }
+    });
+    btnClearGraph.addEventListener('click', ()=>{
+      graphArea.value='';
+      localStorage.removeItem('adi-bot_graph_json');
+      window.ADI_MAP_GRAPH={};
+      window.ADI_MAP_GRAPH_READY=false;
+      setGraphStatus('Graf wyczyszczony.', true);
+    });
+    graphRow.appendChild(btnSaveGraph);
+    graphRow.appendChild(btnClearGraph);
+    graphRow.appendChild(graphStatus);
+    graphWrap.appendChild(graphLabel);
+    graphWrap.appendChild(graphArea);
+    graphWrap.appendChild(graphRow);
+    box.appendChild(graphWrap);
+
     // --- Auto-kupowanie mikstur (Torneg / Wysoka kapłanka Gryfia) ---
     const apWrap = document.createElement('div'); apWrap.classList.add('adi-bot_box'); apWrap.style.marginTop='6px';
     apWrap.setAttribute('tip','Auto-kupowanie mikstur u wybranego handlarza (Auto: najbliższy – graf | Torneg/Ithan/Karka-han/Werbin/Eder/Dom Tunii/Liściaste Rozstaje/...)');
@@ -2018,43 +1865,6 @@ try{ window.__adi_normTxt = __adi_normTxt; window.getPotionCountByName = getPoti
     let chkAutoSkills=document.createElement("input"); chkAutoSkills.type="checkbox"; chkAutoSkills.id="adi-bot_auto_skills"; chkAutoSkills.style.marginRight="6px";
     autoSkillsWrap.appendChild(chkAutoSkills); autoSkillsWrap.appendChild(document.createTextNode("Auto umiejętności")); box.appendChild(autoSkillsWrap);
 
-
-// AUTOHEAL (mikstury)
-let autoHealRow=document.createElement("div");
-autoHealRow.style.display="flex";
-autoHealRow.style.alignItems="center";
-autoHealRow.style.gap="6px";
-autoHealRow.style.margin="4px 0 0";
-
-let chkAutoHeal=document.createElement("input");
-chkAutoHeal.type="checkbox";
-chkAutoHeal.id="adi-bot_autoheal";
-chkAutoHeal.style.marginRight="4px";
-
-let lblAutoHeal=document.createElement("label");
-lblAutoHeal.htmlFor="adi-bot_autoheal";
-lblAutoHeal.innerText="Autoheal";
-
-let lblAutoHealPct=document.createElement("span");
-lblAutoHealPct.innerText="Od ilu % leczyć:";
-
-let inpAutoHealPct=document.createElement("input");
-inpAutoHealPct.type="number";
-inpAutoHealPct.min="1";
-inpAutoHealPct.max="99";
-inpAutoHealPct.step="1";
-inpAutoHealPct.id="adi-bot_autoheal_pct";
-inpAutoHealPct.classList.add("adi-bot_inputs");
-inpAutoHealPct.style.width="70px";
-inpAutoHealPct.setAttribute("tip","Jeśli HP spadnie poniżej tej wartości, bot użyje mikstury leczącej z ekwipunku.");
-inpAutoHealPct.placeholder="85";
-
-autoHealRow.appendChild(chkAutoHeal);
-autoHealRow.appendChild(lblAutoHeal);
-autoHealRow.appendChild(lblAutoHealPct);
-autoHealRow.appendChild(inpAutoHealPct);
-box.appendChild(autoHealRow);
-
     // ROZMIAR GRUP
     let grpInput=document.createElement("input"); grpInput.type="text"; grpInput.id="adi-bot_grp_range"; grpInput.classList.add("adi-bot_inputs");
     grpInput.setAttribute("tip","Jakie grupy atakować: np. 1-3 lub 2 albo 1,3,5"); grpInput.placeholder="1-3"; box.appendChild(grpInput);
@@ -2084,13 +1894,7 @@ box.appendChild(autoHealRow);
       tabTest.id = 'adi-tab-test';
       tabTest.className = 'adi-tab-content';
 
-      const tabStart = document.createElement('div');
-      tabStart.id = 'adi-tab-start';
-      tabStart.className = 'adi-tab-content';
-      // Placeholder content (możesz później uzupełnić ustawieniami startówki)
-      tabStart.innerHTML = '<div style="font-size:13px;margin:6px 0;">Wioska startowa – ustawienia w przygotowaniu.</div>';
-
-            // Move all current UI controls into Exp tab (na razie nic nie przenosimy logicznie — tylko opakowanie)
+      // Move all current UI controls into Exp tab (na razie nic nie przenosimy logicznie — tylko opakowanie)
       while(box.firstChild){
         tabExp.appendChild(box.firstChild);
       }
@@ -2169,18 +1973,15 @@ try{
       const t1 = mkTab('Exp','exp');
       const t2 = mkTab('E2','e2');
       const t3 = mkTab('Test','test');
-      const t4 = mkTab('Wioska startowa','start');
       t1.classList.add('active');
 
-      tabs.appendChild(t1); tabs.appendChild(t2); tabs.appendChild(t3); tabs.appendChild(t4);
+      tabs.appendChild(t1); tabs.appendChild(t2); tabs.appendChild(t3);
 
       const contentWrap = document.createElement('div');
       contentWrap.className = 'adi-tabwrap';
       contentWrap.appendChild(tabExp);
       contentWrap.appendChild(tabE2);
       contentWrap.appendChild(tabTest);
-
-      contentWrap.appendChild(tabStart);
 
       box.appendChild(tabs);
       box.appendChild(contentWrap);
@@ -2202,7 +2003,7 @@ try{
       // restore last active tab
       try{
         const saved = (localStorage.getItem('adi-bot_active_tab')||'exp').trim();
-        if(saved==='e2' || saved==='test' || saved==='exp' || saved==='start') activateTab(saved);
+        if(saved==='e2' || saved==='test' || saved==='exp') activateTab(saved);
       }catch(_){}
     }catch(e){ console.warn('[adi-bot] tabs init failed', e); }
 
@@ -2214,7 +2015,7 @@ try{
       .adi-bot_inputs{box-sizing:content-box;margin:0 auto 3px;padding:2px;cursor:pointer;border:2px solid lime;border-radius:5px;font:normal 16px/normal "Comic Sans MS", Times, serif;color:#000;background:rgba(234,227,227,1);box-shadow:2px 2px 2px 0 rgba(0,0,0,0.2) inset;text-shadow:1px 1px 0 rgba(255,255,255,0.66);display:block;}
       input#adi-bot_mobs{text-align:center;}
       #adi-bot_toggle{background-color:#c9f7c9;font-weight:bold;}
-
+    
 
       /* ===== Tabs ===== */
       #adi-bot_box .adi-tabs{display:flex;gap:0;background:#0f0f0f;border-bottom:1px solid #000;margin:-5px -5px 6px -5px;}
@@ -2247,11 +2048,6 @@ try{
     chkExh.checked = localStorage.getItem("adi-bot_exh_enabled")==="1";
     const eliteOn = localStorage.getItem("adi-bot_allow_elite")==="1"; chkElite.checked = eliteOn;
     const autoSkillsOn = localStorage.getItem("adi-bot_auto_skills")==="1"; try{ chkAutoSkills.checked = autoSkillsOn; }catch(_){ }
-// AUTOHEAL
-try{
-  chkAutoHeal.checked = localStorage.getItem("adi-bot_autoheal")==="1";
-  inpAutoHealPct.value = localStorage.getItem("adi-bot_autoheal_pct") || "85";
-}catch(_){}
     grpInput.value = localStorage.getItem("adi-bot_grp_range") || "1-3";
     mapExh.value = localStorage.getItem("adi-bot_exh_map") || "Dom Roana";
     const selStored = localStorage.getItem("adi-bot_exh_selector"); exhSel.value = selStored && selStored.trim().length ? selStored : DEFAULT_EXH_SELECTOR;
@@ -2333,18 +2129,6 @@ const have = (window.getPotionCountByName ? window.getPotionCountByName(selName)
 
 chkElite.addEventListener("change", ()=>{ localStorage.setItem("adi-bot_allow_elite", chkElite.checked?"1":"0"); message(chkElite.checked?"Elity: WŁ":"Elity: WYŁ"); });
     try{ chkAutoSkills.addEventListener("change", ()=>{ localStorage.setItem("adi-bot_auto_skills", chkAutoSkills.checked?"1":"0"); message(chkAutoSkills.checked?"Auto umiejętności: WŁ":"Auto umiejętności: WYŁ"); }); }catch(_){ }
-// AUTOHEAL: zapisz ustawienia
-try{
-  chkAutoHeal.addEventListener("change", ()=>{ localStorage.setItem("adi-bot_autoheal", chkAutoHeal.checked?"1":"0"); message(chkAutoHeal.checked?"Autoheal: WŁ":"Autoheal: WYŁ"); });
-  inpAutoHealPct.addEventListener("change", ()=>{
-    let v = parseInt(inpAutoHealPct.value||"85",10);
-    if(!Number.isFinite(v)) v = 85;
-    v = Math.max(1, Math.min(99, v));
-    inpAutoHealPct.value = String(v);
-    localStorage.setItem("adi-bot_autoheal_pct", String(v));
-    message("Autoheal: zapisano próg " + v + "%");
-  });
-}catch(_){}
     grpInput.addEventListener("keyup", ()=>{ localStorage.setItem("adi-bot_grp_range", grpInput.value.trim()); message(`Zakres grup zapisany: ${grpInput.value.trim()||'1-3'}`); });
     chkExh.addEventListener("change", ()=>{ localStorage.setItem("adi-bot_exh_enabled", chkExh.checked?"1":"0"); message(chkExh.checked?"Tryb zbijania wyczerpania: WŁ":"Tryb zbijania wyczerpania: WYŁ"); });
     mapExh.addEventListener("keyup", ()=>localStorage.setItem("adi-bot_exh_map", mapExh.value.trim()));
@@ -2541,13 +2325,13 @@ try{
       if(window.__adiSkillTestRunning || window.__adiAutoSkillRunning) return false;
       window.__adiAutoSkillRunning = true;
       try{
-        // jeśli walka / blokady UI — poczekaj chwilę; jeśli dalej walka, NIE próbuj klikać skilli
+        // jeśli walka / blokady UI — poczekaj chwilę
         const tWait = Date.now();
-        while(Date.now()-tWait < 15000){
+        while(Date.now()-tWait < 6000){
           try{ if(!window.g || !g.battle) break; }catch(_){ break; }
           await __adi_wait(200);
         }
-        try{ if(window.g && g.battle) return false; }catch(_){}
+
         await __adi_openSkills();
         const boxes = await __adi_waitForSkillsBoxes(8000);
         if(!boxes) return false;
@@ -2580,24 +2364,15 @@ try{
         const KEY = 'adi-bot_last_skill_level_handled';
         let last = 0;
         try{ last = parseInt(localStorage.getItem(KEY) || '0', 10) || 0; }catch(_){}
-
-        // UWAGA: nie oznaczaj poziomu jako "obsłużony", dopóki faktycznie nie uda się kliknąć skilla.
-        if(!force && (Number(level)||0) === last){
-          return {ok:false, reason:'already', prof: null};
+        if(!force){
+          if(Number(level)||0 === last) return {ok:false, reason:'already', prof: null};
+          try{ localStorage.setItem(KEY, String(Number(level)||0)); }catch(_){}
         }
-
         const profRaw = __adi_getProfession() || (window.hero ? String(hero.prof) : null) || 'Wojownik';
         const prof = __adi_canonProfName(profRaw);
         const skill = __adi_getPlannedSkillForLevel(level, prof);
         if(!skill) return {ok:false, reason:'no-plan', prof};
-
         const ok = await __adi_allocateSkillOnce(skill);
-
-        // Zapisz "handled" TYLKO jeśli sukces, żeby po walce/lagu było retry.
-        if(ok && !force){
-          try{ localStorage.setItem(KEY, String(Number(level)||0)); }catch(_){}
-        }
-
         return {ok, prof, skill};
       }catch(e){
         return {ok:false, reason:'error', error:String(e&&e.message||e)};
@@ -3195,16 +2970,7 @@ window.__adiTriggerEquipLevelUp = async function(level){
 // włącz kontynuację po F5
     if(loadEquipTask()) startEquipFlow();
 
-    try{
-      if(typeof graphWrap !== 'undefined' && graphWrap && graphWrap.parentNode){
-        graphWrap.parentNode.insertBefore(equipWrap, graphWrap.nextSibling);
-      }else{
-        // graph UI removed -> just append equip section at the end of the bot box
-        box.appendChild(equipWrap);
-      }
-    }catch(_){
-      try{ box.appendChild(equipWrap); }catch(__){}
-    }
+    graphWrap.parentNode.insertBefore(equipWrap, graphWrap.nextSibling);
 
   };
 
@@ -3377,132 +3143,3 @@ if (typeof window.window.__adi_equipByNameSequence !== 'function') {
   console.log('[adi-bot] SMART TRAVERSAL ACTIVE (fixed, no ping-pong)');
 })();
 
-// ================= CAPTCHA SOLVER =================
-
-const MIN_TRIES_TO_SOLVE = 2;
-const CHAR_TO_SELECT = "*";
-
-function isPreCaptchaVisible() {
-    const btn = document.querySelector("div.captcha-pre-info__button");
-    return btn && btn.offsetParent !== null;
-}
-
-function isCaptchaWindowVisible() {
-    const win = document.querySelector("div.captcha-layer div.captcha-window");
-    if (win && win.offsetParent !== null) return true;
-
-    const tries = document.querySelector("div.captcha-layer .captcha__triesleft");
-    return tries && tries.offsetParent !== null;
-}
-
-function getCaptchaTriesLeft() {
-    const el = document.querySelector("div.captcha__triesleft");
-    if (!el) return null;
-
-    const match = el.innerText.match(/(\d+)\s*$/);
-    if (match) return parseInt(match[1]);
-
-    return null;
-}
-
-function clickRozwiazTeraz() {
-    const btn = document.querySelector("div.captcha-pre-info__button");
-
-    if (btn && btn.offsetParent !== null) {
-        btn.click();
-        console.log("Kliknięto Rozwiąż teraz");
-        return true;
-    }
-
-    return false;
-}
-
-function solveCaptchaWindow() {
-
-    if (!isCaptchaWindowVisible()) return "not_found";
-
-    const tries = getCaptchaTriesLeft();
-
-    if (tries !== null && tries < MIN_TRIES_TO_SOLVE) {
-        console.log("Za mało prób captcha:", tries);
-        return "skip";
-    }
-
-    let clicked = 0;
-
-    const buttons = document.querySelectorAll(
-        "div.captcha__buttons div.button.small.green"
-    );
-
-    buttons.forEach(btn => {
-
-        const label = btn.querySelector(".label");
-
-        if (!label) return;
-
-        const text = label.innerText.trim();
-
-        if (text.includes(CHAR_TO_SELECT)) {
-
-            btn.click();
-            clicked++;
-
-            console.log("Zaznaczono:", text);
-        }
-
-    });
-
-    setTimeout(() => {
-
-        const confirm = document.querySelector("div.captcha__confirm div.button");
-
-        if (confirm) {
-            confirm.click();
-            console.log("Kliknięto Potwierdzam");
-        }
-
-    }, 250);
-
-    return "solved";
-}
-
-function isCaptchaBlocking() {
-    return isPreCaptchaVisible() || isCaptchaWindowVisible();
-}
-
-function ensureNoCaptcha() {
-
-    if (!isCaptchaBlocking()) return "not_blocking";
-
-    if (isCaptchaWindowVisible()) {
-
-        const tries = getCaptchaTriesLeft();
-
-        if (tries !== null && tries < MIN_TRIES_TO_SOLVE) {
-            console.log("Captcha pominięta — za mało prób");
-            return "skipped_tries";
-        }
-
-        return solveCaptchaWindow();
-    }
-
-    if (isPreCaptchaVisible()) {
-
-        clickRozwiazTeraz();
-
-        setTimeout(() => {
-            ensureNoCaptcha();
-        }, 800);
-    }
-
-}
-
-function checkCaptchaOnce() {
-
-    if (!isCaptchaBlocking()) return;
-
-    ensureNoCaptcha();
-}
-
-// sprawdzanie co 500ms
-setInterval(checkCaptchaOnce, 500);
