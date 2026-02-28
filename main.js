@@ -1436,66 +1436,6 @@ function __adiAutoHealTick(){
     // reszta expowisk
     for(let i=0;i<Object.keys(expowiska).length;i++){ let o=document.createElement(`option`); o.setAttribute(`value`,Object.keys(expowiska)[i]); o.text=Object.keys(expowiska)[i]; select.appendChild(o); }
     box.appendChild(select);
-    // --- Graf map (JSON) - lokalny ---
-    const graphWrap = document.createElement('div');
-    graphWrap.classList.add('adi-bot_box');
-    graphWrap.style.marginTop = '6px';
-    graphWrap.setAttribute('tip','Wklej tutaj graf map (JSON). Zostanie zapisany lokalnie.');
-    const graphLabel = document.createElement('div');
-    graphLabel.textContent = 'Graf map (JSON):';
-    graphLabel.style.margin = '4px 0';
-    const graphArea = document.createElement('textarea');
-    graphArea.id = 'adi-bot_graph';
-    graphArea.classList.add('adi-bot_inputs');
-    graphArea.style.width = '100%';
-    graphArea.style.minHeight = '120px';
-    graphArea.placeholder = '{ \"Stare Ruiny\": [ {\"to\": \"...\", \"via\": {\"x\":123,\"y\":456}} ] }';
-    try{ graphArea.value = localStorage.getItem('adi-bot_graph_json') || ''; }catch(_){}
-    const graphRow = document.createElement('div');
-    graphRow.style.display='flex'; graphRow.style.gap='6px'; graphRow.style.alignItems='center'; graphRow.style.marginTop='4px';
-    const btnSaveGraph = document.createElement('button');
-    btnSaveGraph.textContent = 'Zapisz graf';
-    btnSaveGraph.classList.add('adi-bot_btn');
-    const btnClearGraph = document.createElement('button');
-    btnClearGraph.textContent = 'Wyczyść';
-    btnClearGraph.classList.add('adi-bot_btn');
-    const graphStatus = document.createElement('span');
-    graphStatus.id = 'adi-bot_graph_status';
-    graphStatus.style.fontSize='11px'; graphStatus.style.opacity='0.8';
-    function setGraphStatus(msg, ok){
-      graphStatus.textContent = msg;
-      graphStatus.style.color = ok ? '#3cb371' : '#f08080';
-    }
-    btnSaveGraph.addEventListener('click', ()=>{
-      const txt = graphArea.value.trim();
-      if(!txt){ localStorage.removeItem('adi-bot_graph_json'); window.ADI_MAP_GRAPH={}; window.ADI_MAP_GRAPH_READY=false; setGraphStatus('Usunięto graf.', true); return; }
-      try{
-        const obj = JSON.parse(txt);
-        if(typeof obj!=='object' || Array.isArray(obj)) throw new Error('JSON musi być obiektem {mapa:[...]...}');
-        localStorage.setItem('adi-bot_graph_json', txt);
-        window.ADI_MAP_GRAPH = obj;
-        window.ADI_MAP_GRAPH_READY = true;
-        setGraphStatus('Zapisano. Wczytano '+Object.keys(obj).length+' węzłów.', true);
-        console.log('[adi-bot] MAP_GRAPH saved & loaded from UI:', Object.keys(obj).length, 'nodes');
-      }catch(e){
-        setGraphStatus('Błędny JSON: '+e.message, false);
-      }
-    });
-    btnClearGraph.addEventListener('click', ()=>{
-      graphArea.value='';
-      localStorage.removeItem('adi-bot_graph_json');
-      window.ADI_MAP_GRAPH={};
-      window.ADI_MAP_GRAPH_READY=false;
-      setGraphStatus('Graf wyczyszczony.', true);
-    });
-    graphRow.appendChild(btnSaveGraph);
-    graphRow.appendChild(btnClearGraph);
-    graphRow.appendChild(graphStatus);
-    graphWrap.appendChild(graphLabel);
-    graphWrap.appendChild(graphArea);
-    graphWrap.appendChild(graphRow);
-    box.appendChild(graphWrap);
-
     // --- Auto-kupowanie mikstur (Torneg / Wysoka kapłanka Gryfia) ---
     const apWrap = document.createElement('div'); apWrap.classList.add('adi-bot_box'); apWrap.style.marginTop='6px';
     apWrap.setAttribute('tip','Auto-kupowanie mikstur u wybranego handlarza (Auto: najbliższy – graf | Torneg/Ithan/Karka-han/Werbin/Eder/Dom Tunii/Liściaste Rozstaje/...)');
