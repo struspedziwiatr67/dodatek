@@ -632,7 +632,7 @@ function setTempTarget(val){
   // === THROTTLE / DEBOUNCE ATAKU ===
   const ATTACK_GAP=900, ATTACK_SAME_TARGET_GAP=3000;
   let __lastAttackTime=0, __lastAttackTarget=null, __attackBanUntil=0;
-  function safeAttack(targetId, cb){
+  async function safeAttack(targetId, cb){
     const now=Date.now();
     // mapa na czarnej liście -> nie atakuj
     try{ if(typeof __adi_isAttackBlockedOnMap==='function' && __adi_isAttackBlockedOnMap()) return; }catch(_){ }
@@ -648,6 +648,11 @@ function setTempTarget(val){
     if(now-__lastAttackTime<ATTACK_GAP) return;
     if(__lastAttackTarget===targetId && (now-__lastAttackTime)<ATTACK_SAME_TARGET_GAP) return;
     __lastAttackTime=now; __lastAttackTarget=targetId;
+
+    // CAPTCHA GUARD
+    try{ await window.__adiCaptchaOnce(); }catch(_){ }
+    try{ if(window.__adiCaptchaGaveUp && window.__adiCaptchaGaveUp()) return; }catch(_){ }
+
     _g(`fight&a=attack&ff=1&id=-${targetId}`, function(res){
       if(res&&res.alert&&/z powodu ogromnej ilości|opóźnienia internetu/i.test(res.alert)) __attackBanUntil=Date.now()+10500;
       if(res&&res.alert&&/Przeciwnik walczy już z kimś/i.test(res.alert)){ addToGlobal(targetId); $m_id=undefined;  clearTargetLock();}
@@ -771,6 +776,234 @@ function setTempTarget(val){
 
 
   // ===== CAPTCHA LOGGER + persistent toggle =====
+
+// ================= CAPTCHA SOLVER (watcher + gaveUp + callable) =================
+(() => {
+  const MIN_TRIES_TO_SOLVE = 2;
+  const CHAR_TO_SELECT = "*";
+  const WATCH_MS = 2500;
+  const ACTION_GUARD_MS = 400;
+
+  let captchaBusy = false;
+  let captchaGaveUp = false;
+
+  function sleep(ms){ return new Promise(r => setTimeout(r, ms)); }
+
+  function getAllDocs(){
+    const docs = [document];
+    const iframes = document.querySelectorAll("iframe");
+    for(const fr of iframes){
+      try{
+        const d = fr.contentDocument || (fr.contentWindow && fr.contentWindow.document);
+        if(d) docs.push(d);
+      }catch(_){}
+    }
+    return docs;
+  }
+
+  function isVisible(el){
+    return !!(el && (el.offsetParent !== null || el.getClientRects().length));
+  }
+
+  function qsAny(selector){
+    for(const d of getAllDocs()){
+      try{
+        const el = d.querySelector(selector);
+        if(el) return el;
+      }catch(_){}
+    }
+    return null;
+  }
+
+  function qsaAll(selector){
+    const out = [];
+    for(const d of getAllDocs()){
+      try{ out.push(...d.querySelectorAll(selector)); }catch(_){}
+    }
+    return out;
+  }
+
+  function xpAny(xpath){
+    for(const d of getAllDocs()){
+      try{
+        const r = d.evaluate(xpath, d, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null);
+        if(r && r.singleNodeValue) return r.singleNodeValue;
+      }catch(_){}
+    }
+    return null;
+  }
+
+  function safeClick(el){
+    if(!el) return false;
+
+    const d = el.ownerDocument || document;
+    const w = d.defaultView || window;
+
+    const clickable = el.closest?.("button, a, [role='button'], .button") || el;
+    try{ clickable.scrollIntoView({block:"center", inline:"center"}); }catch(_){}
+
+    let target = clickable;
+    try{
+      const r = clickable.getBoundingClientRect();
+      const cx = r.left + r.width/2;
+      const cy = r.top + r.height/2;
+      const topEl = d.elementFromPoint(cx, cy);
+      if(topEl) target = topEl.closest?.("button, a, [role='button'], .button") || topEl;
+    }catch(_){}
+
+    const prevPE = target.style?.pointerEvents;
+    try{ if(target.style) target.style.pointerEvents = "auto"; }catch(_){}
+
+    const fire = (type, Ctor, init={}) => {
+      try{
+        target.dispatchEvent(new Ctor(type, {bubbles:true, cancelable:true, view:w, ...init}));
+        return true;
+      }catch(_){ return false; }
+    };
+
+    fire("pointerdown", w.PointerEvent || w.MouseEvent, {pointerType:"mouse", buttons:1});
+    fire("mousedown", w.MouseEvent, {buttons:1});
+    fire("pointerup", w.PointerEvent || w.MouseEvent, {pointerType:"mouse", buttons:0});
+    fire("mouseup", w.MouseEvent, {buttons:0});
+    fire("click", w.MouseEvent, {buttons:0});
+
+    try{ HTMLElement.prototype.click.call(target); }
+    catch(_){ try{ target.click(); }catch(__){} }
+
+    try{ if(target.style) target.style.pointerEvents = prevPE || ""; }catch(_){}
+    return true;
+  }
+
+  function isPreCaptchaVisible(){
+    const btn = qsAny("div.captcha-pre-info__button");
+    return btn && isVisible(btn);
+  }
+
+  function isCaptchaWindowVisible(){
+    const win = qsAny("div.captcha-layer div.captcha-window");
+    if(win && isVisible(win)) return true;
+    const tries = qsAny("div.captcha-layer .captcha__triesleft");
+    return tries && isVisible(tries);
+  }
+
+  function getCaptchaTriesLeft(){
+    const el = qsAny("div.captcha__triesleft");
+    if(!el) return null;
+    const txt = String(el.innerText || el.textContent || "").trim();
+    const m = txt.match(/(\d+)\s*$/);
+    return m ? parseInt(m[1], 10) : null;
+  }
+
+  function clickRozwiazTeraz(){
+    let el =
+      qsAny("div.captcha-pre-info__button .button, div.captcha-pre-info__button button") ||
+      qsAny("div.captcha-pre-info__button");
+
+    if(!el){
+      el = xpAny("//div[contains(@class,'captcha-pre-info__button')]//div[contains(@class,'button')][1]");
+    }
+    if(!el){
+      el = xpAny("//div[contains(@class,'label') and contains(normalize-space(.),'Rozwiąż teraz')]/ancestor::*[contains(@class,'button') or self::button][1]");
+    }
+
+    if(el && isVisible(el)){
+      const real = el.closest?.(".button, button, [role='button']") ||
+                   el.querySelector?.(".button, button, [role='button']") || el;
+
+      const ok = safeClick(real);
+      console.log("[adi-bot][captcha] Próba kliknięcia „Rozwiąż teraz” ->", ok ? "OK" : "FAIL");
+      return ok;
+    }
+    return false;
+  }
+
+  async function solveCaptchaWindow(){
+    if(!isCaptchaWindowVisible()) return "not_found";
+
+    const tries = getCaptchaTriesLeft();
+    if(tries !== null && tries < MIN_TRIES_TO_SOLVE){
+      console.log(`[adi-bot][captcha] Za mało prób (${tries}) -> give up.`);
+      captchaGaveUp = true;
+      return "skipped_tries";
+    }
+
+    const buttons = qsaAll("div.captcha__buttons div.button.small.green");
+    for(const btn of buttons){
+      const label = btn.querySelector?.(".label");
+      const text = String(label ? (label.innerText || label.textContent || "") : "").trim();
+      if(text.includes(CHAR_TO_SELECT)){
+        safeClick(btn);
+        console.log("[adi-bot][captcha] Zaznaczono:", text);
+        await sleep(150);
+      }
+    }
+
+    await sleep(250);
+
+    let confirm = qsAny("div.captcha__confirm div.button");
+    if(!confirm) confirm = xpAny("//div[contains(@class,'captcha__confirm')]//div[contains(@class,'button')][1]");
+    if(!confirm) confirm = xpAny("//div[contains(@class,'label') and contains(text(),'Potwierdzam')]/ancestor::div[contains(@class,'button')][1]");
+
+    if(confirm && isVisible(confirm)){
+      safeClick(confirm);
+      console.log("[adi-bot][captcha] Kliknięto „Potwierdzam”.");
+    }
+    return "solved";
+  }
+
+  function isCaptchaBlocking(){
+    return isPreCaptchaVisible() || isCaptchaWindowVisible();
+  }
+
+  async function ensureNoCaptcha(){
+    let loops = 0;
+    while(true){
+      loops++;
+      if(loops > 25) return "not_blocking";
+      if(!isCaptchaBlocking()) return "not_blocking";
+      if(captchaGaveUp) return "gave_up";
+
+      if(isCaptchaWindowVisible()){
+        const r = await solveCaptchaWindow();
+        if(r === "skipped_tries" || r === "gave_up") return "gave_up";
+        await sleep(600);
+        continue;
+      }
+
+      if(isPreCaptchaVisible()){
+        clickRozwiazTeraz();
+        await sleep(800);
+        continue;
+      }
+
+      await sleep(ACTION_GUARD_MS);
+    }
+  }
+
+  async function checkAndSolveCaptchaOnce(){
+    if(captchaGaveUp) return "gave_up";
+    if(!isCaptchaBlocking()) return "not_blocking";
+    return ensureNoCaptcha();
+  }
+
+  window.__adiCaptchaOnce = async () => {
+    if(captchaBusy) return "busy";
+    captchaBusy = true;
+    try{ return await checkAndSolveCaptchaOnce(); }
+    finally{ captchaBusy = false; }
+  };
+
+  window.__adiCaptchaGaveUp = () => captchaGaveUp;
+  window.__adiCaptchaReset = () => { captchaGaveUp = false; };
+
+  setInterval(() => {
+    window.__adiCaptchaOnce().catch(()=>{});
+  }, WATCH_MS);
+
+  console.log("[adi-bot] CAPTCHA watcher ready (2500ms + gaveUp + __adiCaptchaOnce).");
+})();
+
+
   const selfRef=this;
   if(!selfRef.basePI) selfRef.basePI=parseInput;
   selfRef.botPI=function(a){
