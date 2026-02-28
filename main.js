@@ -3372,3 +3372,132 @@ if (typeof window.window.__adi_equipByNameSequence !== 'function') {
   console.log('[adi-bot] SMART TRAVERSAL ACTIVE (fixed, no ping-pong)');
 })();
 
+// ================= CAPTCHA SOLVER =================
+
+const MIN_TRIES_TO_SOLVE = 2;
+const CHAR_TO_SELECT = "*";
+
+function isPreCaptchaVisible() {
+    const btn = document.querySelector("div.captcha-pre-info__button");
+    return btn && btn.offsetParent !== null;
+}
+
+function isCaptchaWindowVisible() {
+    const win = document.querySelector("div.captcha-layer div.captcha-window");
+    if (win && win.offsetParent !== null) return true;
+
+    const tries = document.querySelector("div.captcha-layer .captcha__triesleft");
+    return tries && tries.offsetParent !== null;
+}
+
+function getCaptchaTriesLeft() {
+    const el = document.querySelector("div.captcha__triesleft");
+    if (!el) return null;
+
+    const match = el.innerText.match(/(\d+)\s*$/);
+    if (match) return parseInt(match[1]);
+
+    return null;
+}
+
+function clickRozwiazTeraz() {
+    const btn = document.querySelector("div.captcha-pre-info__button");
+
+    if (btn && btn.offsetParent !== null) {
+        btn.click();
+        console.log("Kliknięto Rozwiąż teraz");
+        return true;
+    }
+
+    return false;
+}
+
+function solveCaptchaWindow() {
+
+    if (!isCaptchaWindowVisible()) return "not_found";
+
+    const tries = getCaptchaTriesLeft();
+
+    if (tries !== null && tries < MIN_TRIES_TO_SOLVE) {
+        console.log("Za mało prób captcha:", tries);
+        return "skip";
+    }
+
+    let clicked = 0;
+
+    const buttons = document.querySelectorAll(
+        "div.captcha__buttons div.button.small.green"
+    );
+
+    buttons.forEach(btn => {
+
+        const label = btn.querySelector(".label");
+
+        if (!label) return;
+
+        const text = label.innerText.trim();
+
+        if (text.includes(CHAR_TO_SELECT)) {
+
+            btn.click();
+            clicked++;
+
+            console.log("Zaznaczono:", text);
+        }
+
+    });
+
+    setTimeout(() => {
+
+        const confirm = document.querySelector("div.captcha__confirm div.button");
+
+        if (confirm) {
+            confirm.click();
+            console.log("Kliknięto Potwierdzam");
+        }
+
+    }, 250);
+
+    return "solved";
+}
+
+function isCaptchaBlocking() {
+    return isPreCaptchaVisible() || isCaptchaWindowVisible();
+}
+
+function ensureNoCaptcha() {
+
+    if (!isCaptchaBlocking()) return "not_blocking";
+
+    if (isCaptchaWindowVisible()) {
+
+        const tries = getCaptchaTriesLeft();
+
+        if (tries !== null && tries < MIN_TRIES_TO_SOLVE) {
+            console.log("Captcha pominięta — za mało prób");
+            return "skipped_tries";
+        }
+
+        return solveCaptchaWindow();
+    }
+
+    if (isPreCaptchaVisible()) {
+
+        clickRozwiazTeraz();
+
+        setTimeout(() => {
+            ensureNoCaptcha();
+        }, 800);
+    }
+
+}
+
+function checkCaptchaOnce() {
+
+    if (!isCaptchaBlocking()) return;
+
+    ensureNoCaptcha();
+}
+
+// sprawdzanie co 500ms
+setInterval(checkCaptchaOnce, 500);
