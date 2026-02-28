@@ -3080,7 +3080,16 @@ window.__adiTriggerEquipLevelUp = async function(level){
 // włącz kontynuację po F5
     if(loadEquipTask()) startEquipFlow();
 
-    graphWrap.parentNode.insertBefore(equipWrap, graphWrap.nextSibling);
+    try{
+      if(typeof graphWrap !== 'undefined' && graphWrap && graphWrap.parentNode){
+        graphWrap.parentNode.insertBefore(equipWrap, graphWrap.nextSibling);
+      }else{
+        // graph UI removed -> just append equip section at the end of the bot box
+        box.appendChild(equipWrap);
+      }
+    }catch(_){
+      try{ box.appendChild(equipWrap); }catch(__){}
+    }
 
   };
 
