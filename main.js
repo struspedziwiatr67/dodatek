@@ -72,6 +72,74 @@
     if(window.__adi_eliteGuardInstalled || tries > 60) clearInterval(intId); // ~30s
   }, 500);
 })();
+
+// ===== UI GUARD: auto-switch to OLD interface when NEW interface is detected =====
+// Działa niezależnie od START/STOP bota (sprawdza cały czas i klika tylko, gdy przycisk jest widoczny w DOM).
+(function(){
+  const CHECK_MS = 1200;
+  const COOLDOWN_MS = 8000;
+  let __lastSwitchAt = 0;
+
+  function findOldUiSwitchButton(doc){
+    try{
+      if(!doc) return null;
+      // Przycisk w ustawieniach ma strukturę m.in.:
+      // <div class="button green small change-interface-btn"><div class="background"></div><div class="label">STARY INTERFEJS</div></div>
+      const label = doc.querySelector('.change-interface-btn .label');
+      if(label && /stary\s+interfejs/i.test(String(label.textContent||''))) {
+        return label.closest('.change-interface-btn') || label;
+      }
+      // fallback: czasem label może być inaczej zagnieżdżony
+      const btn = doc.querySelector('.change-interface-btn');
+      if(btn && /stary\s+interfejs/i.test(String(btn.textContent||''))) return btn;
+      return null;
+    }catch(e){ return null; }
+  }
+
+  function safeClick(el){
+    try{
+      if(!el) return false;
+      if(!(el instanceof Element)) return false;
+      const ev = (type)=>new MouseEvent(type,{bubbles:true,cancelable:true,view:window});
+      el.dispatchEvent(ev('mouseover'));
+      el.dispatchEvent(ev('mousedown'));
+      el.dispatchEvent(ev('mouseup'));
+      el.dispatchEvent(ev('click'));
+      return true;
+    }catch(e){
+      try{ el.click(); return true; }catch(_){ return false; }
+    }
+  }
+
+  function tick(){
+    try{
+      const now = Date.now();
+      if(now - __lastSwitchAt < COOLDOWN_MS) return;
+
+      let btn = findOldUiSwitchButton(document);
+
+      if(!btn){
+        const iframes = document.querySelectorAll('iframe');
+        for(const fr of iframes){
+          try{
+            const d = fr.contentDocument || (fr.contentWindow && fr.contentWindow.document);
+            btn = findOldUiSwitchButton(d);
+            if(btn) break;
+          }catch(_){ }
+        }
+      }
+
+      if(btn){
+        __lastSwitchAt = now;
+        safeClick(btn);
+      }
+    }catch(e){}
+  }
+
+  setTimeout(tick, 600);
+  setInterval(tick, CHECK_MS);
+})();
+
 var TpG3Y86zpgrtWMzb, ZHN4ekpZ5m95pFbJ, YQTtmEs6a5mTXE5a;
 
 window.adiwilkTestBot = new function () {
