@@ -3260,132 +3260,235 @@ if (typeof window.window.__adi_equipByNameSequence !== 'function') {
   console.log('[adi-bot] SMART TRAVERSAL ACTIVE (fixed, no ping-pong)');
 })();
 
-// ================= CAPTCHA SOLVER =================
+// ================= CAPTCHA SOLVER (ported from c.py, iframe-aware) =================
+(() => {
+  const MIN_TRIES_TO_SOLVE = 2;     // jak w c.py
+  const CHAR_TO_SELECT = "*";
+  const TICK_MS = 500;
 
-const MIN_TRIES_TO_SOLVE = 2;
-const CHAR_TO_SELECT = "*";
+  function sleep(ms){ return new Promise(r => setTimeout(r, ms)); }
 
-function isPreCaptchaVisible() {
-    const btn = document.querySelector("div.captcha-pre-info__button");
-    return btn && btn.offsetParent !== null;
-}
-
-function isCaptchaWindowVisible() {
-    const win = document.querySelector("div.captcha-layer div.captcha-window");
-    if (win && win.offsetParent !== null) return true;
-
-    const tries = document.querySelector("div.captcha-layer .captcha__triesleft");
-    return tries && tries.offsetParent !== null;
-}
-
-function getCaptchaTriesLeft() {
-    const el = document.querySelector("div.captcha__triesleft");
-    if (!el) return null;
-
-    const match = el.innerText.match(/(\d+)\s*$/);
-    if (match) return parseInt(match[1]);
-
-    return null;
-}
-
-function clickRozwiazTeraz() {
-    const btn = document.querySelector("div.captcha-pre-info__button");
-
-    if (btn && btn.offsetParent !== null) {
-        btn.click();
-        console.log("Kliknięto Rozwiąż teraz");
-        return true;
+  function getAllDocs(){
+    const docs = [document];
+    const iframes = document.querySelectorAll('iframe');
+    for(const fr of iframes){
+      try{
+        const d = fr.contentDocument || (fr.contentWindow && fr.contentWindow.document);
+        if(d) docs.push(d);
+      }catch(_){}
     }
+    return docs;
+  }
 
+  function isVisible(el){
+    return !!(el && (el.offsetParent !== null || el.getClientRects().length));
+  }
+
+  function qsaAllDocs(selector){
+    const out = [];
+    for(const d of getAllDocs()){
+      try{ out.push(...d.querySelectorAll(selector)); }catch(_){}
+    }
+    return out;
+  }
+
+  function qsAnyDoc(selector){
+    for(const d of getAllDocs()){
+      try{
+        const el = d.querySelector(selector);
+        if(el) return el;
+      }catch(_){}
+    }
+    return null;
+  }
+
+  function xpAnyDoc(xpath){
+    for(const d of getAllDocs()){
+      try{
+        const r = d.evaluate(xpath, d, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null);
+        if(r && r.singleNodeValue) return r.singleNodeValue;
+      }catch(_){}
+    }
+    return null;
+  }
+
+  function safeClick(el){
+    try{
+      if(!el) return false;
+      const d = el.ownerDocument || document;
+      const w = d.defaultView || window;
+      const ev = (type)=>new w.MouseEvent(type,{bubbles:true,cancelable:true,view:w});
+      el.dispatchEvent(ev('mouseover'));
+      el.dispatchEvent(ev('mousedown'));
+      el.dispatchEvent(ev('mouseup'));
+      el.dispatchEvent(ev('click'));
+      return true;
+    }catch(e){
+      try{ el.click(); return true; }catch(_){ return false; }
+    }
+  }
+
+  // --- port z c.py: is_pre_captcha_visible ---
+  function isPreCaptchaVisible(){
+    const btn = qsAnyDoc("div.captcha-pre-info__button");
+    return btn && isVisible(btn);
+  }
+
+  // --- port z c.py: is_captcha_window_visible ---
+  function isCaptchaWindowVisible(){
+    // okno
+    const win = qsAnyDoc("div.captcha-layer div.captcha-window");
+    if(win && isVisible(win)) return true;
+    // albo sam licznik prób
+    const tries = qsAnyDoc("div.captcha-layer .captcha__triesleft");
+    return tries && isVisible(tries);
+  }
+
+  // --- port z c.py: get_captcha_tries_left ---
+  function getCaptchaTriesLeft(){
+    const el = qsAnyDoc("div.captcha__triesleft");
+    if(!el) return null;
+    const txt = String(el.innerText || el.textContent || '').trim();
+    const m = txt.match(/(\d+)\s*$/);
+    return m ? parseInt(m[1], 10) : null;
+  }
+
+  // --- port z c.py: click_rozwiaz_teraz (CSS + XPATH + label fallback) ---
+  function clickRozwiazTeraz(){
+    // CSS
+    let el = qsAnyDoc("div.captcha-pre-info__button");
+    if(el && isVisible(el)){
+      safeClick(el);
+      console.log("[adi-bot][captcha] Kliknięto „Rozwiąż teraz” (css).");
+      return true;
+    }
+    // XPATH: //div[contains(@class,'captcha-pre-info__button')]
+    el = xpAnyDoc("//div[contains(@class,'captcha-pre-info__button')]");
+    if(el && isVisible(el)){
+      safeClick(el);
+      console.log("[adi-bot][captcha] Kliknięto „Rozwiąż teraz” (xpath btn).");
+      return true;
+    }
+    // XPATH label -> ancestor button
+    el = xpAnyDoc("//div[contains(@class,'label') and normalize-space(text())='Rozwiąż teraz']/ancestor::div[contains(@class,'button')][1]");
+    if(el && isVisible(el)){
+      safeClick(el);
+      console.log("[adi-bot][captcha] Kliknięto „Rozwiąż teraz” (xpath label).");
+      return true;
+    }
     return false;
-}
+  }
 
-function solveCaptchaWindow() {
-
-    if (!isCaptchaWindowVisible()) return "not_found";
+  // --- port z c.py: solve_captcha_window ---
+  async function solveCaptchaWindow(){
+    if(!isCaptchaWindowVisible()) return "not_found";
 
     const tries = getCaptchaTriesLeft();
-
-    if (tries !== null && tries < MIN_TRIES_TO_SOLVE) {
-        console.log("Za mało prób captcha:", tries);
-        return "skip";
+    if(tries !== null && tries < MIN_TRIES_TO_SOLVE){
+      console.log(`[adi-bot][captcha] Pozostało ${tries} prób < ${MIN_TRIES_TO_SOLVE} — skip.`);
+      return "skip";
     }
 
+    // kliknij przyciski z gwiazdką
     let clicked = 0;
-
-    const buttons = document.querySelectorAll(
-        "div.captcha__buttons div.button.small.green"
-    );
-
-    buttons.forEach(btn => {
-
+    const buttons = qsaAllDocs("div.captcha__buttons div.button.small.green");
+    for(const btn of buttons){
+      try{
         const label = btn.querySelector(".label");
-
-        if (!label) return;
-
-        const text = label.innerText.trim();
-
-        if (text.includes(CHAR_TO_SELECT)) {
-
-            btn.click();
-            clicked++;
-
-            console.log("Zaznaczono:", text);
+        const text = String(label ? (label.innerText || label.textContent) : '').trim();
+        if(text.includes(CHAR_TO_SELECT)){
+          safeClick(btn);
+          clicked++;
+          console.log('[adi-bot][captcha] Zaznaczono:', text);
+          await sleep(150); // jak w c.py (0.15s)
         }
+      }catch(_){}
+    }
 
-    });
+    await sleep(250);
 
-    setTimeout(() => {
+    // potwierdź (CSS + fallback XPATH)
+    let confirm = qsAnyDoc("div.captcha__confirm div.button");
+    if(confirm && isVisible(confirm)){
+      safeClick(confirm);
+      console.log('[adi-bot][captcha] Kliknięto „Potwierdzam” (css).');
+      return "solved";
+    }
 
-        const confirm = document.querySelector("div.captcha__confirm div.button");
+    confirm = xpAnyDoc("//div[contains(@class,'captcha__confirm')]//div[contains(@class,'button')][1]");
+    if(confirm && isVisible(confirm)){
+      safeClick(confirm);
+      console.log('[adi-bot][captcha] Kliknięto „Potwierdzam” (xpath confirm).');
+      return "solved";
+    }
 
-        if (confirm) {
-            confirm.click();
-            console.log("Kliknięto Potwierdzam");
-        }
+    confirm = xpAnyDoc("//div[contains(@class,'label') and contains(text(),'Potwierdzam')]/ancestor::div[contains(@class,'button')][1]");
+    if(confirm && isVisible(confirm)){
+      safeClick(confirm);
+      console.log('[adi-bot][captcha] Kliknięto „Potwierdzam” (xpath label).');
+      return "solved";
+    }
 
-    }, 250);
-
+    // jeśli nie znaleźliśmy potwierdzenia, i tak uznajemy że „próbowaliśmy”
     return "solved";
-}
+  }
 
-function isCaptchaBlocking() {
+  function isCaptchaBlocking(){
     return isPreCaptchaVisible() || isCaptchaWindowVisible();
-}
+  }
 
-function ensureNoCaptcha() {
+  // --- port z c.py: ensure_no_captcha (pętla) ---
+  async function ensureNoCaptcha(){
+    let loops = 0;
+    while(true){
+      loops++;
+      if(loops > 25) return "not_blocking"; // bezpiecznik (~10s)
+      if(!isCaptchaBlocking()) return "not_blocking";
 
-    if (!isCaptchaBlocking()) return "not_blocking";
-
-    if (isCaptchaWindowVisible()) {
-
+      // 1) Najpierw okno zagadki
+      if(isCaptchaWindowVisible()){
         const tries = getCaptchaTriesLeft();
-
-        if (tries !== null && tries < MIN_TRIES_TO_SOLVE) {
-            console.log("Captcha pominięta — za mało prób");
-            return "skipped_tries";
+        if(tries !== null && tries < MIN_TRIES_TO_SOLVE){
+          console.log(`[adi-bot][captcha] Za mało prób (${tries}) — nie rozwiązuję.`);
+          return "skipped_tries";
         }
 
-        return solveCaptchaWindow();
-    }
+        const r = await solveCaptchaWindow();
+        if(r === "skip") return "skipped_tries";
+        if(r === "solved"){
+          await sleep(600);
+          continue;
+        }
+      }
 
-    if (isPreCaptchaVisible()) {
-
+      // 2) Potem pre-captcha „Rozwiąż teraz”
+      if(isPreCaptchaVisible()){
         clickRozwiazTeraz();
+        await sleep(800);
+        continue;
+      }
 
-        setTimeout(() => {
-            ensureNoCaptcha();
-        }, 800);
+      await sleep(400);
     }
+  }
 
-}
+  // --- port z c.py: check_and_solve_captcha_once ---
+  async function checkAndSolveCaptchaOnce(){
+    if(!isCaptchaBlocking()) return "not_blocking";
+    return ensureNoCaptcha();
+  }
 
-function checkCaptchaOnce() {
+  // Public helper (jakbyś chciał wołać w innych miejscach bota)
+  window.__adiCaptchaOnce = checkAndSolveCaptchaOnce;
 
-    if (!isCaptchaBlocking()) return;
+  // Tick co 500ms (jak masz teraz), ale async i z guardem żeby nie odpalać równolegle
+  let busy = false;
+  setInterval(async () => {
+    if(busy) return;
+    busy = true;
+    try{ await checkAndSolveCaptchaOnce(); }catch(_){}
+    busy = false;
+  }, TICK_MS);
 
-    ensureNoCaptcha();
-}
-
-// sprawdzanie co 500ms
-setInterval(checkCaptchaOnce, 500);
+  console.log('[adi-bot] CAPTCHA SOLVER loaded (ported from c.py).');
+})();
