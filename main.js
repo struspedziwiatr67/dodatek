@@ -390,6 +390,59 @@ Lvl: **${n.lvl ?? "?"}**`,
     window.ADI_MAP_GRAPH_READY = window.ADI_MAP_GRAPH_READY || false;
   })();
 
+
+  // --- Remote MAP GRAPH loader (GitHub) ---
+  // Primary URL: GitHub Pages; Fallback: raw.githubusercontent.com (usually has permissive CORS)
+  (function(){
+    const PRIMARY_GRAPH_URL = "https://struspedziwiatr67.github.io/margo/graph.json";
+    const FALLBACK_GRAPH_URL = "https://raw.githubusercontent.com/struspedziwiatr67/margo/main/graph.json";
+
+    async function fetchJson(url){
+      const res = await fetch(url + (url.includes("?") ? "&" : "?") + "v=" + Date.now(), { cache: "no-store" });
+      if(!res.ok) throw new Error("HTTP " + res.status);
+      return await res.json();
+    }
+
+    async function loadRemoteGraph(){
+      // If user has pasted a local graph, prefer it (do not overwrite).
+      try{
+        const raw = localStorage.getItem('adi-bot_graph_json');
+        if(raw && raw.trim().length > 2){
+          return; // keep local graph
+        }
+      }catch(_){}
+
+      try{
+        const graph = await fetchJson(PRIMARY_GRAPH_URL);
+        window.ADI_MAP_GRAPH = graph || {};
+        window.ADI_MAP_GRAPH_READY = true;
+        try{ localStorage.setItem('adi-bot_graph_json', JSON.stringify(window.ADI_MAP_GRAPH)); }catch(_){}
+        try{
+          const ta = document.querySelector('#adi-bot_graph');
+          if(ta) ta.value = JSON.stringify(window.ADI_MAP_GRAPH, null, 2);
+        }catch(_){}
+        console.log('[adi-bot] MAP_GRAPH loaded from GitHub Pages:', Object.keys(window.ADI_MAP_GRAPH||{}).length, 'nodes');
+      }catch(e1){
+        try{
+          const graph = await fetchJson(FALLBACK_GRAPH_URL);
+          window.ADI_MAP_GRAPH = graph || {};
+          window.ADI_MAP_GRAPH_READY = true;
+          try{ localStorage.setItem('adi-bot_graph_json', JSON.stringify(window.ADI_MAP_GRAPH)); }catch(_){}
+          try{
+            const ta = document.querySelector('#adi-bot_graph');
+            if(ta) ta.value = JSON.stringify(window.ADI_MAP_GRAPH, null, 2);
+          }catch(_){}
+          console.log('[adi-bot] MAP_GRAPH loaded from raw.githubusercontent.com:', Object.keys(window.ADI_MAP_GRAPH||{}).length, 'nodes');
+        }catch(e2){
+          console.warn('[adi-bot] Failed to load remote MAP_GRAPH (Pages + raw). You can still paste it in the UI.', e1, e2);
+        }
+      }
+    }
+
+    // start loading ASAP
+    try{ loadRemoteGraph(); }catch(_){}
+  })();
+
   (function(){
     try{
       const raw = localStorage.getItem('adi-bot_graph_json');
@@ -3260,31 +3313,3 @@ if (typeof window.window.__adi_equipByNameSequence !== 'function') {
   console.log('[adi-bot] SMART TRAVERSAL ACTIVE (fixed, no ping-pong)');
 })();
 
-
-
-// ===== BOT BUILD VERSION =====
-const BOT_BUILD_TIME = "2026-02-27 23:52:26";
-
-(function () {
-function showBotVersion() {
-    if (document.getElementById("adi-bot-build")) return;
-
-    const el = document.createElement("div");
-    el.id = "adi-bot-build";
-    el.textContent = "bot " + BOT_BUILD_TIME;
-
-    el.style.position = "fixed";
-    el.style.bottom = "3px";
-    el.style.right = "6px";
-    el.style.fontSize = "9px";
-    el.style.color = "rgba(255,255,255,0.45)";
-    el.style.fontFamily = "Arial";
-    el.style.zIndex = "999999";
-    el.style.pointerEvents = "none";
-
-    document.body.appendChild(el);
-}
-
-setTimeout(showBotVersion, 2000);
-})();
-// ===== END BOT BUILD VERSION =====
