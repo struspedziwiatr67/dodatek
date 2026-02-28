@@ -314,7 +314,7 @@ Lvl: **${n.lvl ?? "?"}**`,
   // ===== expowiska =====
   let expowiska = {
     "Stare Ruiny": { map: "Przeklęty Zamek - wejście południowe, Przeklęty Zamek - podziemia południowe, Przeklęty Zamek - zbrojownia, Przeklęty Zamek - podziemia północne, Przeklęty Zamek - wejście północne, Przeklęty Zamek - podziemia północne, Przeklęty Zamek - zbrojownia, Przeklęty Zamek - sala zgromadzeń, Przeklęty Zamek - wejście wschodnie" },
-    "Mrówki": { map: "Mrowisko, Mrowisko p.1, Mrowisko p.2, Kopiec Mrówek p.2, Kopiec Mrówek p.1, Kopiec Mrówek" },
+    "Mrów": { map: "Mrowisko, Mrowisko p.1, Mrowisko p.2, Kopiec Mrówek p.2, Kopiec Mrówek p.1, Kopiec Mrówek" },
     "Demony": { map: "Przeklęta Strażnica, Przeklęta Strażnica p.1, Przeklęta Strażnica p.2, Przeklęta Strażnica p.1, Przeklęta Strażnica, Przeklęta Strażnica - podziemia p.1 s.1, Przeklęta Strażnica - podziemia p.2 s.1, Przeklęta Strażnica - podziemia p.1 s.1, Przeklęta Strażnica, Przeklęta Strażnica - podziemia p.1 s.2, Przeklęta Strażnica - podziemia p.2 s.2, Przeklęta Strażnica - podziemia p.2 s.3, Przeklęta Strażnica - podziemia p.2 s.2, Przeklęta Strażnica - podziemia p.1 s.2" },
     "Wilki Eder": { map: "Warczące Osuwiska, Wilcza Skarpa, Legowisko Wilczej Hordy" },
     "Gobliny1": { map: "Las Goblinów, Podmokła Dolina, Morwowe Przejście" },
