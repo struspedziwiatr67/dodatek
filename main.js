@@ -76,9 +76,11 @@
 // ===== UI GUARD: auto-switch to OLD interface when NEW interface is detected =====
 // Działa niezależnie od START/STOP bota (sprawdza cały czas i klika tylko, gdy przycisk jest widoczny w DOM).
 (function(){
-  const CHECK_MS = 1200;
+  const CHECK_MS = 900;
   const COOLDOWN_MS = 8000;
+  const AFTER_GEAR_WAIT_MS = 1000;
   let __lastSwitchAt = 0;
+  let __afterGearUntil = 0;
 
   function findOldUiSwitchButton(doc){
     try{
@@ -93,6 +95,20 @@
       const btn = doc.querySelector('.change-interface-btn');
       if(btn && /stary\s+interfejs/i.test(String(btn.textContent||''))) return btn;
       return null;
+    }catch(e){ return null; }
+  }
+
+  function findGearConfigButton(doc){
+    try{
+      if(!doc) return null;
+      // Na nowym interfejsie przycisk "zębatki" ma zwykle klasy widget-button + widget-config
+      // Przykład z DOM: div.widget-button.green.widget-in-interface-bar.widget-config ...
+      return (
+        doc.querySelector('.widget-button.widget-config') ||
+        doc.querySelector('.widget-config.widget-button') ||
+        doc.querySelector('.widget-button[widget-name="config"], .widget-button[data-widget-name="config"]') ||
+        doc.querySelector('[widget-name="config"].widget-button, [data-widget-name="config"].widget-button')
+      );
     }catch(e){ return null; }
   }
 
@@ -116,14 +132,21 @@
       const now = Date.now();
       if(now - __lastSwitchAt < COOLDOWN_MS) return;
 
+      // 1) Jeśli niedawno kliknęliśmy zębatkę, daj UI chwilę i spróbuj kliknąć "STARY INTERFEJS"
+      if(__afterGearUntil && now >= __afterGearUntil){
+        __afterGearUntil = 0;
+      }
+
       let btn = findOldUiSwitchButton(document);
+      let gear = null;
 
       if(!btn){
         const iframes = document.querySelectorAll('iframe');
         for(const fr of iframes){
           try{
             const d = fr.contentDocument || (fr.contentWindow && fr.contentWindow.document);
-            btn = findOldUiSwitchButton(d);
+            btn = btn || findOldUiSwitchButton(d);
+            gear = gear || findGearConfigButton(d);
             if(btn) break;
           }catch(_){ }
         }
@@ -132,6 +155,16 @@
       if(btn){
         __lastSwitchAt = now;
         safeClick(btn);
+        return;
+      }
+
+      // 2) Przycisk "STARY INTERFEJS" jest ukryty -> kliknij zębatkę i odczekaj 1s
+      if(!__afterGearUntil){
+        gear = gear || findGearConfigButton(document);
+        if(gear){
+          safeClick(gear);
+          __afterGearUntil = now + AFTER_GEAR_WAIT_MS;
+        }
       }
     }catch(e){}
   }
