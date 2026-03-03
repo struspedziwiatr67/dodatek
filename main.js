@@ -507,9 +507,9 @@ Lvl: **${n.lvl ?? "?"}**`,
     async function loadRemoteGraph(){
       // If user has pasted a local graph, prefer it (do not overwrite).
       try{
-        const raw = localStorage.getItem('adi-bot_graph_json');
+        const raw = null; // ignore cached graph
         if(raw && raw.trim().length > 2){
-          return; // keep local graph
+          // disabled cache guard
         }
       }catch(_){}
 
@@ -546,7 +546,7 @@ Lvl: **${n.lvl ?? "?"}**`,
 
   (function(){
     try{
-      const raw = localStorage.getItem('adi-bot_graph_json');
+      const raw = null; // ignore cached graph
       if(raw && raw.trim().length>2){
         try{
           window.ADI_MAP_GRAPH = JSON.parse(raw);
