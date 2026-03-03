@@ -1940,6 +1940,13 @@
         "x": 44,
         "y": 0
       }
+    },
+    {
+      "to": "dziewicza knieja",
+      "via": {
+        "x": 63,
+        "y": 73
+      }
     }
   ],
   "ostepy szalbierskich lasow": [
@@ -4538,6 +4545,23 @@
         "x": 10,
         "y": 60
       }
+    }
+  ],
+  "dziewicza knieja": [
+    {
+      "to": "orla gran"
+    },
+    {
+      "to": "las tropicieli",
+      "via": {
+        "x": 63,
+        "y": 80
+      }
+    }
+  ],
+  "las tropicieli": [
+    {
+      "to": "dziewicza knieja"
     }
   ]
 }
