@@ -929,105 +929,162 @@ function setTempTarget(val){
   if(!selfRef.basePI) selfRef.basePI=parseInput;
 selfRef.botPI=function(a){
   // --- E2 TIMER capture (must be BEFORE basePI) ---
-  let __adiNpcBeforeDel = null;
-  try{
-    if(a && a.npc && window.g && g.npc){
-      __adiNpcBeforeDel = {};
-      for(const id in a.npc){
-        const upd = a.npc[id];
-        if(upd && (upd.del || upd.del===1) && (typeof upd.respBaseSeconds === 'number' || upd.respBaseSeconds)){
-          const nid = Number(String(id).replace(/[^\d\-]/g,'')) || Number(id);
-          const n = (g.npc && g.npc[nid]) ? g.npc[nid] : null;
-          if(n) __adiNpcBeforeDel[nid] = { n, upd };
+// Uwaga: w pakiecie "del" często NIE ma respBaseSeconds, więc trzymamy cache ostatnio widzianych danych NPC.
+let __adiE2DelList = null;
+try{
+  if(!window.__adiE2NpcCache) window.__adiE2NpcCache = new Map(); // npcId -> {respBaseSeconds, resp_rand, icon, ticon, wt, nick/name, x,y}
+  const cache = window.__adiE2NpcCache;
+
+  // wspieramy "old" payload (a.npc) oraz "new" (a.npcs / a.npcs_del) jeśli kiedyś przełączysz interfejs
+  const npcUpdObj = a && a.npc ? a.npc : null;
+  if(npcUpdObj){
+    __adiE2DelList = [];
+    for(const id in npcUpdObj){
+      const upd = npcUpdObj[id];
+      if(!upd) continue;
+
+      const nid = Number(String(id).replace(/[^\d\-]/g,'')) || Number(id);
+      const cur = (window.g && g.npc && g.npc[nid]) ? g.npc[nid] : null;
+      const prev = cache.get(nid) || {};
+
+      // aktualizuj cache na każdym "normalnym" update
+      if(!(upd.del || upd.del===1)){
+        const respBaseSeconds = Number(upd.respBaseSeconds ?? cur?.respBaseSeconds ?? prev.respBaseSeconds ?? 0) || 0;
+        const resp_rand = (typeof upd.resp_rand === 'number') ? upd.resp_rand
+                        : (typeof cur?.resp_rand === 'number') ? cur.resp_rand
+                        : (typeof prev.resp_rand === 'number') ? prev.resp_rand
+                        : undefined;
+        // zapisuj tylko jeśli mamy cokolwiek sensownego (resp lub ikona)
+        if(respBaseSeconds > 0 || cur?.icon || upd.icon){
+          cache.set(nid, {
+            ...prev,
+            respBaseSeconds: respBaseSeconds > 0 ? respBaseSeconds : prev.respBaseSeconds,
+            resp_rand,
+            icon: (cur && cur.icon) ? cur.icon : (upd.icon ?? prev.icon),
+            ticon: (cur && cur.ticon) ? cur.ticon : (upd.ticon ?? prev.ticon),
+            wt: (typeof cur?.wt === 'number') ? cur.wt : (typeof upd.wt === 'number' ? upd.wt : prev.wt),
+            nick: (cur && (cur.nick||cur.name)) ? (cur.nick||cur.name) : (upd.nick ?? upd.name ?? prev.nick),
+            x: (typeof cur?.x === 'number') ? cur.x : (typeof upd.x === 'number' ? upd.x : prev.x),
+            y: (typeof cur?.y === 'number') ? cur.y : (typeof upd.y === 'number' ? upd.y : prev.y),
+          });
         }
+      }else{
+        // del -> zapamiętaj snapshot (cur + cache + upd), bo po basePI może zniknąć z g.npc
+        __adiE2DelList.push({ nid, upd, cur, prev });
       }
     }
-  }catch(_){}
+  }
+
+  // NEW interface (opcjonalnie): a.npcs / a.npcs_del
+  if(a && Array.isArray(a.npcs)){
+    for(const n of a.npcs){
+      const nid = Number(n?.id);
+      if(!nid) continue;
+      const prev = cache.get(nid) || {};
+      cache.set(nid, {
+        ...prev,
+        icon: n?.icon?.special || n?.icon || prev.icon,
+        ticon: n?.ticon || prev.ticon,
+        wt: (typeof n?.wt === 'number') ? n.wt : prev.wt,
+        nick: n?.nick || prev.nick,
+        x: (typeof n?.x === 'number') ? n.x : prev.x,
+        y: (typeof n?.y === 'number') ? n.y : prev.y,
+      });
+    }
+  }
+  if(a && Array.isArray(a.npcs_del)){
+    __adiE2DelList = (__adiE2DelList || []);
+    for(const d of a.npcs_del){
+      const nid = Number(d?.id);
+      if(!nid) continue;
+      const prev = cache.get(nid) || {};
+      __adiE2DelList.push({ nid, upd: d, cur: null, prev });
+    }
+  }
+}catch(_){}
 
   const ret=selfRef.basePI.apply(this, arguments);
 
   // --- E2 TIMER save (after basePI) ---
-  try{
-    if(window.__adiE2Timer && __adiE2Timer.enabled && __adiE2Timer.enabled() && __adiNpcBeforeDel){
-      const savedBy = (window.hero && (hero.nick || hero.name)) ? (hero.nick || hero.name) : '';
-      const world = (window.g && g.worldname) ? String(g.worldname) : (window.world || '');
+try{
+  if(window.__adiE2Timer && __adiE2Timer.enabled && __adiE2Timer.enabled() && __adiE2DelList && __adiE2DelList.length){
+    const cache = window.__adiE2NpcCache || new Map();
+    const savedBy = (window.hero && (hero.nick || hero.name)) ? (hero.nick || hero.name) : '';
+    const world = (window.g && g.worldname) ? String(g.worldname) : (window.world || '');
 
-      function isE2(n){
-        const ic = String((n && (n.icon || n.ticon)) || '');
-        return /(?:^|\/)npc\/e2\//i.test(ic);
-      }
-      function defaultRandForNpc(){
-        // Minutnik+: dla E2 default to 0.1 (±10%)
-        return 0.1;
-      }
+    function isE2(n){
+      if(!n) return false;
+      const ic  = String(n.icon || '');
+      const tic = String(n.ticon || '');
+      if(/\/npc\/e2\//i.test(ic) || /\/npc\/e2\//i.test(tic) || /(?:^|\/)npc\/e2\//i.test(ic) || /(?:^|\/)npc\/e2\//i.test(tic)) return true;
 
-      for(const nidStr in __adiNpcBeforeDel){
-        const { n, upd } = __adiNpcBeforeDel[nidStr];
-        if(!n || !upd) continue;
-        if(!isE2(n)) continue;
+      // fallback po rank/nazwie (czasem bywa w tipach)
+      const rk = String(n.rank || '').toLowerCase();
+      if(rk.includes('elita ii') || rk === 'e2') return true;
 
-        const respBaseSeconds = Number(upd.respBaseSeconds || n.respBaseSeconds || 0);
-        if(!respBaseSeconds || respBaseSeconds <= 0) continue;
+      const nm = String(n.nick || n.name || '').toLowerCase();
+      if(nm.includes('elita ii') || /\be2\b/.test(nm)) return true;
 
-        const rr = (typeof n.resp_rand === 'number') ? n.resp_rand
-                 : (typeof upd.resp_rand === 'number') ? upd.resp_rand
-                 : null;
-
-        const t = (rr != null) ? (Number(rr)/100) : defaultRandForNpc();
-
-        const now = __adiE2Timer.nowUnix();
-        const min = now + Math.round(respBaseSeconds - respBaseSeconds * t);
-        const max = now + Math.round(respBaseSeconds + respBaseSeconds * t);
-
-        const mapName = (window.map && map.name) ? map.name : '';
-        const timer = {
-          id: `${mapName}-${n.id}`,
-          npcId: n.id,
-          name: n.nick || n.name || 'E2',
-          map: mapName,
-          x: n.x, y: n.y,
-          min, max,
-          savedBy,
-          world
-        };
-
-        __adiE2Timer.upsertTimer(timer);
-      }
+      return false;
     }
-  }catch(e){
-    console.warn('[adi-bot][e2timer] save error', e);
+
+    function defaultRandForE2(){
+      // Minutnik+: dla E2 default to 0.1 (±10%)
+      return 0.1;
+    }
+
+    for(const it of __adiE2DelList){
+      const nid = it.nid;
+      const upd = it.upd || {};
+      const cur = it.cur || null;
+      const prev = it.prev || cache.get(nid) || {};
+
+      const n = cur || prev;
+      if(!isE2(n)) continue;
+
+      const respBaseSeconds = Number(
+        upd.respBaseSeconds ??
+        cur?.respBaseSeconds ??
+        prev.respBaseSeconds ??
+        0
+      ) || 0;
+
+      if(respBaseSeconds <= 0) continue;
+
+      const rr = (typeof upd.resp_rand === 'number') ? upd.resp_rand
+               : (typeof cur?.resp_rand === 'number') ? cur.resp_rand
+               : (typeof prev.resp_rand === 'number') ? prev.resp_rand
+               : null;
+
+      const t = (rr != null) ? (Number(rr) / 100) : defaultRandForE2();
+
+      const now = __adiE2Timer.nowUnix();
+      const min = now + Math.round(respBaseSeconds - respBaseSeconds * t);
+      const max = now + Math.round(respBaseSeconds + respBaseSeconds * t);
+
+      const mapName = (window.map && map.name) ? String(map.name) : '';
+      const x = (typeof cur?.x === 'number') ? cur.x : (typeof prev.x === 'number' ? prev.x : undefined);
+      const y = (typeof cur?.y === 'number') ? cur.y : (typeof prev.y === 'number' ? prev.y : undefined);
+      const name = (cur && (cur.nick || cur.name)) ? (cur.nick || cur.name) : (prev.nick || 'E2');
+
+      const timer = {
+        id: `${mapName}-${nid}`,
+        npcId: nid,
+        name,
+        map: mapName,
+        x, y,
+        min, max,
+        savedBy,
+        world
+      };
+
+      __adiE2Timer.upsertTimer(timer);
+    }
   }
+}catch(e){
+  console.warn('[adi-bot][e2timer] save error', e);
+}
 
-
-    // CAPTCHA detect (skrócone)
-    try{
-      let info=null;
-      if(a && a.captcha){
-        if(typeof a.captcha==="object"){
-          if(typeof a.captcha.autostart_time_left==="number") info={type:"countdown", seconds:a.captcha.autostart_time_left};
-          else if (a.captcha.active || a.captcha.question || a.captcha.text) info={type:"active", text:a.captcha.question||a.captcha.text||JSON.stringify(a.captcha)};
-        }
-        if(!info && typeof a.captcha==="string") info={type:"active", text:a.captcha};
-      }
-      if(!info && a && a.alert && /(captcha|podaj wynik|zagadk)/i.test(a.alert)) info={type:"alert", text:a.alert};
-      if(info){
-        const sig=info.type==="countdown" ? `countdown:${info.seconds}` : `${info.type}:${info.text||""}`;
-        if(sig!==__lastCaptchaSignature){
-          __lastCaptchaSignature=sig;
-          const nick=getHeroName();
-          if(info.type==="countdown"){ message(`[BOT] CAPTCHA za ${info.seconds}s`); sendDiscord(`[${nick}] Za ${info.seconds}s pojawi się CAPTCHA. Kliknij "Rozwiąż teraz".`); }
-          else { message(`[BOT] CAPTCHA aktywna`); sendDiscord(`[${nick}] CAPTCHA AKTYWNA${info.text?`: ${info.text}`:""}`); }
-        }
-      }
-    }catch(e){}
-
-    // logika ruch/atak + tryb wyczerpania
-    if(!g.battle && !g.dead && start){
-      try{ __adiAutoHealTick(); }catch(_){}
-      syncAutoExpowiskoUI();
-      const exhEnabled=localStorage.getItem("adi-bot_exh_enabled")==="1";
-      const exhTargetMap=(localStorage.getItem("adi-bot_exh_map")||"Dom Roana").trim();
-      const exhMin=getExhaustionMinutes(true);
 
       if (exhEnabled && typeof exhMin==="number" && exhMin>0){
         if(!__exhIdleWasOn){
