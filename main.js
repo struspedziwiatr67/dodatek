@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Bot na exp (iframe-aware exhaustion + throttling + captcha->Discord + ping-pong trasy + only-selected-maps + elite toggle + group-size filter + heros->Discord + obrazki + fixy map/lvl/wt/grupy + FOW cache)
-// @version      2.17.3
+// @version      2.17.3-autoskillfix
 // @description  Bot z przechodzeniem map, anty-spam ataku, captcha->Discord, START/STOP, zbijanie wyczerpania, atak tylko na wybranych mapach, elity toggle, filtr grup, powiadomienia o herosach (bez Namiotu Tropicieli Herosów), normalizacja nazw map, odporne parsowanie lvli, poprawki 'wt', stabilny wybór grup przy mgle (cache max rozmiaru grupy)
 // @match        *://*/
 // @match        *://www.margonem.pl/*
@@ -72,6 +72,107 @@
     if(window.__adi_eliteGuardInstalled || tries > 60) clearInterval(intId); // ~30s
   }, 500);
 })();
+
+// ===== UI GUARD: auto-switch to OLD interface when NEW interface is detected =====
+// Działa niezależnie od START/STOP bota (sprawdza cały czas i klika tylko, gdy przycisk jest widoczny w DOM).
+(function(){
+  const CHECK_MS = 900;
+  const COOLDOWN_MS = 8000;
+  const AFTER_GEAR_WAIT_MS = 1000;
+  let __lastSwitchAt = 0;
+  let __afterGearUntil = 0;
+
+  function findOldUiSwitchButton(doc){
+    try{
+      if(!doc) return null;
+      // Przycisk w ustawieniach ma strukturę m.in.:
+      // <div class="button green small change-interface-btn"><div class="background"></div><div class="label">STARY INTERFEJS</div></div>
+      const label = doc.querySelector('.change-interface-btn .label');
+      if(label && /stary\s+interfejs/i.test(String(label.textContent||''))) {
+        return label.closest('.change-interface-btn') || label;
+      }
+      // fallback: czasem label może być inaczej zagnieżdżony
+      const btn = doc.querySelector('.change-interface-btn');
+      if(btn && /stary\s+interfejs/i.test(String(btn.textContent||''))) return btn;
+      return null;
+    }catch(e){ return null; }
+  }
+
+  function findGearConfigButton(doc){
+    try{
+      if(!doc) return null;
+      // Na nowym interfejsie przycisk "zębatki" ma zwykle klasy widget-button + widget-config
+      // Przykład z DOM: div.widget-button.green.widget-in-interface-bar.widget-config ...
+      return (
+        doc.querySelector('.widget-button.widget-config') ||
+        doc.querySelector('.widget-config.widget-button') ||
+        doc.querySelector('.widget-button[widget-name="config"], .widget-button[data-widget-name="config"]') ||
+        doc.querySelector('[widget-name="config"].widget-button, [data-widget-name="config"].widget-button')
+      );
+    }catch(e){ return null; }
+  }
+
+  function safeClick(el){
+    try{
+      if(!el) return false;
+      if(!(el instanceof Element)) return false;
+      const ev = (type)=>new MouseEvent(type,{bubbles:true,cancelable:true,view:window});
+      el.dispatchEvent(ev('mouseover'));
+      el.dispatchEvent(ev('mousedown'));
+      el.dispatchEvent(ev('mouseup'));
+      el.dispatchEvent(ev('click'));
+      return true;
+    }catch(e){
+      try{ el.click(); return true; }catch(_){ return false; }
+    }
+  }
+
+  function tick(){
+    try{
+      const now = Date.now();
+      if(now - __lastSwitchAt < COOLDOWN_MS) return;
+
+      // 1) Jeśli niedawno kliknęliśmy zębatkę, daj UI chwilę i spróbuj kliknąć "STARY INTERFEJS"
+      if(__afterGearUntil && now >= __afterGearUntil){
+        __afterGearUntil = 0;
+      }
+
+      let btn = findOldUiSwitchButton(document);
+      let gear = null;
+
+      if(!btn){
+        const iframes = document.querySelectorAll('iframe');
+        for(const fr of iframes){
+          try{
+            const d = fr.contentDocument || (fr.contentWindow && fr.contentWindow.document);
+            btn = btn || findOldUiSwitchButton(d);
+            gear = gear || findGearConfigButton(d);
+            if(btn) break;
+          }catch(_){ }
+        }
+      }
+
+      if(btn){
+        __lastSwitchAt = now;
+        safeClick(btn);
+        return;
+      }
+
+      // 2) Przycisk "STARY INTERFEJS" jest ukryty -> kliknij zębatkę i odczekaj 1s
+      if(!__afterGearUntil){
+        gear = gear || findGearConfigButton(document);
+        if(gear){
+          safeClick(gear);
+          __afterGearUntil = now + AFTER_GEAR_WAIT_MS;
+        }
+      }
+    }catch(e){}
+  }
+
+  setTimeout(tick, 600);
+  setInterval(tick, CHECK_MS);
+})();
+
 var TpG3Y86zpgrtWMzb, ZHN4ekpZ5m95pFbJ, YQTtmEs6a5mTXE5a;
 
 window.adiwilkTestBot = new function () {
@@ -388,6 +489,59 @@ Lvl: **${n.lvl ?? "?"}**`,
   (function(){
     window.ADI_MAP_GRAPH = window.ADI_MAP_GRAPH || {};
     window.ADI_MAP_GRAPH_READY = window.ADI_MAP_GRAPH_READY || false;
+  })();
+
+
+  // --- Remote MAP GRAPH loader (GitHub) ---
+  // Primary URL: GitHub Pages; Fallback: raw.githubusercontent.com (usually has permissive CORS)
+  (function(){
+    const PRIMARY_GRAPH_URL = "https://struspedziwiatr67.github.io/margo/graph.json";
+    const FALLBACK_GRAPH_URL = "https://raw.githubusercontent.com/struspedziwiatr67/margo/main/graph.json";
+
+    async function fetchJson(url){
+      const res = await fetch(url + (url.includes("?") ? "&" : "?") + "v=" + Date.now(), { cache: "no-store" });
+      if(!res.ok) throw new Error("HTTP " + res.status);
+      return await res.json();
+    }
+
+    async function loadRemoteGraph(){
+      // If user has pasted a local graph, prefer it (do not overwrite).
+      try{
+        const raw = localStorage.getItem('adi-bot_graph_json');
+        if(raw && raw.trim().length > 2){
+          return; // keep local graph
+        }
+      }catch(_){}
+
+      try{
+        const graph = await fetchJson(PRIMARY_GRAPH_URL);
+        window.ADI_MAP_GRAPH = graph || {};
+        window.ADI_MAP_GRAPH_READY = true;
+        try{ localStorage.setItem('adi-bot_graph_json', JSON.stringify(window.ADI_MAP_GRAPH)); }catch(_){}
+        try{
+          const ta = document.querySelector('#adi-bot_graph');
+          if(ta) ta.value = JSON.stringify(window.ADI_MAP_GRAPH, null, 2);
+        }catch(_){}
+        console.log('[adi-bot] MAP_GRAPH loaded from GitHub Pages:', Object.keys(window.ADI_MAP_GRAPH||{}).length, 'nodes');
+      }catch(e1){
+        try{
+          const graph = await fetchJson(FALLBACK_GRAPH_URL);
+          window.ADI_MAP_GRAPH = graph || {};
+          window.ADI_MAP_GRAPH_READY = true;
+          try{ localStorage.setItem('adi-bot_graph_json', JSON.stringify(window.ADI_MAP_GRAPH)); }catch(_){}
+          try{
+            const ta = document.querySelector('#adi-bot_graph');
+            if(ta) ta.value = JSON.stringify(window.ADI_MAP_GRAPH, null, 2);
+          }catch(_){}
+          console.log('[adi-bot] MAP_GRAPH loaded from raw.githubusercontent.com:', Object.keys(window.ADI_MAP_GRAPH||{}).length, 'nodes');
+        }catch(e2){
+          console.warn('[adi-bot] Failed to load remote MAP_GRAPH (Pages + raw). You can still paste it in the UI.', e1, e2);
+        }
+      }
+    }
+
+    // start loading ASAP
+    try{ loadRemoteGraph(); }catch(_){}
   })();
 
   (function(){
@@ -800,6 +954,7 @@ function setTempTarget(val){
 
     // logika ruch/atak + tryb wyczerpania
     if(!g.battle && !g.dead && start){
+      try{ __adiAutoHealTick(); }catch(_){}
       syncAutoExpowiskoUI();
       const exhEnabled=localStorage.getItem("adi-bot_exh_enabled")==="1";
       const exhTargetMap=(localStorage.getItem("adi-bot_exh_map")||"Dom Roana").trim();
@@ -1170,6 +1325,59 @@ function __adi_isAttackBlockedOnMap(){
   }
   function checkHeroHp(){ return (hero.hp/hero.maxhp)*100>70; }
 
+// ===== AUTOHEAL (na podstawie b.txt: szuka mikstur po stat: leczy/fullheal/perheal; odpala moveitem&id=slot&st=1) =====
+let __adiLastHealAt = 0;
+const __adiHealIgnoreNames = ['Kandyzowane wisienki w cukrze', 'Zielona pietruszka'];
+
+function __adiGetAutoHealEnabled(){
+  try{ return localStorage.getItem('adi-bot_autoheal')==='1'; }catch(_){ return false; }
+}
+function __adiGetAutoHealPct(){
+  try{
+    const v = parseInt(localStorage.getItem('adi-bot_autoheal_pct')||'85',10);
+    return Math.max(1, Math.min(99, Number.isFinite(v)?v:85));
+  }catch(_){ return 85; }
+}
+
+function __adiFindHealingPotionSlot(){
+  try{
+    if(!window.g || !g.item) return null;
+    const potionStats = ['leczy','fullheal','perheal'];
+    const potionBan = ['leczy=-','fightperheal'];
+    for(const i in g.item){
+      const it = g.item[i];
+      if(!it) continue;
+      const name = String(it.name||'');
+      const stat = String(it.stat||'');
+      const loc  = String(it.loc||'');
+      if(loc !== 'g') continue; // tylko z ekwipunku (jak w b.txt)
+      if(__adiHealIgnoreNames.includes(name)) continue;
+      if(potionStats.some(s=>stat.includes(s)) && !potionBan.some(s=>stat.includes(s))){
+        return i; // slot in g.item
+      }
+    }
+  }catch(_){}
+  return null;
+}
+
+function __adiAutoHealTick(){
+  try{
+    if(!__adiGetAutoHealEnabled()) return;
+    if(!window.hero || !hero.maxhp) return;
+    if(!window.g || g.dead || g.battle) return;
+    if(g.talk && g.talk.id && g.talk.id!==0) return; // nie lecz w dialogu
+    const now = Date.now();
+    if(now - __adiLastHealAt < 350) return; // throttle
+    const hpPct = Math.floor((hero.hp / hero.maxhp) * 100);
+    const thr = __adiGetAutoHealPct();
+    if(hpPct >= thr) return;
+    const slot = __adiFindHealingPotionSlot();
+    if(slot === null) return;
+    __adiLastHealAt = now;
+    _g(`moveitem&id=${slot}&st=1`);
+  }catch(_){}
+}
+
   function checkGrp(id){
     const npc=g.npc[id];
     try{ if(typeof __adiIsBlacklisted==='function' && __adiIsBlacklisted(id)) return false; }catch(_){ }
@@ -1329,66 +1537,6 @@ function __adi_isAttackBlockedOnMap(){
     // reszta expowisk
     for(let i=0;i<Object.keys(expowiska).length;i++){ let o=document.createElement(`option`); o.setAttribute(`value`,Object.keys(expowiska)[i]); o.text=Object.keys(expowiska)[i]; select.appendChild(o); }
     box.appendChild(select);
-    // --- Graf map (JSON) - lokalny ---
-    const graphWrap = document.createElement('div');
-    graphWrap.classList.add('adi-bot_box');
-    graphWrap.style.marginTop = '6px';
-    graphWrap.setAttribute('tip','Wklej tutaj graf map (JSON). Zostanie zapisany lokalnie.');
-    const graphLabel = document.createElement('div');
-    graphLabel.textContent = 'Graf map (JSON):';
-    graphLabel.style.margin = '4px 0';
-    const graphArea = document.createElement('textarea');
-    graphArea.id = 'adi-bot_graph';
-    graphArea.classList.add('adi-bot_inputs');
-    graphArea.style.width = '100%';
-    graphArea.style.minHeight = '120px';
-    graphArea.placeholder = '{ \"Stare Ruiny\": [ {\"to\": \"...\", \"via\": {\"x\":123,\"y\":456}} ] }';
-    try{ graphArea.value = localStorage.getItem('adi-bot_graph_json') || ''; }catch(_){}
-    const graphRow = document.createElement('div');
-    graphRow.style.display='flex'; graphRow.style.gap='6px'; graphRow.style.alignItems='center'; graphRow.style.marginTop='4px';
-    const btnSaveGraph = document.createElement('button');
-    btnSaveGraph.textContent = 'Zapisz graf';
-    btnSaveGraph.classList.add('adi-bot_btn');
-    const btnClearGraph = document.createElement('button');
-    btnClearGraph.textContent = 'Wyczyść';
-    btnClearGraph.classList.add('adi-bot_btn');
-    const graphStatus = document.createElement('span');
-    graphStatus.id = 'adi-bot_graph_status';
-    graphStatus.style.fontSize='11px'; graphStatus.style.opacity='0.8';
-    function setGraphStatus(msg, ok){
-      graphStatus.textContent = msg;
-      graphStatus.style.color = ok ? '#3cb371' : '#f08080';
-    }
-    btnSaveGraph.addEventListener('click', ()=>{
-      const txt = graphArea.value.trim();
-      if(!txt){ localStorage.removeItem('adi-bot_graph_json'); window.ADI_MAP_GRAPH={}; window.ADI_MAP_GRAPH_READY=false; setGraphStatus('Usunięto graf.', true); return; }
-      try{
-        const obj = JSON.parse(txt);
-        if(typeof obj!=='object' || Array.isArray(obj)) throw new Error('JSON musi być obiektem {mapa:[...]...}');
-        localStorage.setItem('adi-bot_graph_json', txt);
-        window.ADI_MAP_GRAPH = obj;
-        window.ADI_MAP_GRAPH_READY = true;
-        setGraphStatus('Zapisano. Wczytano '+Object.keys(obj).length+' węzłów.', true);
-        console.log('[adi-bot] MAP_GRAPH saved & loaded from UI:', Object.keys(obj).length, 'nodes');
-      }catch(e){
-        setGraphStatus('Błędny JSON: '+e.message, false);
-      }
-    });
-    btnClearGraph.addEventListener('click', ()=>{
-      graphArea.value='';
-      localStorage.removeItem('adi-bot_graph_json');
-      window.ADI_MAP_GRAPH={};
-      window.ADI_MAP_GRAPH_READY=false;
-      setGraphStatus('Graf wyczyszczony.', true);
-    });
-    graphRow.appendChild(btnSaveGraph);
-    graphRow.appendChild(btnClearGraph);
-    graphRow.appendChild(graphStatus);
-    graphWrap.appendChild(graphLabel);
-    graphWrap.appendChild(graphArea);
-    graphWrap.appendChild(graphRow);
-    box.appendChild(graphWrap);
-
     // --- Auto-kupowanie mikstur (Torneg / Wysoka kapłanka Gryfia) ---
     const apWrap = document.createElement('div'); apWrap.classList.add('adi-bot_box'); apWrap.style.marginTop='6px';
     apWrap.setAttribute('tip','Auto-kupowanie mikstur u wybranego handlarza (Auto: najbliższy – graf | Torneg/Ithan/Karka-han/Werbin/Eder/Dom Tunii/Liściaste Rozstaje/...)');
@@ -1860,6 +2008,48 @@ try{ window.__adi_normTxt = __adi_normTxt; window.getPotionCountByName = getPoti
     let chkElite=document.createElement("input"); chkElite.type="checkbox"; chkElite.id="adi-bot_allow_elite"; chkElite.style.marginRight="6px";
     eliteWrap.appendChild(chkElite); eliteWrap.appendChild(document.createTextNode("Walcz z elitami")); box.appendChild(eliteWrap);
 
+    // AUTO UMIEJĘTNOŚCI
+    let autoSkillsWrap=document.createElement("label"); autoSkillsWrap.style.display="block"; autoSkillsWrap.style.margin="4px 0 0";
+    let chkAutoSkills=document.createElement("input"); chkAutoSkills.type="checkbox"; chkAutoSkills.id="adi-bot_auto_skills"; chkAutoSkills.style.marginRight="6px";
+    autoSkillsWrap.appendChild(chkAutoSkills); autoSkillsWrap.appendChild(document.createTextNode("Auto umiejętności")); box.appendChild(autoSkillsWrap);
+
+
+// AUTOHEAL (mikstury)
+let autoHealRow=document.createElement("div");
+autoHealRow.style.display="flex";
+autoHealRow.style.alignItems="center";
+autoHealRow.style.gap="6px";
+autoHealRow.style.margin="4px 0 0";
+
+let chkAutoHeal=document.createElement("input");
+chkAutoHeal.type="checkbox";
+chkAutoHeal.id="adi-bot_autoheal";
+chkAutoHeal.style.marginRight="4px";
+
+let lblAutoHeal=document.createElement("label");
+lblAutoHeal.htmlFor="adi-bot_autoheal";
+lblAutoHeal.innerText="Autoheal";
+
+let lblAutoHealPct=document.createElement("span");
+lblAutoHealPct.innerText="Od ilu % leczyć:";
+
+let inpAutoHealPct=document.createElement("input");
+inpAutoHealPct.type="number";
+inpAutoHealPct.min="1";
+inpAutoHealPct.max="99";
+inpAutoHealPct.step="1";
+inpAutoHealPct.id="adi-bot_autoheal_pct";
+inpAutoHealPct.classList.add("adi-bot_inputs");
+inpAutoHealPct.style.width="70px";
+inpAutoHealPct.setAttribute("tip","Jeśli HP spadnie poniżej tej wartości, bot użyje mikstury leczącej z ekwipunku.");
+inpAutoHealPct.placeholder="85";
+
+autoHealRow.appendChild(chkAutoHeal);
+autoHealRow.appendChild(lblAutoHeal);
+autoHealRow.appendChild(lblAutoHealPct);
+autoHealRow.appendChild(inpAutoHealPct);
+box.appendChild(autoHealRow);
+
     // ROZMIAR GRUP
     let grpInput=document.createElement("input"); grpInput.type="text"; grpInput.id="adi-bot_grp_range"; grpInput.classList.add("adi-bot_inputs");
     grpInput.setAttribute("tip","Jakie grupy atakować: np. 1-3 lub 2 albo 1,3,5"); grpInput.placeholder="1-3"; box.appendChild(grpInput);
@@ -1889,7 +2079,13 @@ try{ window.__adi_normTxt = __adi_normTxt; window.getPotionCountByName = getPoti
       tabTest.id = 'adi-tab-test';
       tabTest.className = 'adi-tab-content';
 
-      // Move all current UI controls into Exp tab (na razie nic nie przenosimy logicznie — tylko opakowanie)
+      const tabStart = document.createElement('div');
+      tabStart.id = 'adi-tab-start';
+      tabStart.className = 'adi-tab-content';
+      // Placeholder content (możesz później uzupełnić ustawieniami startówki)
+      tabStart.innerHTML = '<div style="font-size:13px;margin:6px 0;">Wioska startowa – ustawienia w przygotowaniu.</div>';
+
+            // Move all current UI controls into Exp tab (na razie nic nie przenosimy logicznie — tylko opakowanie)
       while(box.firstChild){
         tabExp.appendChild(box.firstChild);
       }
@@ -1968,15 +2164,18 @@ try{
       const t1 = mkTab('Exp','exp');
       const t2 = mkTab('E2','e2');
       const t3 = mkTab('Test','test');
+      const t4 = mkTab('Wioska startowa','start');
       t1.classList.add('active');
 
-      tabs.appendChild(t1); tabs.appendChild(t2); tabs.appendChild(t3);
+      tabs.appendChild(t1); tabs.appendChild(t2); tabs.appendChild(t3); tabs.appendChild(t4);
 
       const contentWrap = document.createElement('div');
       contentWrap.className = 'adi-tabwrap';
       contentWrap.appendChild(tabExp);
       contentWrap.appendChild(tabE2);
       contentWrap.appendChild(tabTest);
+
+      contentWrap.appendChild(tabStart);
 
       box.appendChild(tabs);
       box.appendChild(contentWrap);
@@ -1998,7 +2197,7 @@ try{
       // restore last active tab
       try{
         const saved = (localStorage.getItem('adi-bot_active_tab')||'exp').trim();
-        if(saved==='e2' || saved==='test' || saved==='exp') activateTab(saved);
+        if(saved==='e2' || saved==='test' || saved==='exp' || saved==='start') activateTab(saved);
       }catch(_){}
     }catch(e){ console.warn('[adi-bot] tabs init failed', e); }
 
@@ -2010,7 +2209,7 @@ try{
       .adi-bot_inputs{box-sizing:content-box;margin:0 auto 3px;padding:2px;cursor:pointer;border:2px solid lime;border-radius:5px;font:normal 16px/normal "Comic Sans MS", Times, serif;color:#000;background:rgba(234,227,227,1);box-shadow:2px 2px 2px 0 rgba(0,0,0,0.2) inset;text-shadow:1px 1px 0 rgba(255,255,255,0.66);display:block;}
       input#adi-bot_mobs{text-align:center;}
       #adi-bot_toggle{background-color:#c9f7c9;font-weight:bold;}
-    
+
 
       /* ===== Tabs ===== */
       #adi-bot_box .adi-tabs{display:flex;gap:0;background:#0f0f0f;border-bottom:1px solid #000;margin:-5px -5px 6px -5px;}
@@ -2042,6 +2241,12 @@ try{
     }
     chkExh.checked = localStorage.getItem("adi-bot_exh_enabled")==="1";
     const eliteOn = localStorage.getItem("adi-bot_allow_elite")==="1"; chkElite.checked = eliteOn;
+    const autoSkillsOn = localStorage.getItem("adi-bot_auto_skills")==="1"; try{ chkAutoSkills.checked = autoSkillsOn; }catch(_){ }
+// AUTOHEAL
+try{
+  chkAutoHeal.checked = localStorage.getItem("adi-bot_autoheal")==="1";
+  inpAutoHealPct.value = localStorage.getItem("adi-bot_autoheal_pct") || "85";
+}catch(_){}
     grpInput.value = localStorage.getItem("adi-bot_grp_range") || "1-3";
     mapExh.value = localStorage.getItem("adi-bot_exh_map") || "Dom Roana";
     const selStored = localStorage.getItem("adi-bot_exh_selector"); exhSel.value = selStored && selStored.trim().length ? selStored : DEFAULT_EXH_SELECTOR;
@@ -2122,6 +2327,19 @@ const have = (window.getPotionCountByName ? window.getPotionCountByName(selName)
     });
 
 chkElite.addEventListener("change", ()=>{ localStorage.setItem("adi-bot_allow_elite", chkElite.checked?"1":"0"); message(chkElite.checked?"Elity: WŁ":"Elity: WYŁ"); });
+    try{ chkAutoSkills.addEventListener("change", ()=>{ localStorage.setItem("adi-bot_auto_skills", chkAutoSkills.checked?"1":"0"); message(chkAutoSkills.checked?"Auto umiejętności: WŁ":"Auto umiejętności: WYŁ"); }); }catch(_){ }
+// AUTOHEAL: zapisz ustawienia
+try{
+  chkAutoHeal.addEventListener("change", ()=>{ localStorage.setItem("adi-bot_autoheal", chkAutoHeal.checked?"1":"0"); message(chkAutoHeal.checked?"Autoheal: WŁ":"Autoheal: WYŁ"); });
+  inpAutoHealPct.addEventListener("change", ()=>{
+    let v = parseInt(inpAutoHealPct.value||"85",10);
+    if(!Number.isFinite(v)) v = 85;
+    v = Math.max(1, Math.min(99, v));
+    inpAutoHealPct.value = String(v);
+    localStorage.setItem("adi-bot_autoheal_pct", String(v));
+    message("Autoheal: zapisano próg " + v + "%");
+  });
+}catch(_){}
     grpInput.addEventListener("keyup", ()=>{ localStorage.setItem("adi-bot_grp_range", grpInput.value.trim()); message(`Zakres grup zapisany: ${grpInput.value.trim()||'1-3'}`); });
     chkExh.addEventListener("change", ()=>{ localStorage.setItem("adi-bot_exh_enabled", chkExh.checked?"1":"0"); message(chkExh.checked?"Tryb zbijania wyczerpania: WŁ":"Tryb zbijania wyczerpania: WYŁ"); });
     mapExh.addEventListener("keyup", ()=>localStorage.setItem("adi-bot_exh_map", mapExh.value.trim()));
@@ -2268,6 +2486,119 @@ chkElite.addEventListener("change", ()=>{ localStorage.setItem("adi-bot_allow_el
           window.__adiSkillTestRunning = false;
         }
       });
+
+    // ===== AUTO UMIEJĘTNOŚCI (po wbiciu lvla) =====
+    const __ADI_SKILL_PLAN = {"Łowca":{"25":"błyskawiczny strzał","26":"podwójny strzał","27":"wzmocnienie wigoru","28":"wzmocnienie wigoru","29":"wzmocnienie wigoru","30":"wzmocnienie wigoru","31":"wzmocnienie wigoru","32":"sprawność fizyczna","33":"sprawność fizyczna","34":"sprawność fizyczna","35":"sprawność fizyczna","36":"cios krytyczny","37":"wyswobodzenie","38":"naturalny unik","39":"wzmocnienie wigoru","40":"wzmocnienie wigoru","41":"wzmocnienie wigoru","42":"sprawność fizyczna","43":"sprawność fizyczna","44":"sprawność fizyczna","45":"sprawność fizyczna","46":"wzmocnienie wigoru","47":"wzmocnienie wigoru","48":"sprawność fizyczna","49":"sprawność fizyczna","50":"szybka strzała","51":"wrodzona szybkość","52":"zwinność","53":"przebijanie pancerza","54":"wyswobodzenie","55":"wyswobodzenie","56":"naturalny unik","57":"przebijanie pancerza","58":"przebijanie pancerza","59":"przebijanie pancerza","60":"wrodzona szybkość","61":"wrodzona szybkość","62":"wrodzona szybkość","63":"zwinność","64":"zwinność","65":"zwinność","66":"naturalny unik","67":"naturalny unik","68":"naturalny unik","69":"naturalny unik","70":"szybka strzała","71":"szybka strzała","72":"szybka strzała","73":"wrodzona szybkość","74":"wrodzona szybkość","75":"wrodzona szybkość","76":"zwinność","77":"zwinność","78":"przebijanie pancerza","79":"przebijanie pancerza","80":"przetrwanie","81":"zranienie","82":"krytyczny strzał","83":"przetrwanie","84":"przetrwanie","85":"przetrwanie","86":"wrodzona szybkość","87":"wrodzona szybkość","88":"wyswobodzenie","89":"wyswobodzenie","90":"wyswobodzenie","91":"krytyczny strzał","92":"krytyczny strzał","93":"krytyczny strzał","94":"krytyczny strzał","95":"przebijanie pancerza","96":"przebijanie pancerza","97":"przebijanie pancerza","98":"naturalny unik","99":"naturalny unik","100":"naturalny unik","101":"przebijanie pancerza","102":"zwinność","103":"zwinność","104":"zwinność","105":"zwinność","106":"naturalny unik","107":"przetrwanie","108":"przetrwanie","109":"przetrwanie","110":"przetrwanie","111":"wyswobodzenie","112":"wyswobodzenie","113":"wyswobodzenie","114":"wyswobodzenie"},"Mag":{"25":"kula ognia","26":"koncentracja many","27":"zwiększenie absorpcji","28":"koncentracja many","29":"koncentracja many","30":"koncentracja many","31":"koncentracja many","32":"koncentracja many","33":"koncentracja many","34":"koncentracja many","35":"duszący pocisk","36":"sprawność fizyczna","37":"sprawność fizyczna","38":"sprawność fizyczna","39":"sprawność fizyczna","40":"zwiększenie absorpcji","41":"zwiększenie absorpcji","42":"cios krytyczny","43":"sprawność fizyczna","44":"sprawność fizyczna","45":"sprawność fizyczna","46":"zwiększenie absorpcji","47":"zwiększenie absorpcji","48":"zwiększenie absorpcji","49":"koncentracja many","50":"rytualne szaty","51":"wrodzona szybkość","52":"rozładowujący pocisk","53":"spowalniające uderzenie","54":"zwiększenie absorpcji","55":"zwiększenie absorpcji","56":"sprawność fizyczna","57":"sprawność fizyczna","58":"sprawność fizyczna","59":"rytualne szaty","60":"rytualne szaty","61":"wrodzona szybkość","62":"wrodzona szybkość","63":"wrodzona szybkość","64":"wrodzona szybkość","65":"koncentracja many","66":"zwiększenie absorpcji","67":"zwiększenie absorpcji","68":"rytualne szaty","69":"wrodzona szybkość","70":"wrodzona szybkość","71":"wrodzona szybkość","72":"wrodzona szybkość","73":"wrodzona szybkość","74":"rytualne szaty","75":"rytualne szaty","76":"rytualne szaty","77":"rytualne szaty","78":"rytualne szaty","79":"rytualne szaty","80":"potęga ognia","81":"przetrwanie","82":"moc leczenia","83":"potęga ognia","84":"potęga ognia","85":"potęga ognia","86":"potęga ognia","87":"moc leczenia","88":"moc leczenia","89":"moc leczenia","90":"moc leczenia","91":"moc leczenia","92":"potęga ognia","93":"potęga ognia","94":"potęga ognia","95":"moc leczenia","96":"moc leczenia","97":"moc leczenia","98":"moc leczenia","99":"potęga ognia","100":"potęga ognia","101":"cios krytyczny","102":"cios krytyczny","103":"cios krytyczny","104":"cios krytyczny","105":"cios krytyczny","106":"przetrwanie","107":"przetrwanie","108":"przetrwanie","109":"przetrwanie","110":"przetrwanie","111":"przetrwanie","112":"przetrwanie","113":"przetrwanie","114":"przetrwanie"},"Tropiciel":{"25":"płonąca strzała","26":"podwójne trafienie","27":"skupienie mocy","28":"skupienie mocy","29":"skupienie mocy","30":"skupienie mocy","31":"skupienie mocy","32":"sprawność fizyczna","33":"sprawność fizyczna","34":"sprawność fizyczna","35":"cios krytyczny","36":"swobodny unik","37":"kruszące groty","38":"skupienie mocy","39":"sprawność fizyczna","40":"skupienie mocy","41":"sprawność fizyczna","42":"skupienie mocy","43":"sprawność fizyczna","44":"skupienie mocy","45":"sprawność fizyczna","46":"skupienie mocy","47":"sprawność fizyczna","48":"sprawność fizyczna","49":"sprawność fizyczna","50":"wzmocnienie absorpcji","51":"wygodne stroje","52":"wrodzona szybkość","53":"kruszące groty","54":"kruszące groty","55":"wzmocnienie absorpcji","56":"wrodzona szybkość","57":"wzmocnienie absorpcji","58":"wrodzona szybkość","59":"wygodne stroje","60":"wrodzona szybkość","61":"wzmocnienie absorpcji","62":"wzmocnienie absorpcji","63":"wzmocnienie absorpcji","64":"wrodzona szybkość","65":"wrodzona szybkość","66":"swobodny unik","67":"swobodny unik","68":"wzmocnienie absorpcji","69":"wzmocnienie absorpcji","70":"wrodzona szybkość","71":"wrodzona szybkość","72":"wzmocnienie absorpcji","73":"wzmocnienie absorpcji","74":"wrodzona szybkość","75":"wrodzona szybkość","76":"kruszące groty","77":"kruszące groty","78":"swobodny unik","79":"swobodny unik","80":"strzelecka moc ognia","81":"przetrwanie","82":"krytyczne trafienie","83":"znieczulica","84":"strzelecka moc ognia","85":"strzelecka moc ognia","86":"krytyczne trafienie","87":"wygodne stroje","88":"wygodne stroje","89":"swobodny unik","90":"swobodny unik","91":"strzelecka moc ognia","92":"strzelecka moc ognia","93":"znieczulica","94":"znieczulica","95":"znieczulica","96":"znieczulica","97":"przetrwanie","98":"przetrwanie","99":"strzelecka moc ognia","100":"strzelecka moc ognia","101":"wygodne stroje","102":"wygodne stroje","103":"strzelecka moc ognia","104":"strzelecka moc ognia","105":"strzelecka moc ognia","106":"znieczulica","107":"znieczulica","108":"znieczulica","109":"przetrwanie","110":"przetrwanie","111":"znieczulica","112":"znieczulica","113":"krytyczne trafienie","114":"przetrwanie"},"Paladyn":{"25":"gorące uderzenie","26":"szybki atak","27":"moc sprawiedliwych","28":"moc sprawiedliwych","29":"moc sprawiedliwych","30":"moc sprawiedliwych","31":"moc sprawiedliwych","32":"sprawność fizyczna","33":"sprawność fizyczna","34":"sprawność fizyczna","35":"sprawność fizyczna","36":"sprawność fizyczna","37":"cios krytyczny","38":"skupienie na celu","39":"błogosławiona ochrona","40":"hart ducha","41":"moc sprawiedliwych","42":"moc sprawiedliwych","43":"moc sprawiedliwych","44":"moc sprawiedliwych","45":"moc sprawiedliwych","46":"sprawność fizyczna","47":"sprawność fizyczna","48":"sprawność fizyczna","49":"sprawność fizyczna","50":"sprawność fizyczna","51":"strażnik boskich mocy","52":"wrodzona szybkość","53":"błogosławiona ochrona","54":"błogosławiona ochrona","55":"błogosławiona ochrona","56":"hart ducha","57":"hart ducha","58":"hart ducha","59":"wrodzona szybkość","60":"wrodzona szybkość","61":"wrodzona szybkość","62":"strażnik boskich mocy","63":"strażnik boskich mocy","64":"strażnik boskich mocy","65":"skupienie na celu","66":"błogosławiona ochrona","67":"błogosławiona ochrona","68":"błogosławiona ochrona","69":"hart ducha","70":"hart ducha","71":"hart ducha","72":"wrodzona szybkość","73":"wrodzona szybkość","74":"wrodzona szybkość","75":"wrodzona szybkość","76":"wrodzona szybkość","77":"hart ducha","78":"hart ducha","79":"hart ducha","80":"krytyczna moc ognia","81":"przetrwanie","82":"krytyczne uderzenie","83":"krytyczna moc ognia","84":"krytyczna moc ognia","85":"krytyczna moc ognia","86":"krytyczna moc ognia","87":"krytyczna moc ognia","88":"krytyczne uderzenie","89":"krytyczne uderzenie","90":"krytyczne uderzenie","91":"krytyczne uderzenie","92":"błogosławiona ochrona","93":"krytyczna moc ognia","94":"krytyczna moc ognia","95":"krytyczna moc ognia","96":"krytyczna moc ognia","97":"błogosławiona ochrona","98":"błogosławiona ochrona","99":"wrodzona szybkość","100":"krytyczne uderzenie","101":"krytyczne uderzenie","102":"krytyczne uderzenie","103":"krytyczne uderzenie","104":"krytyczne uderzenie","105":"skupienie na celu","106":"skupienie na celu","107":"przetrwanie","108":"przetrwanie","109":"przetrwanie","110":"przetrwanie","111":"przetrwanie","112":"przetrwanie","113":"przetrwanie","114":"przetrwanie"},"Tancerz ostrzy":{"25":"błyskawiczny cios","26":"poprawa kondycji","27":"potrójne uderzenie","28":"sprawność fizyczna","29":"poprawa kondycji","30":"poprawa kondycji","31":"poprawa kondycji","32":"sprawność fizyczna","33":"sprawność fizyczna","34":"sprawność fizyczna","35":"sprawność fizyczna","36":"sprawność fizyczna","37":"sprawność fizyczna","38":"poprawa kondycji","39":"poprawa kondycji","40":"zadziorny atak","41":"cios krytyczny","42":"zew krwi","43":"potrójne uderzenie","44":"potrójne uderzenie","45":"potrójne uderzenie","46":"poprawa kondycji","47":"poprawa kondycji","48":"sprawność fizyczna","49":"sprawność fizyczna","50":"krytyczne przyspieszenie","51":"wrodzona szybkość","52":"płynność ruchów","53":"sprawność fizyczna","54":"sprawność fizyczna","55":"sprawność fizyczna","56":"potrójne uderzenie","57":"potrójne uderzenie","58":"potrójne uderzenie","59":"wrodzona szybkość","60":"wrodzona szybkość","61":"wrodzona szybkość","62":"wrodzona szybkość","63":"krytyczne przyspieszenie","64":"krytyczne przyspieszenie","65":"krytyczne przyspieszenie","66":"krytyczne przyspieszenie","67":"zew krwi","68":"zew krwi","69":"zew krwi","70":"zew krwi","71":"płynność ruchów","72":"płynność ruchów","73":"płynność ruchów","74":"potrójne uderzenie","75":"potrójne uderzenie","76":"potrójne uderzenie","77":"wrodzona szybkość","78":"wrodzona szybkość","79":"wrodzona szybkość","80":"przetrwanie","81":"krytyczne cięcie","82":"rispota","83":"zdradzieckie cięcie","84":"uporczywość","85":"wrodzona szybkość","86":"wrodzona szybkość","87":"płynność ruchów","88":"płynność ruchów","89":"krytyczne cięcie","90":"krytyczne cięcie","91":"krytyczne przyspieszenie","92":"krytyczne przyspieszenie","93":"krytyczne przyspieszenie","94":"krytyczne przyspieszenie","95":"rispota","96":"rispota","97":"uporczywość","98":"uporczywość","99":"uporczywość","100":"zdradzieckie cięcie","101":"zdradzieckie cięcie","102":"zdradzieckie cięcie","103":"krytyczne przyspieszenie","104":"zew krwi","105":"płynność ruchów","106":"uporczywość","107":"uporczywość","108":"uporczywość","109":"płynność ruchów","110":"rispota","111":"krytyczne cięcie","112":"płynność ruchów","113":"płynność ruchów","114":"uporczywość"},"Wojownik":{"25":"błyskawiczny atak","26":"wzmocnienie energi","27":"wzmocnienie energi","28":"wzmocnienie energi","29":"wzmocnienie energi","30":"wzmocnienie energi","31":"wzmocnienie energi","32":"sprawność fizyczna","33":"sprawność fizyczna","34":"sprawność fizyczna","35":"wzmocnienie energi","36":"cios krytyczny","37":"twarda głowa","38":"żądza krwi","39":"wzmocnienie energi","40":"wzmocnienie energi","41":"wzmocnienie energi","42":"sprawność fizyczna","43":"sprawność fizyczna","44":"twarda głowa","45":"twarda głowa","46":"twarda głowa","47":"żądza krwi","48":"żądza krwi","49":"sprawność fizyczna","50":"sprawność fizyczna","51":"agresywny atak","52":"wrodzona szybkość","53":"sprawność fizyczna","54":"sprawność fizyczna","55":"sprawność fizyczna","56":"twarda głowa","57":"twarda głowa","58":"wrodzona szybkość","59":"wrodzona szybkość","60":"żądza krwi","61":"żądza krwi","62":"twarda głowa","63":"twarda głowa","64":"żądza krwi","65":"żądza krwi","66":"twarda głowa","67":"twarda głowa","68":"żądza krwi","69":"żądza krwi","70":"żądza krwi","71":"błyskawiczny atak","72":"wrodzona szybkość","73":"wrodzona szybkość","74":"wrodzona szybkość","75":"wrodzona szybkość","76":"wrodzona szybkość","77":"wrodzona szybkość","78":"wrodzona szybkość","79":"mocarna ochrona","80":"mocarna ochrona","81":"wytrzymałość","82":"celny cios","83":"przetrwanie","84":"adaptacja","85":"potężne uderzenie","86":"potężne uderzenie","87":"potężne uderzenie","88":"potężne uderzenie","89":"adaptacja","90":"adaptacja","91":"adaptacja","92":"wytrzymałość","93":"wytrzymałość","94":"celny cios","95":"celny cios","96":"przetrwanie","97":"przetrwanie","98":"potężne uderzenie","99":"potężne uderzenie","100":"potężne uderzenie","101":"wytrzymałość","102":"wytrzymałość","103":"celny cios","104":"adaptacja","105":"adaptacja","106":"adaptacja","107":"potężne uderzenie","108":"potężne uderzenie","109":"potężne uderzenie","110":"wytrzymałość","111":"wytrzymałość","112":"celny cios","113":"adaptacja","114":"adaptacja"}};
+
+    function __adi_normProfName(s){
+      try{
+        return String(s||'')
+          .toLowerCase()
+          .normalize('NFKD').replace(/[\u0300-\u036f]/g,'')
+          .replace(/\s+/g,' ')
+          .trim();
+      }catch(_){ return String(s||'').toLowerCase().trim(); }
+    }
+    const __ADI_PROF_ALIASES = (function(){
+      const m = new Map();
+      const canon = ["Łowca","Mag","Paladyn","Tancerz ostrzy","Tropiciel","Wojownik"];
+      for(const c of canon){ m.set(__adi_normProfName(c), c); }
+      m.set("tancerz ostrzy","Tancerz ostrzy");
+      m.set("tancerz","Tancerz ostrzy");
+      m.set("lowca","Łowca");
+      m.set("paladyn","Paladyn");
+      m.set("mag","Mag");
+      m.set("tropiciel","Tropiciel");
+      m.set("wojownik","Wojownik");
+      return m;
+    })();
+    function __adi_canonProfName(prof){
+      const n = __adi_normProfName(prof);
+      return __ADI_PROF_ALIASES.get(n) || prof;
+    }
+
+
+    function __adi_getPlannedSkillForLevel(level, prof){
+      try{
+        level = Number(level)||0;
+        if(!level) return null;
+        prof = __adi_canonProfName((prof||'').trim());
+        const plan = __ADI_SKILL_PLAN[prof];
+        if(!plan) return null;
+        return plan[String(level)] || null;
+      }catch(_){ return null; }
+    }
+
+    async function __adi_allocateSkillOnce(skillName){
+      skillName = (skillName||'').trim();
+      if(!skillName) return false;
+
+      if(window.__adiSkillTestRunning || window.__adiAutoSkillRunning) return false;
+      window.__adiAutoSkillRunning = true;
+      try{
+        // jeśli walka / blokady UI — poczekaj chwilę; jeśli dalej walka, NIE próbuj klikać skilli
+        const tWait = Date.now();
+        while(Date.now()-tWait < 15000){
+          try{ if(!window.g || !g.battle) break; }catch(_){ break; }
+          await __adi_wait(200);
+        }
+        try{ if(window.g && g.battle) return false; }catch(_){}
+        await __adi_openSkills();
+        const boxes = await __adi_waitForSkillsBoxes(8000);
+        if(!boxes) return false;
+
+        const t0 = Date.now();
+        while(Date.now()-t0 < 7000){
+          const learnBtn = __adi_findLearnBtnBySkillName(skillName);
+          if(learnBtn){
+            try{ learnBtn.click(); }catch(_){}
+            // IMPORTANT: wait 1s before closing (prevents white-screen bugs)
+            await __adi_wait(1000);
+            await __adi_closeSkills();
+            return true;
+          }
+          await __adi_wait(180);
+        }
+        // nie znaleziono
+        try{ await __adi_closeSkills(); }catch(_){}
+        return false;
+      }finally{
+        window.__adiAutoSkillRunning = false;
+      }
+    }
+
+    // Główna funkcja: na awans -> sprawdź plan (prof + lvl) i rozdaj 1 punkt
+    window.__adiHandleAutoSkillsOnLevel = async function(level, force){
+      try{
+        const enabled = (localStorage.getItem('adi-bot_auto_skills')||'0')==='1';
+        if(!enabled && !force) return {ok:false, reason:'disabled'};
+        const KEY = 'adi-bot_last_skill_level_handled';
+        let last = 0;
+        try{ last = parseInt(localStorage.getItem(KEY) || '0', 10) || 0; }catch(_){}
+
+        // UWAGA: nie oznaczaj poziomu jako "obsłużony", dopóki faktycznie nie uda się kliknąć skilla.
+        if(!force && (Number(level)||0) === last){
+          return {ok:false, reason:'already', prof: null};
+        }
+
+        const profRaw = __adi_getProfession() || (window.hero ? String(hero.prof) : null) || 'Wojownik';
+        const prof = __adi_canonProfName(profRaw);
+        const skill = __adi_getPlannedSkillForLevel(level, prof);
+        if(!skill) return {ok:false, reason:'no-plan', prof};
+
+        const ok = await __adi_allocateSkillOnce(skill);
+
+        // Zapisz "handled" TYLKO jeśli sukces, żeby po walce/lagu było retry.
+        if(ok && !force){
+          try{ localStorage.setItem(KEY, String(Number(level)||0)); }catch(_){}
+        }
+
+        return {ok, prof, skill};
+      }catch(e){
+        return {ok:false, reason:'error', error:String(e&&e.message||e)};
+      }
+    };
+
     })();
 
 
@@ -2540,7 +2871,15 @@ try{
         // 1) Do miasta
         if(task.stage==='toCity'){
           if(norm(map?.name||'')===norm(task.map)){ task.stage='toStand'; saveEquipTask(task); }
-          else{ setTempTarget(task.map); eqSetInfo('Wyznaczam trasę do '+task.map+'...', true); }
+          else{
+          setTempTarget(task.map);
+          eqSetInfo('Wyznaczam trasę do '+task.map+'...', true);
+          // Move one step of the route here (do not depend on main bot loop)
+          try{
+            var step = (typeof followGraphTo==='function') ? followGraphTo(task.map) : null;
+            if(step && typeof step.x!=='undefined') a_goTo(step.x, step.y);
+          }catch(_){}
+        }
           return;
         }
         // 2) Podejście pod NPC
@@ -2763,7 +3102,7 @@ function __adi_buildEquipTasksFor(level, profession){
 
 // Observe chat for level-up message
 (function(){
-  function onLevelUp(level){
+  async function onLevelUp(level){
     level = Number(level) || 0;
     if(!level) return;
 
@@ -2773,6 +3112,15 @@ function __adi_buildEquipTasksFor(level, profession){
     try{ last = parseInt(localStorage.getItem(KEY) || '0', 10) || 0; }catch(_){}
     if(level === last) return;
     try{ localStorage.setItem(KEY, String(level)); }catch(_){}
+
+
+    // AUTO UMIEJĘTNOŚCI: najpierw rozdaj skill (żeby nie kolidowało z kupowaniem eq)
+    try{
+      const sr = await (window.__adiHandleAutoSkillsOnLevel ? window.__adiHandleAutoSkillsOnLevel(level) : Promise.resolve(null));
+      if(sr && sr.ok) console.log('[adi-bot][auto-skill] lvl', level, 'prof', sr.prof, '->', sr.skill);
+      else if(sr && sr.reason==='no-plan') console.log('[adi-bot][auto-skill] brak planu dla', sr.prof, 'na lvl', level);
+      else if(sr && sr.reason==='disabled') console.log('[adi-bot][auto-skill] wyłączone (checkbox Auto umiejętności)');
+    }catch(e){ console.warn('[adi-bot][auto-skill] błąd', e); }
 
     const prof = __adi_getProfession() || (window.hero ? String(hero.prof) : null) || 'Wojownik';
     const tasks = __adi_buildEquipTasksFor(level, prof);
@@ -2820,9 +3168,11 @@ function __adi_buildEquipTasksFor(level, profession){
 
 
 // Manual trigger for testing
-window.__adiTriggerEquipLevelUp = function(level){
+window.__adiTriggerEquipLevelUp = async function(level){
   try{
     level = Number(level)||0;
+    // najpierw skill
+    try{ if(window.__adiHandleAutoSkillsOnLevel) await window.__adiHandleAutoSkillsOnLevel(level, true); }catch(e){ console.warn('[adi-bot][auto-skill] błąd (test lvl)', e); }
     const prof = __adi_getProfession() || (window.hero ? String(hero.prof) : null) || 'Wojownik';
     const tasks = __adi_buildEquipTasksFor(level, prof);
     if(!tasks.length){ console.log('[adi-bot] Brak planu zakupów dla', prof, 'na poziom', level); return false; }
@@ -2840,7 +3190,16 @@ window.__adiTriggerEquipLevelUp = function(level){
 // włącz kontynuację po F5
     if(loadEquipTask()) startEquipFlow();
 
-    graphWrap.parentNode.insertBefore(equipWrap, graphWrap.nextSibling);
+    try{
+      if(typeof graphWrap !== 'undefined' && graphWrap && graphWrap.parentNode){
+        graphWrap.parentNode.insertBefore(equipWrap, graphWrap.nextSibling);
+      }else{
+        // graph UI removed -> just append equip section at the end of the bot box
+        box.appendChild(equipWrap);
+      }
+    }catch(_){
+      try{ box.appendChild(equipWrap); }catch(__){}
+    }
 
   };
 
