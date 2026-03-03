@@ -927,8 +927,77 @@ function setTempTarget(val){
   // ===== CAPTCHA LOGGER + persistent toggle =====
   const selfRef=this;
   if(!selfRef.basePI) selfRef.basePI=parseInput;
-  selfRef.botPI=function(a){
-    const ret=selfRef.basePI.apply(this, arguments);
+selfRef.botPI=function(a){
+  // --- E2 TIMER capture (must be BEFORE basePI) ---
+  let __adiNpcBeforeDel = null;
+  try{
+    if(a && a.npc && window.g && g.npc){
+      __adiNpcBeforeDel = {};
+      for(const id in a.npc){
+        const upd = a.npc[id];
+        if(upd && (upd.del || upd.del===1) && (typeof upd.respBaseSeconds === 'number' || upd.respBaseSeconds)){
+          const nid = Number(String(id).replace(/[^\d\-]/g,'')) || Number(id);
+          const n = (g.npc && g.npc[nid]) ? g.npc[nid] : null;
+          if(n) __adiNpcBeforeDel[nid] = { n, upd };
+        }
+      }
+    }
+  }catch(_){}
+
+  const ret=selfRef.basePI.apply(this, arguments);
+
+  // --- E2 TIMER save (after basePI) ---
+  try{
+    if(window.__adiE2Timer && __adiE2Timer.enabled && __adiE2Timer.enabled() && __adiNpcBeforeDel){
+      const savedBy = (window.hero && (hero.nick || hero.name)) ? (hero.nick || hero.name) : '';
+      const world = (window.g && g.worldname) ? String(g.worldname) : (window.world || '');
+
+      function isE2(n){
+        const ic = String((n && (n.icon || n.ticon)) || '');
+        return /(?:^|\/)npc\/e2\//i.test(ic);
+      }
+      function defaultRandForNpc(){
+        // Minutnik+: dla E2 default to 0.1 (±10%)
+        return 0.1;
+      }
+
+      for(const nidStr in __adiNpcBeforeDel){
+        const { n, upd } = __adiNpcBeforeDel[nidStr];
+        if(!n || !upd) continue;
+        if(!isE2(n)) continue;
+
+        const respBaseSeconds = Number(upd.respBaseSeconds || n.respBaseSeconds || 0);
+        if(!respBaseSeconds || respBaseSeconds <= 0) continue;
+
+        const rr = (typeof n.resp_rand === 'number') ? n.resp_rand
+                 : (typeof upd.resp_rand === 'number') ? upd.resp_rand
+                 : null;
+
+        const t = (rr != null) ? (Number(rr)/100) : defaultRandForNpc();
+
+        const now = __adiE2Timer.nowUnix();
+        const min = now + Math.round(respBaseSeconds - respBaseSeconds * t);
+        const max = now + Math.round(respBaseSeconds + respBaseSeconds * t);
+
+        const mapName = (window.map && map.name) ? map.name : '';
+        const timer = {
+          id: `${mapName}-${n.id}`,
+          npcId: n.id,
+          name: n.nick || n.name || 'E2',
+          map: mapName,
+          x: n.x, y: n.y,
+          min, max,
+          savedBy,
+          world
+        };
+
+        __adiE2Timer.upsertTimer(timer);
+      }
+    }
+  }catch(e){
+    console.warn('[adi-bot][e2timer] save error', e);
+  }
+
 
     // CAPTCHA detect (skrócone)
     try{
@@ -2178,6 +2247,201 @@ try{
       contentWrap.appendChild(tabStart);
 
       box.appendChild(tabs);
+
+// ===================== E2 TIMER (Minutnik+-like) =====================
+(function(){
+  const KEY = 'adi-e2-timers';
+  const OPT_ENABLED = 'adi-e2timer_enabled';
+  const OPT_ALWAYS_MAX = 'adi-e2timer_always_max';
+  const OPT_STALE_SEC = 'adi-e2timer_stale_sec';
+
+  function nowUnix(){ return Math.floor(Date.now()/1000); }
+  function loadTimers(){
+    try{ return JSON.parse(localStorage.getItem(KEY) || '[]') || []; }catch(_){ return []; }
+  }
+  function saveTimers(arr){
+    try{ localStorage.setItem(KEY, JSON.stringify(arr || [])); }catch(_){}
+  }
+  function upsertTimer(t){
+    const arr = loadTimers();
+    const idx = arr.findIndex(x => x && x.id === t.id);
+    if(idx >= 0) arr[idx] = t; else arr.push(t);
+    saveTimers(arr);
+  }
+  function deleteTimer(id){
+    const arr = loadTimers().filter(x => x && x.id !== id);
+    saveTimers(arr);
+  }
+  function fmt2(n){ n=Math.max(0, n|0); return (n<10?'0':'')+n; }
+  function fmtHMS(sec){
+    sec = Math.max(0, sec|0);
+    const h = Math.floor(sec/3600); sec -= h*3600;
+    const m = Math.floor(sec/60); sec -= m*60;
+    return `${fmt2(h)}:${fmt2(m)}:${fmt2(sec)}`;
+  }
+  function toDateStr(unixSec){
+    try{ return new Date(unixSec*1000).toLocaleString(); }catch(_){ return String(unixSec); }
+  }
+
+  function remainingSec(t, alwaysShowMax){
+    const n = nowUnix();
+    const reachedMin = n >= t.min;
+    const target = (reachedMin || alwaysShowMax) ? t.max : t.min;
+    return Math.max(0, target - n);
+  }
+
+  function ensureUI(){
+    const tab = document.querySelector('#adi-tab-e2');
+    if(!tab) return null;
+
+    let wrap = tab.querySelector('#adi-e2timer-wrap');
+    if(wrap) return wrap;
+
+    wrap = document.createElement('div');
+    wrap.id = 'adi-e2timer-wrap';
+    wrap.style.margin = '6px 0';
+    wrap.style.fontSize = '12px';
+
+    const row = document.createElement('div');
+    row.style.display = 'flex';
+    row.style.gap = '10px';
+    row.style.alignItems = 'center';
+    row.style.flexWrap = 'wrap';
+
+    const chk = document.createElement('input');
+    chk.type = 'checkbox';
+    chk.id = 'adi-e2timer-enabled';
+
+    const lbl = document.createElement('label');
+    lbl.htmlFor = chk.id;
+    lbl.textContent = 'Minutnik E2 (jak Minutnik+)';
+
+    const chkMax = document.createElement('input');
+    chkMax.type = 'checkbox';
+    chkMax.id = 'adi-e2timer-alwaysmax';
+
+    const lblMax = document.createElement('label');
+    lblMax.htmlFor = chkMax.id;
+    lblMax.textContent = 'Zawsze odliczaj do MAX';
+
+    const stale = document.createElement('input');
+    stale.type = 'number';
+    stale.min = '5';
+    stale.max = '600';
+    stale.step = '5';
+    stale.style.width = '70px';
+    stale.id = 'adi-e2timer-stale';
+    stale.title = 'Ile sekund po MAX trzymać timer (jak w Minutniku+)';
+
+    const staleLbl = document.createElement('span');
+    staleLbl.textContent = 'Trzymaj po MAX (s):';
+
+    try{ chk.checked = (localStorage.getItem(OPT_ENABLED) ?? '1') === '1'; }catch(_){ chk.checked=true; }
+    try{ chkMax.checked = (localStorage.getItem(OPT_ALWAYS_MAX) ?? '0') === '1'; }catch(_){ chkMax.checked=false; }
+    try{ stale.value = String(parseInt(localStorage.getItem(OPT_STALE_SEC) || '30',10) || 30); }catch(_){ stale.value='30'; }
+
+    chk.addEventListener('change', ()=>{ try{ localStorage.setItem(OPT_ENABLED, chk.checked?'1':'0'); }catch(_){} });
+    chkMax.addEventListener('change', ()=>{ try{ localStorage.setItem(OPT_ALWAYS_MAX, chkMax.checked?'1':'0'); }catch(_){} });
+    stale.addEventListener('change', ()=>{ try{ localStorage.setItem(OPT_STALE_SEC, String(parseInt(stale.value||'30',10)||30)); }catch(_){} });
+
+    row.appendChild(chk); row.appendChild(lbl);
+    row.appendChild(chkMax); row.appendChild(lblMax);
+    row.appendChild(staleLbl); row.appendChild(stale);
+
+    const list = document.createElement('div');
+    list.id = 'adi-e2timer-list';
+    list.style.marginTop = '8px';
+    list.style.border = '1px solid rgba(0,0,0,.25)';
+    list.style.background = 'rgba(0,0,0,.05)';
+    list.style.borderRadius = '6px';
+    list.style.overflow = 'hidden';
+
+    wrap.appendChild(row);
+    wrap.appendChild(list);
+    tab.appendChild(wrap);
+
+    return wrap;
+  }
+
+  function render(){
+    const wrap = ensureUI();
+    if(!wrap) return;
+
+    const enabled = (localStorage.getItem(OPT_ENABLED) ?? '1') === '1';
+    const alwaysMax = (localStorage.getItem(OPT_ALWAYS_MAX) ?? '0') === '1';
+    const staleSec = parseInt(localStorage.getItem(OPT_STALE_SEC) || '30', 10) || 30;
+
+    const list = wrap.querySelector('#adi-e2timer-list');
+    if(!list) return;
+
+    if(!enabled){
+      list.innerHTML = `<div style="padding:8px;color:#666;">Minutnik wyłączony.</div>`;
+      return;
+    }
+
+    const n = nowUnix();
+    let timers = loadTimers();
+
+    timers = timers.filter(t => t && n < (t.max + staleSec));
+    saveTimers(timers);
+
+    if(!timers.length){
+      list.innerHTML = `<div style="padding:8px;color:#666;">Brak zapisanych timerów E2.</div>`;
+      return;
+    }
+
+    timers.sort((a,b)=> remainingSec(a, alwaysMax) - remainingSec(b, alwaysMax));
+
+    list.innerHTML = '';
+    for(const t of timers){
+      const row = document.createElement('div');
+      row.style.display = 'grid';
+      row.style.gridTemplateColumns = '1fr auto auto';
+      row.style.gap = '8px';
+      row.style.padding = '6px 8px';
+      row.style.borderTop = '1px solid rgba(0,0,0,.08)';
+      row.title =
+        `${t.name}\nMapa: ${t.map} (${t.x},${t.y})\n` +
+        `Min: ${toDateStr(t.min)}\nMax: ${toDateStr(t.max)}\n` +
+        `Świat: ${t.world || '?'}\nPostać: ${t.savedBy || '?'}`;
+
+      const name = document.createElement('div');
+      name.textContent = t.name || '(bez nazwy)';
+      name.style.whiteSpace = 'nowrap';
+      name.style.overflow = 'hidden';
+      name.style.textOverflow = 'ellipsis';
+
+      const time = document.createElement('div');
+      time.textContent = fmtHMS(remainingSec(t, alwaysMax));
+      time.style.fontVariantNumeric = 'tabular-nums';
+
+      const del = document.createElement('div');
+      del.textContent = '✖';
+      del.style.cursor = 'pointer';
+      del.style.opacity = '0.75';
+      del.addEventListener('click', (ev)=>{
+        ev.preventDefault(); ev.stopPropagation();
+        deleteTimer(t.id);
+        render();
+      });
+
+      row.appendChild(name);
+      row.appendChild(time);
+      row.appendChild(del);
+      list.appendChild(row);
+    }
+  }
+
+  window.__adiE2Timer = {
+    upsertTimer,
+    nowUnix,
+    enabled: ()=> (localStorage.getItem(OPT_ENABLED) ?? '1') === '1',
+  };
+
+  setInterval(render, 1000);
+  setTimeout(render, 800);
+})();
+
       box.appendChild(contentWrap);
 
       function activateTab(key){
