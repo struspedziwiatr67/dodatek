@@ -401,213 +401,12 @@ Lvl: **${n.lvl ?? "?"}**`,
   const newNpcOldCopyAf = preNewNpc;
   preNewNpc = function (npcs) {
     for (var npc in npcs) {
-
-      // --- E2 timer save on NPC del (SI) ---
-      try{
-        if(npcs[npc].del && window.__adiE2Timer && __adiE2Timer.enabled && __adiE2Timer.enabled() && g.npc[npc]){
-          var n=g.npc[npc];
-          var icon=String(n.icon||n.ticon||"");
-          var isE2 = /(?:^|\/)npc\/e2\//i.test(icon) || /npc\/e2\//i.test(icon);
-          if(isE2){
-            var base = Number(n.respBaseSeconds || n.resp || 0);
-            if(base>0){
-              var rr = (typeof n.resp_rand === "number") ? n.resp_rand : (typeof n.respRand === "number" ? n.respRand : null);
-              var t = (rr!=null) ? (Number(rr)/100) : 0.1; // Minutnik+: E2 default ±10%
-              var now = __adiE2Timer.nowUnix();
-              var min = now + Math.round(base - base*t);
-              var max = now + Math.round(base + base*t);
-              var mapName = (window.map && map.name) ? map.name : (g.map && g.map.name ? g.map.name : "");
-              var savedBy = (window.hero && (hero.nick||hero.name)) ? (hero.nick||hero.name) : "";
-              var world = (window.world || (g.worldname||""));
-              __adiE2Timer.upsertTimer({
-                id: String(mapName||'map')+'-'+String(n.id),
-                npcId: n.id,
-                name: n.nick || n.name || 'E2',
-                map: mapName,
-                x: n.x, y: n.y,
-                min: min, max: max,
-                savedBy: savedBy,
-                world: world
-              });
-            }
-          }
-        }
-      }catch(e){ try{ console.warn('[adi-e2timer]', e); }catch(_){} }
-
       if (npcs[npc].del && g.npc[npc] && Math.abs(hero.x - g.npc[npc].x) + Math.abs(hero.y - g.npc[npc].y) > 13) {
         delete npcs[npc];
       }
     }
     newNpcOldCopyAf(npcs);
   };
-
-/* ===================== E2 TIMER (Minutnik+-like, SI) ===================== */
-(function(){
-  const KEY = 'adi-e2-timers';
-  const OPT_ENABLED = 'adi-e2timer_enabled';
-  const OPT_ALWAYS_MAX = 'adi-e2timer_always_max';
-  const OPT_STALE_SEC = 'adi-e2timer_stale_sec';
-
-  function nowUnix(){ return Math.floor(Date.now()/1000); }
-  function loadTimers(){ try{ return JSON.parse(localStorage.getItem(KEY)||'[]')||[]; }catch(_){ return []; } }
-  function saveTimers(arr){ try{ localStorage.setItem(KEY, JSON.stringify(arr||[])); }catch(_){ } }
-  function upsertTimer(t){
-    const arr = loadTimers();
-    const i = arr.findIndex(x=>x && x.id===t.id);
-    if(i>=0) arr[i]=t; else arr.push(t);
-    saveTimers(arr);
-  }
-  function deleteTimer(id){ saveTimers(loadTimers().filter(x=>x && x.id!==id)); }
-
-  function fmt2(n){ n=Math.max(0,n|0); return (n<10?'0':'')+n; }
-  function fmtHMS(sec){
-    sec=Math.max(0,sec|0);
-    const h=Math.floor(sec/3600); sec-=h*3600;
-    const m=Math.floor(sec/60); sec-=m*60;
-    return `${fmt2(h)}:${fmt2(m)}:${fmt2(sec)}`;
-  }
-  function toDateStr(u){ try{ return new Date(u*1000).toLocaleString(); }catch(_){ return String(u); } }
-
-  function remainingSec(t, alwaysMax){
-    const n=nowUnix();
-    const reachedMin = n>=t.min;
-    const target = (reachedMin || alwaysMax) ? t.max : t.min;
-    return Math.max(0, target-n);
-  }
-
-  function ensureUI(){
-    const tab = document.querySelector('#adi-tab-e2');
-    if(!tab) return null;
-    let wrap = tab.querySelector('#adi-e2timer-wrap');
-    if(wrap) return wrap;
-
-    wrap=document.createElement('div');
-    wrap.id='adi-e2timer-wrap';
-    wrap.style.margin='6px 0';
-    wrap.style.fontSize='12px';
-
-    const row=document.createElement('div');
-    row.style.display='flex';
-    row.style.gap='10px';
-    row.style.alignItems='center';
-    row.style.flexWrap='wrap';
-
-    const chk=document.createElement('input');
-    chk.type='checkbox'; chk.id='adi-e2timer-enabled';
-    const lbl=document.createElement('label');
-    lbl.htmlFor=chk.id; lbl.textContent='Minutnik E2 (jak Minutnik+)';
-
-    const chkMax=document.createElement('input');
-    chkMax.type='checkbox'; chkMax.id='adi-e2timer-alwaysmax';
-    const lblMax=document.createElement('label');
-    lblMax.htmlFor=chkMax.id; lblMax.textContent='Zawsze odliczaj do MAX';
-
-    const stale=document.createElement('input');
-    stale.type='number'; stale.min='5'; stale.max='600'; stale.step='5';
-    stale.style.width='70px'; stale.id='adi-e2timer-stale';
-    const staleLbl=document.createElement('span');
-    staleLbl.textContent='Trzymaj po MAX (s):';
-
-    try{ chk.checked=(localStorage.getItem(OPT_ENABLED) ?? '1')==='1'; }catch(_){ chk.checked=true; }
-    try{ chkMax.checked=(localStorage.getItem(OPT_ALWAYS_MAX) ?? '0')==='1'; }catch(_){ chkMax.checked=false; }
-    try{ stale.value=String(parseInt(localStorage.getItem(OPT_STALE_SEC)||'30',10)||30); }catch(_){ stale.value='30'; }
-
-    chk.addEventListener('change', ()=>{ try{ localStorage.setItem(OPT_ENABLED, chk.checked?'1':'0'); }catch(_){ } });
-    chkMax.addEventListener('change', ()=>{ try{ localStorage.setItem(OPT_ALWAYS_MAX, chkMax.checked?'1':'0'); }catch(_){ } });
-    stale.addEventListener('change', ()=>{ try{ localStorage.setItem(OPT_STALE_SEC, String(parseInt(stale.value||'30',10)||30)); }catch(_){ } });
-
-    row.appendChild(chk); row.appendChild(lbl);
-    row.appendChild(chkMax); row.appendChild(lblMax);
-    row.appendChild(staleLbl); row.appendChild(stale);
-
-    const list=document.createElement('div');
-    list.id='adi-e2timer-list';
-    list.style.marginTop='8px';
-    list.style.border='1px solid rgba(0,0,0,.25)';
-    list.style.background='rgba(0,0,0,.05)';
-    list.style.borderRadius='6px';
-    list.style.overflow='hidden';
-
-    wrap.appendChild(row);
-    wrap.appendChild(list);
-    tab.appendChild(wrap);
-    return wrap;
-  }
-
-  function render(){
-    const wrap=ensureUI();
-    if(!wrap) return;
-    const enabled=(localStorage.getItem(OPT_ENABLED) ?? '1')==='1';
-    const alwaysMax=(localStorage.getItem(OPT_ALWAYS_MAX) ?? '0')==='1';
-    const staleSec=parseInt(localStorage.getItem(OPT_STALE_SEC)||'30',10)||30;
-    const list=wrap.querySelector('#adi-e2timer-list');
-    if(!list) return;
-
-    if(!enabled){
-      list.innerHTML='<div style="padding:8px;color:#666;">Minutnik wyłączony.</div>';
-      return;
-    }
-
-    const n=nowUnix();
-    let timers=loadTimers();
-    timers=timers.filter(t=>t && n < (t.max + staleSec));
-    saveTimers(timers);
-
-    if(!timers.length){
-      list.innerHTML='<div style="padding:8px;color:#666;">Brak zapisanych timerów E2.</div>';
-      return;
-    }
-
-    timers.sort((a,b)=>remainingSec(a,alwaysMax)-remainingSec(b,alwaysMax));
-    list.innerHTML='';
-    for(const t of timers){
-      const row=document.createElement('div');
-      row.style.display='grid';
-      row.style.gridTemplateColumns='1fr auto auto';
-      row.style.gap='8px';
-      row.style.padding='6px 8px';
-      row.style.borderTop='1px solid rgba(0,0,0,.08)';
-      row.title=
-        `${t.name}
-Mapa: ${t.map} (${t.x},${t.y})
-Min: ${toDateStr(t.min)}
-Max: ${toDateStr(t.max)}
-Świat: ${t.world||'?'}
-Postać: ${t.savedBy||'?'}`;
-
-      const name=document.createElement('div');
-      name.textContent=t.name || '(bez nazwy)';
-      name.style.whiteSpace='nowrap';
-      name.style.overflow='hidden';
-      name.style.textOverflow='ellipsis';
-
-      const time=document.createElement('div');
-      time.textContent=fmtHMS(remainingSec(t,alwaysMax));
-      time.style.fontVariantNumeric='tabular-nums';
-
-      const del=document.createElement('div');
-      del.textContent='✖';
-      del.style.cursor='pointer';
-      del.style.opacity='0.75';
-      del.addEventListener('click',(ev)=>{ ev.preventDefault(); ev.stopPropagation(); deleteTimer(t.id); render(); });
-
-      row.appendChild(name); row.appendChild(time); row.appendChild(del);
-      list.appendChild(row);
-    }
-  }
-
-  window.__adiE2Timer = {
-    upsertTimer,
-    enabled: ()=> (localStorage.getItem(OPT_ENABLED) ?? '1')==='1',
-    nowUnix
-  };
-
-  setInterval(render,1000);
-  setTimeout(render,800);
-})();
-/* =================== /E2 TIMER =================== */
-
-
 
   // wyłączenie alertów i blokad
   mAlert = function () {};
@@ -1125,11 +924,312 @@ function setTempTarget(val){
 
 
 
-  // ===== CAPTCHA LOGGER + persistent toggle =====
+  
+  // ===== E2 TIMER (respBaseSeconds) =====
+  // Liczy min/max odrodzenia na podstawie pakietów npcs_del.respBaseSeconds (jak Minutnik+)
+  // i wyświetla listę w zakładce "E2".
+  const __adiE2Timer = (function(){
+    const TIMER_KEY = 'adi-bot_e2timers';
+    const SETTINGS_KEY = 'adi-bot_e2timer_settings';
+
+    const DEFAULT_RAND = 0.10; // ±10% gdy brak resp_rand
+    const DEFAULT_STALE_SEC = 30;
+
+    const now = () => Math.floor(Date.now()/1000);
+    const safeParse = (s, fb) => { try { return JSON.parse(s); } catch(e){ return fb; } };
+
+    function loadSettings(){
+      const s = safeParse(localStorage.getItem(SETTINGS_KEY) || '{}', {});
+      return {
+        enabled: s.enabled !== false,
+        alwaysMax: !!s.alwaysMax,
+        staleSec: Number.isFinite(s.staleSec) ? s.staleSec : DEFAULT_STALE_SEC,
+        eliteFilter: s.eliteFilter !== false, // domyślnie ON
+        wtMin: Number.isFinite(s.wtMin) ? s.wtMin : 20
+      };
+    }
+    function saveSettings(s){ try{ localStorage.setItem(SETTINGS_KEY, JSON.stringify(s||{})); }catch(e){} }
+
+    function loadTimers(){
+      return safeParse(localStorage.getItem(TIMER_KEY) || '[]', []).filter(Boolean);
+    }
+    function saveTimers(arr){ try{ localStorage.setItem(TIMER_KEY, JSON.stringify(arr||[])); }catch(e){} }
+
+    // cache z g.npc żeby nie zgubić danych między tickami
+    const npcCache = new Map(); // id -> snap
+    setInterval(()=>{
+      try{
+        if(!window.g || !g.npc) return;
+        const t = now();
+        for(const id in g.npc){
+          const n = g.npc[id];
+          if(!n) continue;
+          npcCache.set(String(id), {
+            id: String(id),
+            name: String(n.nick || n.name || ''),
+            wt: n.wt,
+            lvl: n.lvl,
+            x: n.x, y: n.y,
+            type: n.type,
+            groupType: n.groupType,
+            icon: String(n.icon || n.ticon || ''),
+            ts: t
+          });
+        }
+        for(const [id,s] of npcCache){
+          if(t - (s.ts||0) > 20) npcCache.delete(id);
+        }
+      }catch(e){}
+    }, 250);
+
+    function passesEliteFilter(npc){
+      const s = loadSettings();
+      if(!s.eliteFilter) return true;
+      if(!npc) return false;
+      // W SI groupType bywa undefined (np. Kotołak), więc akceptuj brak
+      const isNpc = (npc.type === 2) && (npc.groupType === 2 || npc.groupType == null);
+      if(!isNpc) return false;
+      const wt = Number(npc.wt);
+      return Number.isFinite(wt) ? wt >= s.wtMin : false;
+    }
+
+    function addFromDel(delEntry){
+      const s = loadSettings();
+      if(!s.enabled) return;
+
+      const base = Number(delEntry && delEntry.respBaseSeconds);
+      if(!Number.isFinite(base) || base <= 0) return;
+
+      const id = (delEntry && delEntry.id != null) ? String(delEntry.id) : null;
+      if(!id) return;
+
+      const npc = (npcCache.get(id)) || (window.g && g.npc ? g.npc[id] : null);
+      if(!npc) return;
+
+      const snap = {
+        id: String(npc.id || id),
+        name: String(npc.nick || npc.name || ''),
+        wt: npc.wt,
+        lvl: npc.lvl,
+        x: npc.x, y: npc.y,
+        type: npc.type,
+        groupType: npc.groupType,
+        icon: String(npc.icon || npc.ticon || ''),
+      };
+
+      if(!passesEliteFilter(snap)) return;
+
+      const rand = (delEntry && delEntry.resp_rand != null) ? (Number(delEntry.resp_rand)/100) : DEFAULT_RAND;
+      const tNow = now();
+      const min = tNow + Math.round(base - base*rand);
+      const max = tNow + Math.round(base + base*rand);
+
+      const timers = loadTimers();
+      timers.push({
+        _id: `${id}-${tNow}-${Math.random().toString(16).slice(2)}`,
+        npcId: id,
+        name: snap.name || ('NPC#'+id),
+        map: (window.map && map.name) ? String(map.name) : '',
+        x: snap.x, y: snap.y,
+        wt: snap.wt, lvl: snap.lvl,
+        baseSeconds: base,
+        rand: rand,
+        killTs: tNow,
+        min: min,
+        max: max
+      });
+      saveTimers(timers);
+      try{ render(); }catch(e){}
+    }
+
+    function remaining(timer){
+      const s = loadSettings();
+      const t = now();
+      const reachedMin = t >= timer.min;
+      const target = (reachedMin || s.alwaysMax) ? timer.max : timer.min;
+      return Math.max(0, target - t);
+    }
+    function pad2(n){ return (n<10?'0':'')+n; }
+    function fmt(sec){
+      sec = Math.max(0, sec|0);
+      const h = Math.floor(sec/3600); sec -= h*3600;
+      const m = Math.floor(sec/60); sec -= m*60;
+      return pad2(h)+':'+pad2(m)+':'+pad2(sec);
+    }
+    function toDateStr(u){ try{ return new Date(u*1000).toLocaleString(); }catch(e){ return String(u); } }
+
+    function purge(){
+      const s = loadSettings();
+      const t = now();
+      const arr = loadTimers().filter(x => x && t < (x.max + s.staleSec));
+      saveTimers(arr);
+      return arr;
+    }
+
+    let ui = { root:null, list:null };
+
+    function mountInto(tabE2){
+      if(!tabE2 || ui.root) return;
+
+      const wrap = document.createElement('div');
+      wrap.style.padding = '8px 6px';
+
+      const top = document.createElement('div');
+      top.style.display = 'flex';
+      top.style.gap = '10px';
+      top.style.flexWrap = 'wrap';
+      top.style.alignItems = 'center';
+      top.style.marginBottom = '8px';
+
+      const chk = document.createElement('input'); chk.type='checkbox';
+      const lbl = document.createElement('label'); lbl.style.display='flex'; lbl.style.gap='6px'; lbl.style.alignItems='center';
+      lbl.appendChild(chk); lbl.appendChild(document.createTextNode('Minutnik ON'));
+
+      const chkMax = document.createElement('input'); chkMax.type='checkbox';
+      const lblMax = document.createElement('label'); lblMax.style.display='flex'; lblMax.style.gap='6px'; lblMax.style.alignItems='center';
+      lblMax.appendChild(chkMax); lblMax.appendChild(document.createTextNode('Zawsze do MAX'));
+
+      const chkF = document.createElement('input'); chkF.type='checkbox';
+      const lblF = document.createElement('label'); lblF.style.display='flex'; lblF.style.gap='6px'; lblF.style.alignItems='center';
+      lblF.appendChild(chkF); lblF.appendChild(document.createTextNode('Filtr elit (wt ≥)'));
+
+      const wt = document.createElement('input'); wt.type='number'; wt.min='0'; wt.max='99'; wt.step='1';
+      wt.classList.add('adi-bot_inputs'); wt.style.width='64px';
+
+      const btnClear = document.createElement('button');
+      btnClear.textContent='Wyczyść';
+      btnClear.classList.add('adi-bot_inputs');
+
+      top.appendChild(lbl);
+      top.appendChild(lblMax);
+      top.appendChild(lblF);
+      top.appendChild(wt);
+      top.appendChild(btnClear);
+
+      const list = document.createElement('div');
+      list.style.maxHeight='260px';
+      list.style.overflow='auto';
+      list.style.border='1px solid #333';
+      list.style.borderRadius='8px';
+      list.style.padding='6px';
+
+      const hint = document.createElement('div');
+      hint.style.opacity='0.85';
+      hint.style.fontSize='12px';
+      hint.style.marginTop='8px';
+      hint.textContent='Timer dodaje się po zabiciu elity (pakiet npcs_del z respBaseSeconds).';
+
+      wrap.appendChild(top);
+      wrap.appendChild(list);
+      wrap.appendChild(hint);
+
+      tabE2.appendChild(wrap);
+
+      ui.root = wrap; ui.list = list;
+
+      function syncFromSettings(){
+        const s = loadSettings();
+        chk.checked = !!s.enabled;
+        chkMax.checked = !!s.alwaysMax;
+        chkF.checked = !!s.eliteFilter;
+        wt.value = String(s.wtMin);
+      }
+      syncFromSettings();
+
+      chk.addEventListener('change', ()=>{ const s=loadSettings(); s.enabled=chk.checked; saveSettings(s); render(); });
+      chkMax.addEventListener('change', ()=>{ const s=loadSettings(); s.alwaysMax=chkMax.checked; saveSettings(s); render(); });
+      chkF.addEventListener('change', ()=>{ const s=loadSettings(); s.eliteFilter=chkF.checked; saveSettings(s); render(); });
+      wt.addEventListener('change', ()=>{ const s=loadSettings(); s.wtMin=parseInt(wt.value||'0',10); saveSettings(s); render(); });
+
+      btnClear.addEventListener('click', ()=>{
+        try{ saveTimers([]); render(); }catch(e){}
+      });
+
+      render();
+    }
+
+    function render(){
+      if(!ui.list) return;
+      const s = loadSettings();
+      let timers = purge();
+      timers.sort((a,b)=> remaining(a)-remaining(b));
+
+      ui.list.innerHTML = '';
+      if(!s.enabled){
+        const d=document.createElement('div'); d.style.opacity='0.8'; d.textContent='Minutnik wyłączony.'; ui.list.appendChild(d); return;
+      }
+      if(!timers.length){
+        const d=document.createElement('div'); d.style.opacity='0.8'; d.textContent='Brak timerów. Zabij E2, aby dodać.'; ui.list.appendChild(d); return;
+      }
+
+      for(const tm of timers){
+        const row = document.createElement('div');
+        row.style.display='grid';
+        row.style.gridTemplateColumns='1fr auto auto';
+        row.style.gap='10px';
+        row.style.alignItems='center';
+        row.style.padding='6px 4px';
+        row.style.borderTop='1px solid #2b2b2b';
+
+        const name = document.createElement('div');
+        name.textContent = tm.name || ('NPC#'+tm.npcId);
+        name.style.whiteSpace='nowrap';
+        name.style.overflow='hidden';
+        name.style.textOverflow='ellipsis';
+
+        const time = document.createElement('div');
+        time.textContent = fmt(remaining(tm));
+        time.style.fontVariantNumeric='tabular-nums';
+
+        const del = document.createElement('div');
+        del.textContent='✖';
+        del.style.cursor='pointer';
+        del.style.opacity='0.85';
+        del.title='Usuń timer';
+        del.addEventListener('click', ()=>{
+          const arr = loadTimers().filter(x => x && x._id !== tm._id);
+          saveTimers(arr); render();
+        });
+
+        row.title =
+          (tm.name||'')+'\n'+
+          (tm.map||'')+' ('+(tm.x??'?')+','+(tm.y??'?')+')\n'+
+          'Min: '+toDateStr(tm.min)+'\n'+
+          'Max: '+toDateStr(tm.max)+'\n'+
+          'base: '+tm.baseSeconds+'s rand: '+Math.round((tm.rand||0)*100)+'%';
+
+        row.appendChild(name);
+        row.appendChild(time);
+        row.appendChild(del);
+        ui.list.appendChild(row);
+      }
+    }
+
+    // odświeżanie licznika
+    setInterval(()=>{ try{ render(); }catch(e){} }, 1000);
+
+    return { mountInto, addFromDel, render };
+  })();
+
+// ===== CAPTCHA LOGGER + persistent toggle =====
   const selfRef=this;
   if(!selfRef.basePI) selfRef.basePI=parseInput;
   selfRef.botPI=function(a){
     const ret=selfRef.basePI.apply(this, arguments);
+
+    // --- E2 timer: zbieraj respBaseSeconds z npcs_del ---
+    try{
+      if(a && a.npcs_del){
+        const del = a.npcs_del;
+        const arr = Array.isArray(del) ? del : (typeof del === 'object' ? Object.values(del) : []);
+        for(const e of arr){
+          if(e && e.respBaseSeconds != null){
+            try{ __adiE2Timer.addFromDel(e); }catch(_){}
+          }
+        }
+      }
+    }catch(_){}
+
 
     // CAPTCHA detect (skrócone)
     try{
@@ -2275,6 +2375,8 @@ box.appendChild(autoHealRow);
       const tabE2 = document.createElement('div');
       tabE2.id = 'adi-tab-e2';
       tabE2.className = 'adi-tab-content';
+
+      try{ __adiE2Timer.mountInto(tabE2); }catch(e){ console.warn('[adi-bot] E2 timer UI mount failed', e); }
 
       const tabTest = document.createElement('div');
       tabTest.id = 'adi-tab-test';
