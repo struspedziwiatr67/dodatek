@@ -1,9 +1,6 @@
 {
   "andarum ilami": [
     {
-      "to": "kamienna jaskinia - sala 2"
-    },
-    {
       "to": "skały mroznych spiewow",
       "via": {
         "x": 0,
@@ -11,20 +8,21 @@
       }
     },
     {
-      "to": "skały mroznych spiewow"
-    },
-    {
       "to": "swiatynia andarum",
       "via": {
         "x": 48,
         "y": 14
       }
+    },
+    {
+      "to": "zdradzieckie przejscie p.1",
+      "via": {
+        "x": 3,
+        "y": 39
+      }
     }
   ],
   "bandyckie chowisko": [
-    {
-      "to": "chata bandytow"
-    },
     {
       "to": "chata bandytow",
       "via": {
@@ -35,9 +33,6 @@
   ],
   "brama połnocy": [
     {
-      "to": "gory zrebowe"
-    },
-    {
       "to": "werbin",
       "via": {
         "x": 0,
@@ -45,29 +40,27 @@
       }
     },
     {
-      "to": "werbin"
-    },
-    {
       "to": "skalista wyzyna",
       "via": {
         "x": 95,
         "y": 32
       }
+    },
+    {
+      "to": "gory zrebowe",
+      "via": {
+        "x": 14,
+        "y": 63
+      }
     }
   ],
   "błedny szlak": [
-    {
-      "to": "złowrogie bagna"
-    },
     {
       "to": "ostepy szalbierskich lasow",
       "via": {
         "x": 64,
         "y": 0
       }
-    },
-    {
-      "to": "zawiły bor"
     },
     {
       "to": "zawiły bor",
@@ -79,9 +72,6 @@
   ],
   "chata bandytow": [
     {
-      "to": "ostepy szalbierskich lasow"
-    },
-    {
       "to": "chata bandytow p.1",
       "via": {
         "x": 12,
@@ -89,17 +79,11 @@
       }
     },
     {
-      "to": "chata bandytow p.1"
-    },
-    {
       "to": "bandyckie chowisko",
       "via": {
         "x": 3,
         "y": 12
       }
-    },
-    {
-      "to": "bandyckie chowisko"
     },
     {
       "to": "ostepy szalbierskich lasow",
@@ -111,9 +95,6 @@
   ],
   "chata bandytow p.1": [
     {
-      "to": "chata bandytow"
-    },
-    {
       "to": "chata bandytow",
       "via": {
         "x": 12,
@@ -123,9 +104,6 @@
   ],
   "ciche rumowiska": [
     {
-      "to": "złote piaski"
-    },
-    {
       "to": "złote piaski",
       "via": {
         "x": 68,
@@ -133,17 +111,11 @@
       }
     },
     {
-      "to": "dolina suchych łez"
-    },
-    {
       "to": "oaza siedmiu wichrow",
       "via": {
         "x": 47,
         "y": 0
       }
-    },
-    {
-      "to": "oaza siedmiu wichrow"
     },
     {
       "to": "tuzmer",
@@ -155,9 +127,6 @@
   ],
   "cienisty bor": [
     {
-      "to": "las dziwow"
-    },
-    {
       "to": "zachodnie rozdroza",
       "via": {
         "x": 19,
@@ -165,20 +134,21 @@
       }
     },
     {
-      "to": "ostepy szalbierskich lasow"
-    },
-    {
       "to": "ostepy szalbierskich lasow",
       "via": {
         "x": 0,
         "y": 42
       }
+    },
+    {
+      "to": "wyjacy wawoz",
+      "via": {
+        "x": 63,
+        "y": 41
+      }
     }
   ],
   "cmentarzysko szerpow": [
-    {
-      "to": "krypty dusz sniegu p.1"
-    },
     {
       "to": "krypty dusz sniegu p.1",
       "via": {
@@ -189,17 +159,11 @@
   ],
   "czelusc ognistej pozogi": [
     {
-      "to": "wioska gnolli"
-    },
-    {
       "to": "grota pragnolli p.1",
       "via": {
         "x": 10,
         "y": 6
       }
-    },
-    {
-      "to": "grota pragnolli p.3"
     },
     {
       "to": "ithan",
@@ -211,9 +175,6 @@
   ],
   "dolina centaurow": [
     {
-      "to": "iglaste sciezki"
-    },
-    {
       "to": "selva oscura",
       "via": {
         "x": 59,
@@ -222,9 +183,6 @@
     }
   ],
   "dolina pustynnych kregow": [
-    {
-      "to": "sucha dolina"
-    },
     {
       "to": "sucha dolina",
       "via": {
@@ -235,17 +193,11 @@
   ],
   "dolina rozbojnikow": [
     {
-      "to": "przełecz łotrzykow"
-    },
-    {
       "to": "ghuli mogilnik",
       "via": {
         "x": 63,
         "y": 20
       }
-    },
-    {
-      "to": "ghuli mogilnik"
     },
     {
       "to": "mokradła",
@@ -257,9 +209,6 @@
   ],
   "dolina suchych łez": [
     {
-      "to": "złote piaski"
-    },
-    {
       "to": "ciche rumowiska",
       "via": {
         "x": 0,
@@ -268,9 +217,6 @@
     }
   ],
   "dolina yss": [
-    {
-      "to": "ithan"
-    },
     {
       "to": "orla gran",
       "via": {
@@ -281,9 +227,6 @@
   ],
   "dom tunii": [
     {
-      "to": "kwieciste przejscie"
-    },
-    {
       "to": "kwieciste przejscie",
       "via": {
         "x": 9,
@@ -293,9 +236,6 @@
   ],
   "eder": [
     {
-      "to": "fort eder"
-    },
-    {
       "to": "spokojne przejscie",
       "via": {
         "x": 0,
@@ -303,13 +243,21 @@
       }
     },
     {
-      "to": "gosciniec bardow"
+      "to": "gosciniec bardow",
+      "via": {
+        "x": 44,
+        "y": 95
+      }
+    },
+    {
+      "to": "fort eder",
+      "via": {
+        "x": 29,
+        "y": 0
+      }
     }
   ],
   "erem czarnego słonca p.1 - połnoc": [
-    {
-      "to": "erem czarnego słonca p.2"
-    },
     {
       "to": "erem czarnego słonca p.2",
       "via": {
@@ -327,17 +275,11 @@
   ],
   "erem czarnego słonca p.2": [
     {
-      "to": "erem czarnego słonca p.3"
-    },
-    {
       "to": "erem czarnego słonca p.1 - połnoc",
       "via": {
         "x": 19,
         "y": 21
       }
-    },
-    {
-      "to": "erem czarnego słonca p.1 - połnoc"
     },
     {
       "to": "erem czarnego słonca p.3",
@@ -349,9 +291,6 @@
   ],
   "erem czarnego słonca p.3": [
     {
-      "to": "erem czarnego słonca p.4 - sala 2"
-    },
-    {
       "to": "erem czarnego słonca p.2",
       "via": {
         "x": 22,
@@ -359,32 +298,20 @@
       }
     },
     {
-      "to": "erem czarnego słonca p.2"
-    },
-    {
       "to": "erem czarnego słonca p.4 - sala 1",
       "via": {
         "x": 6,
         "y": 22
       }
-    },
-    {
-      "to": "erem czarnego słonca p.4 - sala 1"
     }
   ],
   "erem czarnego słonca p.3 - południe": [
-    {
-      "to": "erem czarnego słonca p.4 - sala 2"
-    },
     {
       "to": "skały mroznych spiewow",
       "via": {
         "x": 16,
         "y": 22
       }
-    },
-    {
-      "to": "skały mroznych spiewow"
     },
     {
       "to": "erem czarnego słonca p.4 - sala 2",
@@ -395,9 +322,6 @@
     }
   ],
   "erem czarnego słonca p.4 - sala 1": [
-    {
-      "to": "erem czarnego słonca p.3"
-    },
     {
       "to": "erem czarnego słonca p.3",
       "via": {
@@ -415,17 +339,11 @@
   ],
   "erem czarnego słonca p.4 - sala 2": [
     {
-      "to": "swiatynia andarum - magazyn p.2"
-    },
-    {
       "to": "erem czarnego słonca p.3 - południe",
       "via": {
         "x": 24,
         "y": 16
       }
-    },
-    {
-      "to": "erem czarnego słonca p.3 - południe"
     },
     {
       "to": "erem czarnego słonca p.3",
@@ -435,15 +353,8 @@
       }
     }
   ],
-  "erem czarnego słonca p.5": [
-    {
-      "to": "erem czarnego słonca p.4 - sala 1"
-    }
-  ],
+  "erem czarnego słonca p.5": [],
   "firnowa grota p.1": [
-    {
-      "to": "skały mroznych spiewow"
-    },
     {
       "to": "firnowa grota p.2",
       "via": {
@@ -454,17 +365,11 @@
   ],
   "firnowa grota p.2": [
     {
-      "to": "firnowa grota p.1"
-    },
-    {
       "to": "firnowa grota p.2 s.1",
       "via": {
         "x": 19,
         "y": 5
       }
-    },
-    {
-      "to": "firnowa grota p.2 s.1"
     },
     {
       "to": "skały mroznych spiewow",
@@ -476,9 +381,6 @@
   ],
   "firnowa grota p.2 s.1": [
     {
-      "to": "firnowa grota p.2"
-    },
-    {
       "to": "firnowa grota p.2",
       "via": {
         "x": 23,
@@ -488,17 +390,11 @@
   ],
   "fort eder": [
     {
-      "to": "mokradła"
-    },
-    {
       "to": "stary kupiecki trakt",
       "via": {
         "x": 63,
         "y": 54
       }
-    },
-    {
-      "to": "stary kupiecki trakt"
     },
     {
       "to": "eder",
@@ -515,12 +411,6 @@
       }
     },
     {
-      "to": "pieczara niepogody p.1"
-    },
-    {
-      "to": "pieczara niepogody p.2 - sala 2"
-    },
-    {
       "to": "las goblinow",
       "via": {
         "x": 0,
@@ -528,13 +418,21 @@
       }
     },
     {
-      "to": "las goblinow"
+      "to": "ciemnica szubrawcow p.1 - sala 1",
+      "via": {
+        "x": 60,
+        "y": 83
+      }
+    },
+    {
+      "to": "mokradła",
+      "via": {
+        "x": 30,
+        "y": 0
+      }
     }
   ],
   "gadzia kotlina": [
-    {
-      "to": "mglista polana vesy"
-    },
     {
       "to": "mglista polana vesy",
       "via": {
@@ -543,17 +441,11 @@
       }
     },
     {
-      "to": "złowrogie bagna"
-    },
-    {
       "to": "zagrzybiałe sciezki p.1 - sala 2",
       "via": {
         "x": 21,
         "y": 37
       }
-    },
-    {
-      "to": "zagrzybiałe sciezki p.1 - sala 2"
     },
     {
       "to": "złowrogie bagna",
@@ -565,9 +457,6 @@
   ],
   "ghuli mogilnik": [
     {
-      "to": "dolina rozbojnikow"
-    },
-    {
       "to": "polana scierwojadow",
       "via": {
         "x": 23,
@@ -575,17 +464,11 @@
       }
     },
     {
-      "to": "polana scierwojadow"
-    },
-    {
       "to": "zapomniany grobowiec p.1",
       "via": {
         "x": 31,
         "y": 21
       }
-    },
-    {
-      "to": "zapomniany grobowiec p.1"
     },
     {
       "to": "dolina rozbojnikow",
@@ -604,29 +487,27 @@
   ],
   "gory zrebowe": [
     {
-      "to": "zachodnie rozdroza"
-    },
-    {
       "to": "brama połnocy",
       "via": {
         "x": 14,
         "y": 0
       }
+    },
+    {
+      "to": "zachodnie rozdroza",
+      "via": {
+        "x": 47,
+        "y": 95
+      }
     }
   ],
   "gosciniec bardow": [
-    {
-      "to": "nizina wiesniakow"
-    },
     {
       "to": "wertepy rzezimieszkow",
       "via": {
         "x": 63,
         "y": 76
       }
-    },
-    {
-      "to": "wertepy rzezimieszkow"
     },
     {
       "to": "eder",
@@ -638,17 +519,11 @@
   ],
   "gran gawronich pior": [
     {
-      "to": "lazurowe wzgorze"
-    },
-    {
       "to": "thuzal",
       "via": {
         "x": 33,
         "y": 0
       }
-    },
-    {
-      "to": "thuzal"
     },
     {
       "to": "lazurowe wzgorze",
@@ -660,9 +535,6 @@
   ],
   "grobowiec nieznajacych spokoju": [
     {
-      "to": "sucha dolina"
-    },
-    {
       "to": "sucha dolina",
       "via": {
         "x": 9,
@@ -672,17 +544,11 @@
   ],
   "grota bezszelestnych krokow - sala 1": [
     {
-      "to": "zapomniany szlak"
-    },
-    {
       "to": "grota bezszelestnych krokow - sala 2",
       "via": {
         "x": 27,
         "y": 9
       }
-    },
-    {
-      "to": "grota bezszelestnych krokow - sala 3"
     },
     {
       "to": "zapomniany szlak",
@@ -694,9 +560,6 @@
   ],
   "grota bezszelestnych krokow - sala 2": [
     {
-      "to": "grota bezszelestnych krokow - sala 1"
-    },
-    {
       "to": "grota bezszelestnych krokow - sala 3",
       "via": {
         "x": 5,
@@ -705,9 +568,6 @@
     }
   ],
   "grota bezszelestnych krokow - sala 3": [
-    {
-      "to": "grota bezszelestnych krokow - sala 2"
-    },
     {
       "to": "grota bezszelestnych krokow - sala 1",
       "via": {
@@ -718,9 +578,6 @@
   ],
   "grota pragnolli p.1": [
     {
-      "to": "czelusc ognistej pozogi"
-    },
-    {
       "to": "grota pragnolli p.1 - sala 2",
       "via": {
         "x": 29,
@@ -729,9 +586,6 @@
     }
   ],
   "grota pragnolli p.1 - sala 2": [
-    {
-      "to": "grota pragnolli p.1"
-    },
     {
       "to": "grota pragnolli p.2",
       "via": {
@@ -742,17 +596,11 @@
   ],
   "grota pragnolli p.2": [
     {
-      "to": "grota pragnolli p.1 - sala 2"
-    },
-    {
       "to": "grota pragnolli p.2 - sala 2",
       "via": {
         "x": 4,
         "y": 19
       }
-    },
-    {
-      "to": "grota pragnolli p.2 - sala 2"
     },
     {
       "to": "grota pragnolli p.3",
@@ -764,9 +612,6 @@
   ],
   "grota pragnolli p.2 - sala 2": [
     {
-      "to": "grota pragnolli p.2"
-    },
-    {
       "to": "grota pragnolli p.2",
       "via": {
         "x": 33,
@@ -775,9 +620,6 @@
     }
   ],
   "grota pragnolli p.3": [
-    {
-      "to": "grota pragnolli p.2"
-    },
     {
       "to": "czelusc ognistej pozogi",
       "via": {
@@ -788,9 +630,6 @@
   ],
   "grota samotnych dusz p.1": [
     {
-      "to": "grota samotnych dusz p.2"
-    },
-    {
       "to": "trupia przełecz",
       "via": {
         "x": 38,
@@ -800,9 +639,6 @@
   ],
   "grota samotnych dusz p.2": [
     {
-      "to": "grota samotnych dusz p.3"
-    },
-    {
       "to": "grota samotnych dusz p.1",
       "via": {
         "x": 6,
@@ -811,9 +647,6 @@
     }
   ],
   "grota samotnych dusz p.3": [
-    {
-      "to": "grota samotnych dusz p.3 - sala wyjsciowa"
-    },
     {
       "to": "grota samotnych dusz p.4",
       "via": {
@@ -831,9 +664,6 @@
   ],
   "grota samotnych dusz p.3 - sala wyjsciowa": [
     {
-      "to": "lisciaste rozstaje"
-    },
-    {
       "to": "grota samotnych dusz p.3",
       "via": {
         "x": 25,
@@ -842,9 +672,6 @@
     }
   ],
   "grota samotnych dusz p.4": [
-    {
-      "to": "grota samotnych dusz p.3"
-    },
     {
       "to": "grota samotnych dusz p.5",
       "via": {
@@ -855,9 +682,6 @@
   ],
   "grota samotnych dusz p.5": [
     {
-      "to": "grota samotnych dusz p.4"
-    },
-    {
       "to": "grota samotnych dusz p.6",
       "via": {
         "x": 11,
@@ -866,9 +690,6 @@
     }
   ],
   "grota samotnych dusz p.6": [
-    {
-      "to": "grota samotnych dusz p.5"
-    },
     {
       "to": "opuszczony szyb",
       "via": {
@@ -879,9 +700,6 @@
   ],
   "głuchy las": [
     {
-      "to": "kwieciste przejscie"
-    },
-    {
       "to": "skarpa trzech słow",
       "via": {
         "x": 0,
@@ -891,17 +709,11 @@
   ],
   "iglaste sciezki": [
     {
-      "to": "ostepy szalbierskich lasow"
-    },
-    {
       "to": "zawiły bor",
       "via": {
         "x": 72,
         "y": 63
       }
-    },
-    {
-      "to": "zawiły bor"
     },
     {
       "to": "dolina centaurow",
@@ -912,9 +724,6 @@
     }
   ],
   "ithan": [
-    {
-      "to": "zniszczone opactwo"
-    },
     {
       "to": "dolina yss",
       "via": {
@@ -937,9 +746,6 @@
       }
     },
     {
-      "to": "porzucone pasieki"
-    },
-    {
       "to": "jaskinia łowcow p.1",
       "via": {
         "x": 83,
@@ -947,23 +753,14 @@
       }
     },
     {
-      "to": "jaskinia łowcow p.2"
-    },
-    {
       "to": "wioska gnolli",
       "via": {
         "x": 79,
         "y": 0
       }
-    },
-    {
-      "to": "czelusc ognistej pozogi"
     }
   ],
   "jaskinia gnollich szamanow p.1": [
-    {
-      "to": "jaskinia gnollich szamanow p.2"
-    },
     {
       "to": "wioska gnolli",
       "via": {
@@ -974,17 +771,11 @@
   ],
   "jaskinia gnollich szamanow p.2": [
     {
-      "to": "wioska gnolli"
-    },
-    {
       "to": "jaskinia gnollich szamanow p.3",
       "via": {
         "x": 18,
         "y": 8
       }
-    },
-    {
-      "to": "jaskinia gnollich szamanow p.3"
     },
     {
       "to": "jaskinia gnollich szamanow p.1",
@@ -996,9 +787,6 @@
   ],
   "jaskinia gnollich szamanow p.3": [
     {
-      "to": "jaskinia gnollich szamanow p.2"
-    },
-    {
       "to": "jaskinia gnollich szamanow p.2",
       "via": {
         "x": 6,
@@ -1007,9 +795,6 @@
     }
   ],
   "jaskinia lodowego czaru": [
-    {
-      "to": "skały mroznych spiewow"
-    },
     {
       "to": "skały mroznych spiewow",
       "via": {
@@ -1020,9 +805,6 @@
   ],
   "jaskinia łowcow p.1": [
     {
-      "to": "ithan"
-    },
-    {
       "to": "jaskinia łowcow p.2",
       "via": {
         "x": 9,
@@ -1031,9 +813,6 @@
     }
   ],
   "jaskinia łowcow p.2": [
-    {
-      "to": "jaskinia łowcow p.1"
-    },
     {
       "to": "ithan",
       "via": {
@@ -1044,9 +823,6 @@
   ],
   "kamienna jaskinia - sala 1": [
     {
-      "to": "zapomniany szlak"
-    },
-    {
       "to": "kamienna jaskinia - sala 2",
       "via": {
         "x": 15,
@@ -1055,9 +831,6 @@
     }
   ],
   "kamienna jaskinia - sala 2": [
-    {
-      "to": "kamienna jaskinia - sala 1"
-    },
     {
       "to": "andarum ilami",
       "via": {
@@ -1068,17 +841,11 @@
   ],
   "kamienna straznica - wsch. baszta p.1": [
     {
-      "to": "trupia przełecz"
-    },
-    {
       "to": "kamienna straznica - wsch. baszta skalna sala p.1",
       "via": {
         "x": 10,
         "y": 16
       }
-    },
-    {
-      "to": "kamienna straznica - wsch. baszta skalna sala p.1"
     },
     {
       "to": "trupia przełecz",
@@ -1090,9 +857,6 @@
   ],
   "kamienna straznica - wsch. baszta skalna sala p.1": [
     {
-      "to": "kamienna straznica - wsch. baszta p.1"
-    },
-    {
       "to": "kamienna straznica - wsch. baszta p.1",
       "via": {
         "x": 12,
@@ -1101,9 +865,6 @@
     }
   ],
   "karka-han": [
-    {
-      "to": "przedmiescia karka-han"
-    },
     {
       "to": "przedmiescia karka-han",
       "via": {
@@ -1114,9 +875,6 @@
   ],
   "kopalnia kapiacego miodu p.1 - sala 1": [
     {
-      "to": "kopalnia kapiacego miodu p.2 - sala 1"
-    },
-    {
       "to": "porzucone pasieki",
       "via": {
         "x": 37,
@@ -1126,9 +884,6 @@
   ],
   "kopalnia kapiacego miodu p.1 - sala 2": [
     {
-      "to": "porzucone pasieki"
-    },
-    {
       "to": "kopalnia kapiacego miodu p.2 - sala 2",
       "via": {
         "x": 11,
@@ -1137,9 +892,6 @@
     }
   ],
   "kopalnia kapiacego miodu p.2 - sala 1": [
-    {
-      "to": "kopalnia kapiacego miodu p.3"
-    },
     {
       "to": "kopalnia kapiacego miodu p.1 - sala 1",
       "via": {
@@ -1157,9 +909,6 @@
   ],
   "kopalnia kapiacego miodu p.2 - sala 2": [
     {
-      "to": "kopalnia kapiacego miodu p.1 - sala 2"
-    },
-    {
       "to": "kopalnia kapiacego miodu p.3",
       "via": {
         "x": 60,
@@ -1168,9 +917,6 @@
     }
   ],
   "kopalnia kapiacego miodu p.3": [
-    {
-      "to": "kopalnia kapiacego miodu p.2 - sala 2"
-    },
     {
       "to": "kopalnia kapiacego miodu p.2 - sala 1",
       "via": {
@@ -1181,9 +927,6 @@
   ],
   "kopiec mrowek": [
     {
-      "to": "kopiec mrowek p.1"
-    },
-    {
       "to": "łany zboza",
       "via": {
         "x": 24,
@@ -1192,9 +935,6 @@
     }
   ],
   "kopiec mrowek p.1": [
-    {
-      "to": "kopiec mrowek p.2"
-    },
     {
       "to": "kopiec mrowek",
       "via": {
@@ -1205,9 +945,6 @@
   ],
   "kopiec mrowek p.2": [
     {
-      "to": "mrowisko p.2"
-    },
-    {
       "to": "kopiec mrowek p.1",
       "via": {
         "x": 24,
@@ -1217,17 +954,11 @@
   ],
   "krypty dusz sniegu p.1": [
     {
-      "to": "krypty dusz sniegu p.2"
-    },
-    {
       "to": "cmentarzysko szerpow",
       "via": {
         "x": 24,
         "y": 45
       }
-    },
-    {
-      "to": "cmentarzysko szerpow"
     },
     {
       "to": "krypty dusz sniegu p.2",
@@ -1239,17 +970,11 @@
   ],
   "krypty dusz sniegu p.2": [
     {
-      "to": "krypty dusz sniegu p.3"
-    },
-    {
       "to": "krypty dusz sniegu p.1",
       "via": {
         "x": 35,
         "y": 2
       }
-    },
-    {
-      "to": "krypty dusz sniegu p.1"
     },
     {
       "to": "krypty dusz sniegu p.3",
@@ -1261,17 +986,11 @@
   ],
   "krypty dusz sniegu p.3": [
     {
-      "to": "swiatynia andarum - lokum mnichow"
-    },
-    {
       "to": "krypty dusz sniegu p.2",
       "via": {
         "x": 32,
         "y": 36
       }
-    },
-    {
-      "to": "krypty dusz sniegu p.2"
     },
     {
       "to": "swiatynia andarum - lokum mnichow",
@@ -1283,17 +1002,11 @@
   ],
   "ksiezycowe wzniesienie": [
     {
-      "to": "sosnowe odludzie"
-    },
-    {
       "to": "trupia przełecz",
       "via": {
         "x": 0,
         "y": 53
       }
-    },
-    {
-      "to": "trupia przełecz"
     },
     {
       "to": "sosnowe odludzie",
@@ -1310,23 +1023,14 @@
       }
     },
     {
-      "to": "mglista polana vesy"
-    },
-    {
       "to": "zapomniany swiety gaj p.1",
       "via": {
         "x": 49,
         "y": 15
       }
-    },
-    {
-      "to": "zapomniany swiety gaj p.1"
     }
   ],
   "kwieciste przejscie": [
-    {
-      "to": "lazurowe wzgorze"
-    },
     {
       "to": "głuchy las",
       "via": {
@@ -1340,27 +1044,15 @@
         "x": 20,
         "y": 17
       }
-    },
-    {
-      "to": "dom tunii"
-    },
-    {
-      "to": "tuzmer"
     }
   ],
   "las dziwow": [
-    {
-      "to": "lisciaste rozstaje"
-    },
     {
       "to": "złowrogie bagna",
       "via": {
         "x": 0,
         "y": 48
       }
-    },
-    {
-      "to": "złowrogie bagna"
     },
     {
       "to": "cienisty bor",
@@ -1372,17 +1064,11 @@
   ],
   "lazurowe wzgorze": [
     {
-      "to": "słoneczna wyzyna"
-    },
-    {
       "to": "gran gawronich pior",
       "via": {
         "x": 35,
         "y": 0
       }
-    },
-    {
-      "to": "gran gawronich pior"
     },
     {
       "to": "kwieciste przejscie",
@@ -1392,24 +1078,14 @@
       }
     }
   ],
-  "legowisko wilczej hordy": [
-    {
-      "to": "warczace osuwiska"
-    }
-  ],
+  "legowisko wilczej hordy": [],
   "lesny brod": [
-    {
-      "to": "zniszczone opactwo"
-    },
     {
       "to": "mrowcza kolonia p.1 - lewy tunel",
       "via": {
         "x": 3,
         "y": 54
       }
-    },
-    {
-      "to": "mrowcza kolonia p.1 - prawy tunel"
     },
     {
       "to": "zniszczone opactwo",
@@ -1420,9 +1096,6 @@
     }
   ],
   "lisciaste rozstaje": [
-    {
-      "to": "zapomniana sciezyna"
-    },
     {
       "to": "sosnowe odludzie",
       "via": {
@@ -1438,32 +1111,20 @@
       }
     },
     {
-      "to": "skały mroznych spiewow"
-    },
-    {
       "to": "grota samotnych dusz p.3 - sala wyjsciowa",
       "via": {
         "x": 57,
         "y": 19
       }
-    },
-    {
-      "to": "opuszczony szyb"
     }
   ],
   "lodowa wyrwa p.1 s.1": [
-    {
-      "to": "skały mroznych spiewow"
-    },
     {
       "to": "lodowa wyrwa p.1 s.2",
       "via": {
         "x": 26,
         "y": 6
       }
-    },
-    {
-      "to": "lodowa wyrwa p.1 s.2"
     },
     {
       "to": "lodowa wyrwa p.2",
@@ -1475,17 +1136,11 @@
   ],
   "lodowa wyrwa p.1 s.2": [
     {
-      "to": "lodowa wyrwa p.1 s.1"
-    },
-    {
       "to": "sala lodowych iglic",
       "via": {
         "x": 27,
         "y": 10
       }
-    },
-    {
-      "to": "sala lodowych iglic"
     },
     {
       "to": "lodowa wyrwa p.1 s.1",
@@ -1497,9 +1152,6 @@
   ],
   "lodowa wyrwa p.2": [
     {
-      "to": "lodowa wyrwa p.1 s.1"
-    },
-    {
       "to": "skały mroznych spiewow",
       "via": {
         "x": 40,
@@ -1508,9 +1160,6 @@
     }
   ],
   "mglista polana vesy": [
-    {
-      "to": "ksiezycowe wzniesienie"
-    },
     {
       "to": "ksiezycowe wzniesienie",
       "via": {
@@ -1526,17 +1175,11 @@
       }
     },
     {
-      "to": "wzgorze płaczek"
-    },
-    {
       "to": "gadzia kotlina",
       "via": {
         "x": 0,
         "y": 35
       }
-    },
-    {
-      "to": "gadzia kotlina"
     },
     {
       "to": "zagrzybiałe sciezki p.1 - sala 3",
@@ -1546,15 +1189,8 @@
       }
     }
   ],
-  "mirvenis-adur": [
-    {
-      "to": "opuszczony szyb"
-    }
-  ],
+  "mirvenis-adur": [],
   "mistyczny bor": [
-    {
-      "to": "porzucone pasieki"
-    },
     {
       "to": "porzucone pasieki",
       "via": {
@@ -1565,17 +1201,11 @@
   ],
   "mokra grota p.1": [
     {
-      "to": "zapomniany szlak"
-    },
-    {
       "to": "mokra grota p.1 - przełaz",
       "via": {
         "x": 39,
         "y": 11
       }
-    },
-    {
-      "to": "mokra grota p.1 - boczny korytarz"
     },
     {
       "to": "zapomniany szlak",
@@ -1587,17 +1217,11 @@
   ],
   "mokra grota p.1 - boczny korytarz": [
     {
-      "to": "mokra grota p.1 - przełaz"
-    },
-    {
       "to": "mokra grota p.2 - korytarz",
       "via": {
         "x": 5,
         "y": 52
       }
-    },
-    {
-      "to": "mokra grota p.2 - korytarz"
     },
     {
       "to": "mokra grota p.1",
@@ -1609,9 +1233,6 @@
   ],
   "mokra grota p.1 - przełaz": [
     {
-      "to": "mokra grota p.1"
-    },
-    {
       "to": "mokra grota p.1 - boczny korytarz",
       "via": {
         "x": 3,
@@ -1621,17 +1242,11 @@
   ],
   "mokra grota p.2 - korytarz": [
     {
-      "to": "mokra grota p.1 - boczny korytarz"
-    },
-    {
       "to": "mroczna pieczara p.1 - sala 3",
       "via": {
         "x": 39,
         "y": 39
       }
-    },
-    {
-      "to": "mroczna pieczara p.1 - sala 3"
     },
     {
       "to": "mokra grota p.1 - boczny korytarz",
@@ -1643,20 +1258,21 @@
   ],
   "mokradła": [
     {
-      "to": "dolina rozbojnikow"
-    },
-    {
       "to": "fort eder",
       "via": {
         "x": 30,
         "y": 63
       }
+    },
+    {
+      "to": "skarpiska tollokow",
+      "via": {
+        "x": 63,
+        "y": 56
+      }
     }
   ],
   "mroczna pieczara p.1 - sala 3": [
-    {
-      "to": "mokra grota p.2 - korytarz"
-    },
     {
       "to": "mokra grota p.2 - korytarz",
       "via": {
@@ -1667,9 +1283,6 @@
   ],
   "mroczny przesmyk": [
     {
-      "to": "nawiedzony jar"
-    },
-    {
       "to": "zapomniany szlak",
       "via": {
         "x": 34,
@@ -1678,9 +1291,6 @@
     }
   ],
   "mrowcza kolonia p.1 - lewy tunel": [
-    {
-      "to": "lesny brod"
-    },
     {
       "to": "mrowcza kolonia p.2 - lewe korytarze",
       "via": {
@@ -1691,9 +1301,6 @@
   ],
   "mrowcza kolonia p.1 - prawy tunel": [
     {
-      "to": "mrowcza kolonia p.2 - prawe korytarze"
-    },
-    {
       "to": "lesny brod",
       "via": {
         "x": 25,
@@ -1702,9 +1309,6 @@
     }
   ],
   "mrowcza kolonia p.2 - lewe korytarze": [
-    {
-      "to": "mrowcza kolonia p.1 - lewy tunel"
-    },
     {
       "to": "mrowcza kolonia p.3 - lewa komora jaj",
       "via": {
@@ -1715,9 +1319,6 @@
   ],
   "mrowcza kolonia p.2 - prawe korytarze": [
     {
-      "to": "mrowcza kolonia p.3 - prawa komora jaj"
-    },
-    {
       "to": "mrowcza kolonia p.1 - prawy tunel",
       "via": {
         "x": 4,
@@ -1726,9 +1327,6 @@
     }
   ],
   "mrowcza kolonia p.3 - lewa komora jaj": [
-    {
-      "to": "mrowcza kolonia p.2 - lewe korytarze"
-    },
     {
       "to": "mrowcza kolonia p.4 - krolewskie gniazdo",
       "via": {
@@ -1739,9 +1337,6 @@
   ],
   "mrowcza kolonia p.3 - prawa komora jaj": [
     {
-      "to": "mrowcza kolonia p.4 - krolewskie gniazdo"
-    },
-    {
       "to": "mrowcza kolonia p.2 - prawe korytarze",
       "via": {
         "x": 44,
@@ -1750,9 +1345,6 @@
     }
   ],
   "mrowcza kolonia p.4 - krolewskie gniazdo": [
-    {
-      "to": "mrowcza kolonia p.3 - lewa komora jaj"
-    },
     {
       "to": "mrowcza kolonia p.3 - prawa komora jaj",
       "via": {
@@ -1763,9 +1355,6 @@
   ],
   "mrowisko": [
     {
-      "to": "łany zboza"
-    },
-    {
       "to": "mrowisko p.1",
       "via": {
         "x": 10,
@@ -1774,9 +1363,6 @@
     }
   ],
   "mrowisko p.1": [
-    {
-      "to": "mrowisko"
-    },
     {
       "to": "mrowisko p.2",
       "via": {
@@ -1787,9 +1373,6 @@
   ],
   "mrowisko p.2": [
     {
-      "to": "mrowisko p.1"
-    },
-    {
       "to": "kopiec mrowek p.2",
       "via": {
         "x": 30,
@@ -1799,17 +1382,11 @@
   ],
   "mythar": [
     {
-      "to": "złowrogie bagna"
-    },
-    {
       "to": "złowrogie bagna",
       "via": {
         "x": 95,
         "y": 27
       }
-    },
-    {
-      "to": "podziemia zniszczonej wiezy p.5"
     },
     {
       "to": "zawiły bor",
@@ -1821,20 +1398,21 @@
   ],
   "nawiedzony jar": [
     {
-      "to": "zburzona twierdza"
-    },
-    {
       "to": "mroczny przesmyk",
       "via": {
         "x": 0,
         "y": 32
       }
+    },
+    {
+      "to": "stare wyrobisko p.4",
+      "via": {
+        "x": 35,
+        "y": 25
+      }
     }
   ],
   "nithal": [
-    {
-      "to": "podgrodzie nithal"
-    },
     {
       "to": "podgrodzie nithal",
       "via": {
@@ -1845,9 +1423,6 @@
   ],
   "nizina wiesniakow": [
     {
-      "to": "podgrodzie nithal"
-    },
-    {
       "to": "gosciniec bardow",
       "via": {
         "x": 45,
@@ -1857,17 +1432,11 @@
   ],
   "oaza siedmiu wichrow": [
     {
-      "to": "płaskowyz arpan"
-    },
-    {
       "to": "płaskowyz arpan",
       "via": {
         "x": 39,
         "y": 0
       }
-    },
-    {
-      "to": "złote piaski"
     },
     {
       "to": "złote piaski",
@@ -1877,17 +1446,11 @@
       }
     },
     {
-      "to": "ciche rumowiska"
-    },
-    {
       "to": "stare sioło",
       "via": {
         "x": 0,
         "y": 71
       }
-    },
-    {
-      "to": "stare sioło"
     },
     {
       "to": "ciche rumowiska",
@@ -1898,9 +1461,6 @@
     }
   ],
   "opuszczony szyb": [
-    {
-      "to": "grota samotnych dusz p.6"
-    },
     {
       "to": "lisciaste rozstaje",
       "via": {
@@ -1932,9 +1492,6 @@
       }
     },
     {
-      "to": "dolina yss"
-    },
-    {
       "to": "stare ruiny",
       "via": {
         "x": 44,
@@ -1951,17 +1508,11 @@
   ],
   "ostepy szalbierskich lasow": [
     {
-      "to": "błedny szlak"
-    },
-    {
       "to": "cienisty bor",
       "via": {
         "x": 95,
         "y": 42
       }
-    },
-    {
-      "to": "cienisty bor"
     },
     {
       "to": "chata bandytow",
@@ -1971,17 +1522,11 @@
       }
     },
     {
-      "to": "chata bandytow"
-    },
-    {
       "to": "siedziba rekieterow",
       "via": {
         "x": 46,
         "y": 34
       }
-    },
-    {
-      "to": "siedziba rekieterow"
     },
     {
       "to": "iglaste sciezki",
@@ -1993,9 +1538,6 @@
   ],
   "pagorki łupiezcow": [
     {
-      "to": "przełecz łotrzykow"
-    },
-    {
       "to": "skład grabiezcow",
       "via": {
         "x": 17,
@@ -2003,17 +1545,11 @@
       }
     },
     {
-      "to": "skład grabiezcow"
-    },
-    {
       "to": "schowek na łupy",
       "via": {
         "x": 23,
         "y": 50
       }
-    },
-    {
-      "to": "schowek na łupy"
     },
     {
       "to": "przełecz łotrzykow",
@@ -2025,17 +1561,11 @@
   ],
   "piramida pustynnego władcy p.1": [
     {
-      "to": "złote piaski"
-    },
-    {
       "to": "piramida pustynnego władcy p.2",
       "via": {
         "x": 29,
         "y": 1
       }
-    },
-    {
-      "to": "piramida pustynnego władcy p.2"
     },
     {
       "to": "złote piaski",
@@ -2047,17 +1577,11 @@
   ],
   "piramida pustynnego władcy p.2": [
     {
-      "to": "piramida pustynnego władcy p.1"
-    },
-    {
       "to": "piramida pustynnego władcy p.3",
       "via": {
         "x": 19,
         "y": 39
       }
-    },
-    {
-      "to": "piramida pustynnego władcy p.3"
     },
     {
       "to": "piramida pustynnego władcy p.1",
@@ -2068,9 +1592,6 @@
     }
   ],
   "piramida pustynnego władcy p.3": [
-    {
-      "to": "piramida pustynnego władcy p.2"
-    },
     {
       "to": "piramida pustynnego władcy p.2",
       "via": {
@@ -2088,9 +1609,6 @@
       }
     },
     {
-      "to": "nithal"
-    },
-    {
       "to": "nizina wiesniakow",
       "via": {
         "x": 0,
@@ -2099,9 +1617,6 @@
     }
   ],
   "podziemia zniszczonej wiezy p.1": [
-    {
-      "to": "ruiny wiezy magow - przedsionek"
-    },
     {
       "to": "podziemia zniszczonej wiezy p.2",
       "via": {
@@ -2112,9 +1627,6 @@
   ],
   "podziemia zniszczonej wiezy p.2": [
     {
-      "to": "podziemia zniszczonej wiezy p.1"
-    },
-    {
       "to": "podziemia zniszczonej wiezy p.3",
       "via": {
         "x": 26,
@@ -2123,9 +1635,6 @@
     }
   ],
   "podziemia zniszczonej wiezy p.3": [
-    {
-      "to": "podziemia zniszczonej wiezy p.2"
-    },
     {
       "to": "podziemia zniszczonej wiezy p.4",
       "via": {
@@ -2136,9 +1645,6 @@
   ],
   "podziemia zniszczonej wiezy p.4": [
     {
-      "to": "podziemia zniszczonej wiezy p.3"
-    },
-    {
       "to": "podziemia zniszczonej wiezy p.5",
       "via": {
         "x": 25,
@@ -2147,9 +1653,6 @@
     }
   ],
   "podziemia zniszczonej wiezy p.5": [
-    {
-      "to": "podziemia zniszczonej wiezy p.4"
-    },
     {
       "to": "mythar",
       "via": {
@@ -2160,9 +1663,6 @@
   ],
   "polana scierwojadow": [
     {
-      "to": "ghuli mogilnik"
-    },
-    {
       "to": "ghuli mogilnik",
       "via": {
         "x": 23,
@@ -2172,9 +1672,6 @@
   ],
   "porzucone pasieki": [
     {
-      "to": "ithan"
-    },
-    {
       "to": "mistyczny bor",
       "via": {
         "x": 0,
@@ -2182,17 +1679,11 @@
       }
     },
     {
-      "to": "mistyczny bor"
-    },
-    {
       "to": "kopalnia kapiacego miodu p.1 - sala 2",
       "via": {
         "x": 7,
         "y": 46
       }
-    },
-    {
-      "to": "kopalnia kapiacego miodu p.1 - sala 1"
     },
     {
       "to": "ithan",
@@ -2204,17 +1695,11 @@
   ],
   "przedmiescia karka-han": [
     {
-      "to": "przełecz dwoch koron"
-    },
-    {
       "to": "karka-han",
       "via": {
         "x": 60,
         "y": 0
       }
-    },
-    {
-      "to": "karka-han"
     },
     {
       "to": "przełecz dwoch koron",
@@ -2329,9 +1814,6 @@
   ],
   "przeklety zamek - kanały": [
     {
-      "to": "przeklety zamek - zbrojownia"
-    },
-    {
       "to": "przeklety zamek - zbrojownia",
       "via": {
         "x": 14,
@@ -2340,9 +1822,6 @@
     }
   ],
   "przeklety zamek - podziemia połnocne": [
-    {
-      "to": "przeklety zamek - zbrojownia"
-    },
     {
       "to": "przeklety zamek - zbrojownia",
       "via": {
@@ -2360,17 +1839,11 @@
   ],
   "przeklety zamek - podziemia południowe": [
     {
-      "to": "przeklety zamek - zbrojownia"
-    },
-    {
       "to": "przeklety zamek - wejscie południowe",
       "via": {
         "x": 3,
         "y": 2
       }
-    },
-    {
-      "to": "przeklety zamek - wejscie południowe"
     },
     {
       "to": "przeklety zamek - zbrojownia",
@@ -2382,17 +1855,11 @@
   ],
   "przeklety zamek - sala zgromadzen": [
     {
-      "to": "przeklety zamek - wejscie wschodnie"
-    },
-    {
       "to": "przeklety zamek p.1",
       "via": {
         "x": 34,
         "y": 19
       }
-    },
-    {
-      "to": "przeklety zamek p.1"
     },
     {
       "to": "przeklety zamek - zbrojownia",
@@ -2404,9 +1871,6 @@
   ],
   "przeklety zamek - wejscie połnocne": [
     {
-      "to": "przeklety zamek - podziemia połnocne"
-    },
-    {
       "to": "stare ruiny",
       "via": {
         "x": 11,
@@ -2416,17 +1880,11 @@
   ],
   "przeklety zamek - wejscie południowe": [
     {
-      "to": "przeklety zamek - podziemia południowe"
-    },
-    {
       "to": "stare ruiny",
       "via": {
         "x": 11,
         "y": 2
       }
-    },
-    {
-      "to": "stare ruiny"
     },
     {
       "to": "przeklety zamek - podziemia południowe",
@@ -2438,9 +1896,6 @@
   ],
   "przeklety zamek - wejscie wschodnie": [
     {
-      "to": "stare ruiny"
-    },
-    {
       "to": "przeklety zamek - sala zgromadzen",
       "via": {
         "x": 21,
@@ -2450,17 +1905,11 @@
   ],
   "przeklety zamek - zbrojownia": [
     {
-      "to": "przeklety zamek - sala zgromadzen"
-    },
-    {
       "to": "przeklety zamek - kanały",
       "via": {
         "x": 12,
         "y": 29
       }
-    },
-    {
-      "to": "przeklety zamek - kanały"
     },
     {
       "to": "przeklety zamek - podziemia południowe",
@@ -2470,32 +1919,20 @@
       }
     },
     {
-      "to": "przeklety zamek - podziemia południowe"
-    },
-    {
       "to": "przeklety zamek - podziemia połnocne",
       "via": {
         "x": 13,
         "y": 1
       }
-    },
-    {
-      "to": "przeklety zamek - podziemia połnocne"
     }
   ],
   "przeklety zamek p.1": [
-    {
-      "to": "przeklety zamek - sala zgromadzen"
-    },
     {
       "to": "przeklety zamek p.2",
       "via": {
         "x": 3,
         "y": 7
       }
-    },
-    {
-      "to": "przeklety zamek p.2"
     },
     {
       "to": "przeklety zamek - sala zgromadzen",
@@ -2507,9 +1944,6 @@
   ],
   "przeklety zamek p.2": [
     {
-      "to": "przeklety zamek p.1"
-    },
-    {
       "to": "przeklety zamek p.1",
       "via": {
         "x": 18,
@@ -2518,9 +1952,6 @@
     }
   ],
   "przełaz olbrzymow": [
-    {
-      "to": "smocze gory"
-    },
     {
       "to": "selva oscura",
       "via": {
@@ -2531,17 +1962,11 @@
   ],
   "przełecz dwoch koron": [
     {
-      "to": "skalista wyzyna"
-    },
-    {
       "to": "przedmiescia karka-han",
       "via": {
         "x": 41,
         "y": 0
       }
-    },
-    {
-      "to": "przedmiescia karka-han"
     },
     {
       "to": "wichrowe szczyty",
@@ -2553,17 +1978,11 @@
   ],
   "przełecz łotrzykow": [
     {
-      "to": "orla gran"
-    },
-    {
       "to": "pagorki łupiezcow",
       "via": {
         "x": 63,
         "y": 48
       }
-    },
-    {
-      "to": "pagorki łupiezcow"
     },
     {
       "to": "dolina rozbojnikow",
@@ -2575,9 +1994,6 @@
   ],
   "płaczaca grota - sala lamentu": [
     {
-      "to": "płaczaca grota p.3"
-    },
-    {
       "to": "płaczaca grota p.3",
       "via": {
         "x": 15,
@@ -2586,9 +2002,6 @@
     }
   ],
   "płaczaca grota p.1 - sala 1": [
-    {
-      "to": "wzgorze płaczek"
-    },
     {
       "to": "płaczaca grota p.2",
       "via": {
@@ -2599,9 +2012,6 @@
   ],
   "płaczaca grota p.1 - sala 2": [
     {
-      "to": "płaczaca grota p.2"
-    },
-    {
       "to": "wzgorze płaczek",
       "via": {
         "x": 43,
@@ -2611,17 +2021,11 @@
   ],
   "płaczaca grota p.2": [
     {
-      "to": "płaczaca grota p.1 - sala 1"
-    },
-    {
       "to": "płaczaca grota p.3",
       "via": {
         "x": 17,
         "y": 56
       }
-    },
-    {
-      "to": "płaczaca grota p.3"
     },
     {
       "to": "płaczaca grota p.1 - sala 2",
@@ -2633,17 +2037,11 @@
   ],
   "płaczaca grota p.3": [
     {
-      "to": "płaczaca grota p.2"
-    },
-    {
       "to": "płaczaca grota - sala lamentu",
       "via": {
         "x": 32,
         "y": 36
       }
-    },
-    {
-      "to": "płaczaca grota - sala lamentu"
     },
     {
       "to": "płaczaca grota p.2",
@@ -2654,9 +2052,6 @@
     }
   ],
   "płaskowyz arpan": [
-    {
-      "to": "trupia przełecz"
-    },
     {
       "to": "sucha dolina",
       "via": {
@@ -2672,20 +2067,11 @@
       }
     },
     {
-      "to": "skalne cmentarzysko p.1"
-    },
-    {
-      "to": "sucha dolina"
-    },
-    {
       "to": "oaza siedmiu wichrow",
       "via": {
         "x": 39,
         "y": 63
       }
-    },
-    {
-      "to": "oaza siedmiu wichrow"
     },
     {
       "to": "złote piaski",
@@ -2697,9 +2083,6 @@
   ],
   "radosna polana": [
     {
-      "to": "wioska gnolli"
-    },
-    {
       "to": "wioska gnolli",
       "via": {
         "x": 63,
@@ -2707,15 +2090,8 @@
       }
     }
   ],
-  "rozgrabione ruiny - wieza": [
-    {
-      "to": "ruiny szabrownikow"
-    }
-  ],
+  "rozgrabione ruiny - wieza": [],
   "ruiny pustynnych burz": [
-    {
-      "to": "złote piaski"
-    },
     {
       "to": "złote piaski",
       "via": {
@@ -2726,9 +2102,6 @@
   ],
   "ruiny szabrownikow": [
     {
-      "to": "rozgrabione ruiny - wieza"
-    },
-    {
       "to": "zatopiony szczyt",
       "via": {
         "x": 0,
@@ -2737,9 +2110,6 @@
     }
   ],
   "ruiny wiezy magow - przedsionek": [
-    {
-      "to": "selva oscura"
-    },
     {
       "to": "podziemia zniszczonej wiezy p.1",
       "via": {
@@ -2750,9 +2120,6 @@
   ],
   "sala lodowych iglic": [
     {
-      "to": "lodowa wyrwa p.1 s.2"
-    },
-    {
       "to": "lodowa wyrwa p.1 s.2",
       "via": {
         "x": 25,
@@ -2761,9 +2128,6 @@
     }
   ],
   "schowek na łupy": [
-    {
-      "to": "pagorki łupiezcow"
-    },
     {
       "to": "pagorki łupiezcow",
       "via": {
@@ -2774,9 +2138,6 @@
   ],
   "selva oscura": [
     {
-      "to": "dolina centaurow"
-    },
-    {
       "to": "smocze gory",
       "via": {
         "x": 64,
@@ -2784,20 +2145,11 @@
       }
     },
     {
-      "to": "smocze gory"
-    },
-    {
       "to": "zawiły bor",
       "via": {
         "x": 95,
         "y": 39
       }
-    },
-    {
-      "to": "zawiły bor"
-    },
-    {
-      "to": "przełaz olbrzymow"
     },
     {
       "to": "ruiny wiezy magow - przedsionek",
@@ -2809,17 +2161,11 @@
   ],
   "siedziba rekieterow": [
     {
-      "to": "ostepy szalbierskich lasow"
-    },
-    {
       "to": "siedziba rekieterow p.1",
       "via": {
         "x": 9,
         "y": 2
       }
-    },
-    {
-      "to": "siedziba rekieterow p.1"
     },
     {
       "to": "ostepy szalbierskich lasow",
@@ -2831,9 +2177,6 @@
   ],
   "siedziba rekieterow p.1": [
     {
-      "to": "siedziba rekieterow"
-    },
-    {
       "to": "siedziba rekieterow",
       "via": {
         "x": 10,
@@ -2842,9 +2185,6 @@
     }
   ],
   "skalista wyzyna": [
-    {
-      "to": "brama połnocy"
-    },
     {
       "to": "przełecz dwoch koron",
       "via": {
@@ -2855,17 +2195,11 @@
   ],
   "skalne cmentarzysko p.1": [
     {
-      "to": "płaskowyz arpan"
-    },
-    {
       "to": "skalne cmentarzysko p.2",
       "via": {
         "x": 9,
         "y": 6
       }
-    },
-    {
-      "to": "skalne cmentarzysko p.2"
     },
     {
       "to": "płaskowyz arpan",
@@ -2877,17 +2211,11 @@
   ],
   "skalne cmentarzysko p.2": [
     {
-      "to": "skalne cmentarzysko p.1"
-    },
-    {
       "to": "skalne cmentarzysko p.3",
       "via": {
         "x": 32,
         "y": 45
       }
-    },
-    {
-      "to": "skalne cmentarzysko p.3"
     },
     {
       "to": "skalne cmentarzysko p.1",
@@ -2899,9 +2227,6 @@
   ],
   "skalne cmentarzysko p.3": [
     {
-      "to": "skalne cmentarzysko p.2"
-    },
-    {
       "to": "skalne cmentarzysko p.2",
       "via": {
         "x": 53,
@@ -2910,9 +2235,6 @@
     }
   ],
   "skarpa trzech słow": [
-    {
-      "to": "głuchy las"
-    },
     {
       "to": "zapomniana sciezyna",
       "via": {
@@ -2923,17 +2245,11 @@
   ],
   "skały mroznych spiewow": [
     {
-      "to": "andarum ilami"
-    },
-    {
       "to": "andarum ilami",
       "via": {
         "x": 63,
         "y": 6
       }
-    },
-    {
-      "to": "erem czarnego słonca p.3 - południe"
     },
     {
       "to": "erem czarnego słonca p.3 - południe",
@@ -2943,17 +2259,11 @@
       }
     },
     {
-      "to": "erem czarnego słonca p.1 - połnoc"
-    },
-    {
       "to": "firnowa grota p.1",
       "via": {
         "x": 23,
         "y": 11
       }
-    },
-    {
-      "to": "firnowa grota p.2"
     },
     {
       "to": "jaskinia lodowego czaru",
@@ -2963,17 +2273,11 @@
       }
     },
     {
-      "to": "jaskinia lodowego czaru"
-    },
-    {
       "to": "lodowa wyrwa p.1 s.1",
       "via": {
         "x": 40,
         "y": 42
       }
-    },
-    {
-      "to": "lodowa wyrwa p.2"
     },
     {
       "to": "lisciaste rozstaje",
@@ -2985,9 +2289,6 @@
   ],
   "skład grabiezcow": [
     {
-      "to": "pagorki łupiezcow"
-    },
-    {
       "to": "pagorki łupiezcow",
       "via": {
         "x": 18,
@@ -2996,9 +2297,6 @@
     }
   ],
   "smocze gory": [
-    {
-      "to": "selva oscura"
-    },
     {
       "to": "selva oscura",
       "via": {
@@ -3016,44 +2314,36 @@
   ],
   "sosnowe odludzie": [
     {
-      "to": "lisciaste rozstaje"
-    },
-    {
       "to": "ksiezycowe wzniesienie",
       "via": {
         "x": 0,
         "y": 57
       }
-    },
-    {
-      "to": "ksiezycowe wzniesienie"
     }
   ],
   "spokojne przejscie": [
-    {
-      "to": "eder"
-    },
     {
       "to": "zasłoniete jezioro",
       "via": {
         "x": 0,
         "y": 23
       }
+    },
+    {
+      "to": "racicowy matecznik",
+      "via": {
+        "x": 8,
+        "y": 95
+      }
     }
   ],
   "stare ruiny": [
-    {
-      "to": "zatopiony szczyt"
-    },
     {
       "to": "przeklety zamek - wejscie wschodnie",
       "via": {
         "x": 59,
         "y": 18
       }
-    },
-    {
-      "to": "przeklety zamek - wejscie południowe"
     },
     {
       "to": "przeklety zamek - wejscie południowe",
@@ -3063,9 +2353,6 @@
       }
     },
     {
-      "to": "przeklety zamek - wejscie połnocne"
-    },
-    {
       "to": "torneg",
       "via": {
         "x": 48,
@@ -3073,32 +2360,20 @@
       }
     },
     {
-      "to": "torneg"
-    },
-    {
       "to": "orla gran",
       "via": {
         "x": 44,
         "y": 63
       }
-    },
-    {
-      "to": "orla gran"
     }
   ],
   "stare sioło": [
-    {
-      "to": "sucha dolina"
-    },
     {
       "to": "tuzmer",
       "via": {
         "x": 49,
         "y": 63
       }
-    },
-    {
-      "to": "oaza siedmiu wichrow"
     },
     {
       "to": "oaza siedmiu wichrow",
@@ -3110,17 +2385,11 @@
   ],
   "stary kupiecki trakt": [
     {
-      "to": "fort eder"
-    },
-    {
       "to": "stukot widmowych koł",
       "via": {
         "x": 32,
         "y": 95
       }
-    },
-    {
-      "to": "stukot widmowych koł"
     },
     {
       "to": "fort eder",
@@ -3132,17 +2401,11 @@
   ],
   "stukot widmowych koł": [
     {
-      "to": "stary kupiecki trakt"
-    },
-    {
       "to": "wertepy rzezimieszkow",
       "via": {
         "x": 19,
         "y": 95
       }
-    },
-    {
-      "to": "wertepy rzezimieszkow"
     },
     {
       "to": "stary kupiecki trakt",
@@ -3153,9 +2416,6 @@
     }
   ],
   "sucha dolina": [
-    {
-      "to": "płaskowyz arpan"
-    },
     {
       "to": "stare sioło",
       "via": {
@@ -3171,17 +2431,11 @@
       }
     },
     {
-      "to": "grobowiec nieznajacych spokoju"
-    },
-    {
       "to": "dolina pustynnych kregow",
       "via": {
         "x": 0,
         "y": 39
       }
-    },
-    {
-      "to": "dolina pustynnych kregow"
     },
     {
       "to": "płaskowyz arpan",
@@ -3193,17 +2447,11 @@
   ],
   "swiatynia andarum": [
     {
-      "to": "andarum ilami"
-    },
-    {
       "to": "swiatynia andarum - zejscie lewe",
       "via": {
         "x": 5,
         "y": 18
       }
-    },
-    {
-      "to": "swiatynia andarum - zejscie prawe"
     },
     {
       "to": "swiatynia andarum - zejscie prawe",
@@ -3215,9 +2463,6 @@
   ],
   "swiatynia andarum - biblioteka": [
     {
-      "to": "swiatynia andarum - podziemia"
-    },
-    {
       "to": "swiatynia andarum - podziemia",
       "via": {
         "x": 1,
@@ -3226,9 +2471,6 @@
     }
   ],
   "swiatynia andarum - lokum mnichow": [
-    {
-      "to": "swiatynia andarum - podziemia"
-    },
     {
       "to": "swiatynia andarum - podziemia",
       "via": {
@@ -3244,9 +2486,6 @@
       }
     },
     {
-      "to": "krypty dusz sniegu p.3"
-    },
-    {
       "to": "swiatynia andarum - magazyn p.2",
       "via": {
         "x": 5,
@@ -3256,17 +2495,11 @@
   ],
   "swiatynia andarum - magazyn p.1": [
     {
-      "to": "swiatynia andarum - podziemia"
-    },
-    {
       "to": "swiatynia andarum - podziemia",
       "via": {
         "x": 94,
         "y": 23
       }
-    },
-    {
-      "to": "swiatynia andarum - magazyn p.2"
     },
     {
       "to": "swiatynia andarum - magazyn p.2",
@@ -3278,9 +2511,6 @@
   ],
   "swiatynia andarum - magazyn p.2": [
     {
-      "to": "swiatynia andarum - lokum mnichow"
-    },
-    {
       "to": "swiatynia andarum - magazyn p.1",
       "via": {
         "x": 48,
@@ -3288,17 +2518,11 @@
       }
     },
     {
-      "to": "swiatynia andarum - magazyn p.1"
-    },
-    {
       "to": "swiatynia andarum - zbrojownia",
       "via": {
         "x": 14,
         "y": 56
       }
-    },
-    {
-      "to": "swiatynia andarum - zbrojownia"
     },
     {
       "to": "erem czarnego słonca p.4 - sala 2",
@@ -3310,17 +2534,11 @@
   ],
   "swiatynia andarum - podziemia": [
     {
-      "to": "swiatynia andarum - zejscie lewe"
-    },
-    {
       "to": "swiatynia andarum - magazyn p.1",
       "via": {
         "x": 1,
         "y": 24
       }
-    },
-    {
-      "to": "swiatynia andarum - magazyn p.1"
     },
     {
       "to": "swiatynia andarum - lokum mnichow",
@@ -3330,9 +2548,6 @@
       }
     },
     {
-      "to": "swiatynia andarum - lokum mnichow"
-    },
-    {
       "to": "swiatynia andarum - zejscie prawe",
       "via": {
         "x": 54,
@@ -3340,23 +2555,14 @@
       }
     },
     {
-      "to": "swiatynia andarum - zejscie prawe"
-    },
-    {
       "to": "swiatynia andarum - biblioteka",
       "via": {
         "x": 57,
         "y": 15
       }
-    },
-    {
-      "to": "swiatynia andarum - biblioteka"
     }
   ],
   "swiatynia andarum - zbrojownia": [
-    {
-      "to": "swiatynia andarum - magazyn p.2"
-    },
     {
       "to": "swiatynia andarum - magazyn p.2",
       "via": {
@@ -3367,9 +2573,6 @@
   ],
   "swiatynia andarum - zejscie lewe": [
     {
-      "to": "swiatynia andarum"
-    },
-    {
       "to": "swiatynia andarum - podziemia",
       "via": {
         "x": 5,
@@ -3379,17 +2582,11 @@
   ],
   "swiatynia andarum - zejscie prawe": [
     {
-      "to": "swiatynia andarum - podziemia"
-    },
-    {
       "to": "swiatynia andarum",
       "via": {
         "x": 8,
         "y": 1
       }
-    },
-    {
-      "to": "swiatynia andarum"
     },
     {
       "to": "swiatynia andarum - podziemia",
@@ -3401,9 +2598,6 @@
   ],
   "słoneczna wyzyna": [
     {
-      "to": "zasłoniete jezioro"
-    },
-    {
       "to": "lazurowe wzgorze",
       "via": {
         "x": 0,
@@ -3412,9 +2606,6 @@
     }
   ],
   "thuzal": [
-    {
-      "to": "gran gawronich pior"
-    },
     {
       "to": "gran gawronich pior",
       "via": {
@@ -3425,9 +2616,6 @@
   ],
   "torneg": [
     {
-      "to": "stare ruiny"
-    },
-    {
       "to": "łany zboza",
       "via": {
         "x": 0,
@@ -3435,29 +2623,27 @@
       }
     },
     {
-      "to": "łany zboza"
-    },
-    {
       "to": "stare ruiny",
       "via": {
         "x": 48,
         "y": 63
       }
+    },
+    {
+      "to": "lesna przełecz",
+      "via": {
+        "x": 95,
+        "y": 51
+      }
     }
   ],
   "trupia przełecz": [
-    {
-      "to": "ksiezycowe wzniesienie"
-    },
     {
       "to": "płaskowyz arpan",
       "via": {
         "x": 24,
         "y": 95
       }
-    },
-    {
-      "to": "grota samotnych dusz p.1"
     },
     {
       "to": "kamienna straznica - wsch. baszta p.1",
@@ -3467,9 +2653,6 @@
       }
     },
     {
-      "to": "kamienna straznica - wsch. baszta p.1"
-    },
-    {
       "to": "wzgorze płaczek",
       "via": {
         "x": 41,
@@ -3477,26 +2660,14 @@
       }
     },
     {
-      "to": "wzgorze płaczek"
-    },
-    {
       "to": "ksiezycowe wzniesienie",
       "via": {
         "x": 63,
         "y": 21
       }
-    },
-    {
-      "to": "zabłocona jama p.1 - sala 2"
     }
   ],
   "tuzmer": [
-    {
-      "to": "stare sioło"
-    },
-    {
-      "to": "ciche rumowiska"
-    },
     {
       "to": "zajazd pod roza wiatrow p.1",
       "via": {
@@ -3505,41 +2676,43 @@
       }
     },
     {
-      "to": "zajazd pod roza wiatrow"
-    },
-    {
       "to": "kwieciste przejscie",
       "via": {
         "x": 58,
         "y": 43
       }
+    },
+    {
+      "to": "stare sioło",
+      "via": {
+        "x": 49,
+        "y": 0
+      }
     }
   ],
   "uroczysko": [
-    {
-      "to": "wichrowe szczyty"
-    },
     {
       "to": "zniszczone opactwo",
       "via": {
         "x": 95,
         "y": 39
       }
+    },
+    {
+      "to": "zapomniany szlak",
+      "via": {
+        "x": 55,
+        "y": 63
+      }
     }
   ],
   "warczace osuwiska": [
-    {
-      "to": "ghuli mogilnik"
-    },
     {
       "to": "wilcza skarpa",
       "via": {
         "x": 63,
         "y": 17
       }
-    },
-    {
-      "to": "wilcza skarpa"
     },
     {
       "to": "legowisko wilczej hordy",
@@ -3551,9 +2724,6 @@
   ],
   "werbin": [
     {
-      "to": "brama połnocy"
-    },
-    {
       "to": "brama połnocy",
       "via": {
         "x": 63,
@@ -3563,17 +2733,11 @@
   ],
   "wertepy rzezimieszkow": [
     {
-      "to": "stukot widmowych koł"
-    },
-    {
       "to": "stukot widmowych koł",
       "via": {
         "x": 19,
         "y": 0
       }
-    },
-    {
-      "to": "gosciniec bardow"
     },
     {
       "to": "gosciniec bardow",
@@ -3585,9 +2749,6 @@
   ],
   "wichrowe szczyty": [
     {
-      "to": "przełecz dwoch koron"
-    },
-    {
       "to": "uroczysko",
       "via": {
         "x": 95,
@@ -3596,9 +2757,6 @@
     }
   ],
   "wilcza skarpa": [
-    {
-      "to": "warczace osuwiska"
-    },
     {
       "to": "warczace osuwiska",
       "via": {
@@ -3609,17 +2767,11 @@
   ],
   "wioska gnolli": [
     {
-      "to": "ithan"
-    },
-    {
       "to": "radosna polana",
       "via": {
         "x": 0,
         "y": 16
       }
-    },
-    {
-      "to": "radosna polana"
     },
     {
       "to": "jaskinia gnollich szamanow p.2",
@@ -3629,20 +2781,21 @@
       }
     },
     {
-      "to": "jaskinia gnollich szamanow p.1"
-    },
-    {
       "to": "czelusc ognistej pozogi",
       "via": {
         "x": 34,
         "y": 0
       }
+    },
+    {
+      "to": "namiot vari krugera",
+      "via": {
+        "x": 41,
+        "y": 43
+      }
     }
   ],
   "wzgorze płaczek": [
-    {
-      "to": "trupia przełecz"
-    },
     {
       "to": "trupia przełecz",
       "via": {
@@ -3651,17 +2804,11 @@
       }
     },
     {
-      "to": "mglista polana vesy"
-    },
-    {
       "to": "płaczaca grota p.1 - sala 1",
       "via": {
         "x": 37,
         "y": 35
       }
-    },
-    {
-      "to": "płaczaca grota p.1 - sala 2"
     },
     {
       "to": "mglista polana vesy",
@@ -3673,9 +2820,6 @@
   ],
   "zabłocona jama p.1 - sala 1": [
     {
-      "to": "zawiły bor"
-    },
-    {
       "to": "zabłocona jama p.2 - sala 1",
       "via": {
         "x": 12,
@@ -3684,9 +2828,6 @@
     }
   ],
   "zabłocona jama p.1 - sala 2": [
-    {
-      "to": "zabłocona jama p.2 - sala 3"
-    },
     {
       "to": "trupia przełecz",
       "via": {
@@ -3697,17 +2838,11 @@
   ],
   "zabłocona jama p.2 - sala 1": [
     {
-      "to": "zabłocona jama p.1 - sala 1"
-    },
-    {
       "to": "zabłocona jama p.2 - sala duszacej stechlizny",
       "via": {
         "x": 51,
         "y": 7
       }
-    },
-    {
-      "to": "zabłocona jama p.2 - sala duszacej stechlizny"
     },
     {
       "to": "zabłocona jama p.2 - sala 2",
@@ -3719,17 +2854,11 @@
   ],
   "zabłocona jama p.2 - sala 2": [
     {
-      "to": "zabłocona jama p.2 - sala 1"
-    },
-    {
       "to": "zabłocona jama p.2 - sala błotnistych odmetow",
       "via": {
         "x": 4,
         "y": 51
       }
-    },
-    {
-      "to": "zabłocona jama p.2 - sala błotnistych odmetow"
     },
     {
       "to": "zabłocona jama p.2 - sala 3",
@@ -3741,17 +2870,11 @@
   ],
   "zabłocona jama p.2 - sala 3": [
     {
-      "to": "zabłocona jama p.2 - sala 2"
-    },
-    {
       "to": "zabłocona jama p.2 - sala magicznego błota",
       "via": {
         "x": 53,
         "y": 8
       }
-    },
-    {
-      "to": "zabłocona jama p.2 - sala magicznego błota"
     },
     {
       "to": "zabłocona jama p.1 - sala 2",
@@ -3763,9 +2886,6 @@
   ],
   "zabłocona jama p.2 - sala błotnistych odmetow": [
     {
-      "to": "zabłocona jama p.2 - sala 2"
-    },
-    {
       "to": "zabłocona jama p.2 - sala 2",
       "via": {
         "x": 41,
@@ -3774,9 +2894,6 @@
     }
   ],
   "zabłocona jama p.2 - sala duszacej stechlizny": [
-    {
-      "to": "zabłocona jama p.2 - sala 1"
-    },
     {
       "to": "zabłocona jama p.2 - sala 1",
       "via": {
@@ -3787,9 +2904,6 @@
   ],
   "zabłocona jama p.2 - sala magicznego błota": [
     {
-      "to": "zabłocona jama p.2 - sala 3"
-    },
-    {
       "to": "zabłocona jama p.2 - sala 3",
       "via": {
         "x": 21,
@@ -3799,41 +2913,43 @@
   ],
   "zachodnie rozdroza": [
     {
-      "to": "cienisty bor"
-    },
-    {
       "to": "gory zrebowe",
       "via": {
         "x": 47,
         "y": 0
       }
+    },
+    {
+      "to": "cienisty bor",
+      "via": {
+        "x": 19,
+        "y": 95
+      }
     }
   ],
   "zagrzybiałe sciezki p.1 - sala 1": [
-    {
-      "to": "zagrzybiałe sciezki p.2"
-    },
     {
       "to": "złowrogie bagna",
       "via": {
         "x": 9,
         "y": 43
       }
+    },
+    {
+      "to": "zagrzybiałe sciezki p.2",
+      "via": {
+        "x": 38,
+        "y": 44
+      }
     }
   ],
   "zagrzybiałe sciezki p.1 - sala 2": [
-    {
-      "to": "zagrzybiałe sciezki p.2"
-    },
     {
       "to": "zagrzybiałe sciezki p.2",
       "via": {
         "x": 40,
         "y": 8
       }
-    },
-    {
-      "to": "gadzia kotlina"
     },
     {
       "to": "gadzia kotlina",
@@ -3845,9 +2961,6 @@
   ],
   "zagrzybiałe sciezki p.1 - sala 3": [
     {
-      "to": "mglista polana vesy"
-    },
-    {
       "to": "zagrzybiałe sciezki p.2",
       "via": {
         "x": 26,
@@ -3857,9 +2970,6 @@
   ],
   "zagrzybiałe sciezki p.2": [
     {
-      "to": "zagrzybiałe sciezki p.1 - sala 3"
-    },
-    {
       "to": "zagrzybiałe sciezki p.3",
       "via": {
         "x": 40,
@@ -3867,17 +2977,11 @@
       }
     },
     {
-      "to": "zagrzybiałe sciezki p.3"
-    },
-    {
       "to": "zagrzybiałe sciezki p.1 - sala 2",
       "via": {
         "x": 3,
         "y": 35
       }
-    },
-    {
-      "to": "zagrzybiałe sciezki p.1 - sala 2"
     },
     {
       "to": "zagrzybiałe sciezki p.1 - sala 1",
@@ -3889,9 +2993,6 @@
   ],
   "zagrzybiałe sciezki p.3": [
     {
-      "to": "zagrzybiałe sciezki p.2"
-    },
-    {
       "to": "zagrzybiałe sciezki p.2",
       "via": {
         "x": 5,
@@ -3900,9 +3001,6 @@
     }
   ],
   "zajazd pod roza wiatrow": [
-    {
-      "to": "zajazd pod roza wiatrow p.1"
-    },
     {
       "to": "tuzmer",
       "via": {
@@ -3913,9 +3011,6 @@
   ],
   "zajazd pod roza wiatrow p.1": [
     {
-      "to": "tuzmer"
-    },
-    {
       "to": "zajazd pod roza wiatrow",
       "via": {
         "x": 29,
@@ -3924,9 +3019,6 @@
     }
   ],
   "zapomniana sciezyna": [
-    {
-      "to": "skarpa trzech słow"
-    },
     {
       "to": "lisciaste rozstaje",
       "via": {
@@ -3937,17 +3029,11 @@
   ],
   "zapomniany grobowiec p.1": [
     {
-      "to": "ghuli mogilnik"
-    },
-    {
       "to": "zapomniany grobowiec p.2",
       "via": {
         "x": 27,
         "y": 8
       }
-    },
-    {
-      "to": "zapomniany grobowiec p.2"
     },
     {
       "to": "ghuli mogilnik",
@@ -3959,17 +3045,11 @@
   ],
   "zapomniany grobowiec p.2": [
     {
-      "to": "zapomniany grobowiec p.1"
-    },
-    {
       "to": "zapomniany grobowiec p.3",
       "via": {
         "x": 29,
         "y": 53
       }
-    },
-    {
-      "to": "zapomniany grobowiec p.3"
     },
     {
       "to": "zapomniany grobowiec p.1",
@@ -3981,17 +3061,11 @@
   ],
   "zapomniany grobowiec p.3": [
     {
-      "to": "zapomniany grobowiec p.2"
-    },
-    {
       "to": "zapomniany grobowiec p.4",
       "via": {
         "x": 58,
         "y": 33
       }
-    },
-    {
-      "to": "zapomniany grobowiec p.4"
     },
     {
       "to": "zapomniany grobowiec p.2",
@@ -4003,17 +3077,11 @@
   ],
   "zapomniany grobowiec p.4": [
     {
-      "to": "zapomniany grobowiec p.3"
-    },
-    {
       "to": "zapomniany grobowiec p.5",
       "via": {
         "x": 44,
         "y": 62
       }
-    },
-    {
-      "to": "zapomniany grobowiec p.5"
     },
     {
       "to": "zapomniany grobowiec p.3",
@@ -4025,9 +3093,6 @@
   ],
   "zapomniany grobowiec p.5": [
     {
-      "to": "zapomniany grobowiec p.4"
-    },
-    {
       "to": "zapomniany grobowiec p.4",
       "via": {
         "x": 8,
@@ -4037,9 +3102,6 @@
   ],
   "zapomniany swiety gaj p.1": [
     {
-      "to": "ksiezycowe wzniesienie"
-    },
-    {
       "to": "zapomniany swiety gaj p.1 - sala 1",
       "via": {
         "x": 24,
@@ -4047,17 +3109,11 @@
       }
     },
     {
-      "to": "zapomniany swiety gaj p.1 - sala 1"
-    },
-    {
       "to": "zapomniany swiety gaj p.2",
       "via": {
         "x": 11,
         "y": 21
       }
-    },
-    {
-      "to": "zapomniany swiety gaj p.2"
     },
     {
       "to": "ksiezycowe wzniesienie",
@@ -4068,9 +3124,6 @@
     }
   ],
   "zapomniany swiety gaj p.1 - sala 1": [
-    {
-      "to": "zapomniany swiety gaj p.1"
-    },
     {
       "to": "zapomniany swiety gaj p.1",
       "via": {
@@ -4084,24 +3137,15 @@
         "x": 15,
         "y": 20
       }
-    },
-    {
-      "to": "zapomniany swiety gaj p.2"
     }
   ],
   "zapomniany swiety gaj p.2": [
-    {
-      "to": "zapomniany swiety gaj p.1"
-    },
     {
       "to": "zapomniany swiety gaj p.1",
       "via": {
         "x": 22,
         "y": 6
       }
-    },
-    {
-      "to": "zapomniany swiety gaj p.1 - sala 1"
     },
     {
       "to": "zapomniany swiety gaj p.1 - sala 1",
@@ -4116,15 +3160,9 @@
         "x": 34,
         "y": 41
       }
-    },
-    {
-      "to": "zapomniany swiety gaj p.3"
     }
   ],
   "zapomniany swiety gaj p.3": [
-    {
-      "to": "zapomniany swiety gaj p.2"
-    },
     {
       "to": "zapomniany swiety gaj p.2",
       "via": {
@@ -4135,9 +3173,6 @@
   ],
   "zapomniany szlak": [
     {
-      "to": "mroczny przesmyk"
-    },
-    {
       "to": "mokra grota p.1",
       "via": {
         "x": 57,
@@ -4145,17 +3180,11 @@
       }
     },
     {
-      "to": "mokra grota p.1"
-    },
-    {
       "to": "grota bezszelestnych krokow - sala 1",
       "via": {
         "x": 53,
         "y": 15
       }
-    },
-    {
-      "to": "grota bezszelestnych krokow - sala 1"
     },
     {
       "to": "kamienna jaskinia - sala 1",
@@ -4167,9 +3196,6 @@
   ],
   "zasłoniete jezioro": [
     {
-      "to": "spokojne przejscie"
-    },
-    {
       "to": "słoneczna wyzyna",
       "via": {
         "x": 0,
@@ -4178,9 +3204,6 @@
     }
   ],
   "zatopiony szczyt": [
-    {
-      "to": "ruiny szabrownikow"
-    },
     {
       "to": "stare ruiny",
       "via": {
@@ -4191,17 +3214,11 @@
   ],
   "zawiły bor": [
     {
-      "to": "iglaste sciezki"
-    },
-    {
       "to": "błedny szlak",
       "via": {
         "x": 95,
         "y": 26
       }
-    },
-    {
-      "to": "błedny szlak"
     },
     {
       "to": "iglaste sciezki",
@@ -4211,17 +3228,11 @@
       }
     },
     {
-      "to": "selva oscura"
-    },
-    {
       "to": "selva oscura",
       "via": {
         "x": 0,
         "y": 39
       }
-    },
-    {
-      "to": "mythar"
     },
     {
       "to": "zabłocona jama p.1 - sala 1",
@@ -4233,9 +3244,6 @@
   ],
   "zburzona twierdza": [
     {
-      "to": "zniszczone opactwo"
-    },
-    {
       "to": "nawiedzony jar",
       "via": {
         "x": 25,
@@ -4245,17 +3253,11 @@
   ],
   "zniszczone opactwo": [
     {
-      "to": "uroczysko"
-    },
-    {
       "to": "ithan",
       "via": {
         "x": 12,
         "y": 0
       }
-    },
-    {
-      "to": "ithan"
     },
     {
       "to": "zburzona twierdza",
@@ -4272,22 +3274,20 @@
       }
     },
     {
-      "to": "lesny brod"
+      "to": "uroczysko",
+      "via": {
+        "x": 0,
+        "y": 39
+      }
     }
   ],
   "złote piaski": [
-    {
-      "to": "płaskowyz arpan"
-    },
     {
       "to": "ruiny pustynnych burz",
       "via": {
         "x": 63,
         "y": 57
       }
-    },
-    {
-      "to": "ruiny pustynnych burz"
     },
     {
       "to": "piramida pustynnego władcy p.1",
@@ -4297,9 +3297,6 @@
       }
     },
     {
-      "to": "piramida pustynnego władcy p.1"
-    },
-    {
       "to": "oaza siedmiu wichrow",
       "via": {
         "x": 0,
@@ -4307,17 +3304,11 @@
       }
     },
     {
-      "to": "oaza siedmiu wichrow"
-    },
-    {
       "to": "ciche rumowiska",
       "via": {
         "x": 4,
         "y": 95
       }
-    },
-    {
-      "to": "ciche rumowiska"
     },
     {
       "to": "dolina suchych łez",
@@ -4329,17 +3320,11 @@
   ],
   "złowrogie bagna": [
     {
-      "to": "las dziwow"
-    },
-    {
       "to": "mythar",
       "via": {
         "x": 0,
         "y": 27
       }
-    },
-    {
-      "to": "mythar"
     },
     {
       "to": "las dziwow",
@@ -4349,9 +3334,6 @@
       }
     },
     {
-      "to": "zagrzybiałe sciezki p.1 - sala 1"
-    },
-    {
       "to": "gadzia kotlina",
       "via": {
         "x": 59,
@@ -4359,29 +3341,27 @@
       }
     },
     {
-      "to": "gadzia kotlina"
-    },
-    {
       "to": "błedny szlak",
       "via": {
         "x": 22,
         "y": 0
       }
+    },
+    {
+      "to": "zagrzybiałe sciezki p.1 - sala 1",
+      "via": {
+        "x": 8,
+        "y": 52
+      }
     }
   ],
   "łany zboza": [
-    {
-      "to": "torneg"
-    },
     {
       "to": "mrowisko",
       "via": {
         "x": 9,
         "y": 1
       }
-    },
-    {
-      "to": "kopiec mrowek"
     },
     {
       "to": "torneg",
@@ -4392,9 +3372,6 @@
     }
   ],
   "pieczara niepogody p.1": [
-    {
-      "to": "fort eder"
-    },
     {
       "to": "fort eder",
       "via": {
@@ -4412,9 +3389,6 @@
   ],
   "pieczara niepogody p.2 - sala 1": [
     {
-      "to": "pieczara niepogody p.1"
-    },
-    {
       "to": "pieczara niepogody p.3",
       "via": {
         "x": 21,
@@ -4424,17 +3398,11 @@
   ],
   "pieczara niepogody p.3": [
     {
-      "to": "pieczara niepogody p.2 - sala 1"
-    },
-    {
       "to": "pieczara niepogody p.4",
       "via": {
         "x": 22,
         "y": 27
       }
-    },
-    {
-      "to": "pieczara niepogody p.4"
     },
     {
       "to": "pieczara niepogody p.2 - sala 2",
@@ -4446,17 +3414,11 @@
   ],
   "pieczara niepogody p.4": [
     {
-      "to": "pieczara niepogody p.3"
-    },
-    {
       "to": "pieczara niepogody p.5",
       "via": {
         "x": 39,
         "y": 29
       }
-    },
-    {
-      "to": "pieczara niepogody p.5"
     },
     {
       "to": "pieczara niepogody p.3",
@@ -4468,9 +3430,6 @@
   ],
   "pieczara niepogody p.5": [
     {
-      "to": "pieczara niepogody p.4"
-    },
-    {
       "to": "pieczara niepogody p.4",
       "via": {
         "x": 21,
@@ -4480,9 +3439,6 @@
   ],
   "pieczara niepogody p.2 - sala 2": [
     {
-      "to": "pieczara niepogody p.3"
-    },
-    {
       "to": "fort eder",
       "via": {
         "x": 18,
@@ -4491,9 +3447,6 @@
     }
   ],
   "las goblinow": [
-    {
-      "to": "fort eder"
-    },
     {
       "to": "fort eder",
       "via": {
@@ -4507,15 +3460,9 @@
         "x": 43,
         "y": 0
       }
-    },
-    {
-      "to": "podmokła dolina"
     }
   ],
   "podmokła dolina": [
-    {
-      "to": "las goblinow"
-    },
     {
       "to": "las goblinow",
       "via": {
@@ -4533,11 +3480,7 @@
       }
     }
   ],
-  "przekleta straznica - podziemia p.2 s.3": [
-    {
-      "to": "przekleta straznica - podziemia p.2 s.2"
-    }
-  ],
+  "przekleta straznica - podziemia p.2 s.3": [],
   "kopalnia kapiacego miodu p.2 - sala owadziej matki": [
     {
       "to": "kopalnia kapiacego miodu p.2 - sala 1",
@@ -4549,9 +3492,6 @@
   ],
   "dziewicza knieja": [
     {
-      "to": "orla gran"
-    },
-    {
       "to": "las tropicieli",
       "via": {
         "x": 63,
@@ -4559,15 +3499,8 @@
       }
     }
   ],
-  "las tropicieli": [
-    {
-      "to": "dziewicza knieja"
-    }
-  ],
+  "las tropicieli": [],
   "lesna przełecz": [
-    {
-      "to": "torneg"
-    },
     {
       "to": "kryjowka dzikich kotow",
       "via": {
@@ -4578,23 +3511,14 @@
   ],
   "kryjowka dzikich kotow": [
     {
-      "to": "lesna przełecz"
-    },
-    {
       "to": "grota dzikiego kota",
       "via": {
         "x": 38,
         "y": 18
       }
-    },
-    {
-      "to": "grota dzikiego kota"
     }
   ],
   "grota dzikiego kota": [
-    {
-      "to": "kryjowka dzikich kotow"
-    },
     {
       "to": "kryjowka dzikich kotow",
       "via": {
@@ -4605,9 +3529,6 @@
   ],
   "racicowy matecznik": [
     {
-      "to": "spokojne przejscie"
-    },
-    {
       "to": "pieczara kwiku - sala 1",
       "via": {
         "x": 6,
@@ -4617,9 +3538,6 @@
   ],
   "pieczara kwiku - sala 1": [
     {
-      "to": "racicowy matecznik"
-    },
-    {
       "to": "pieczara kwiku - sala 2",
       "via": {
         "x": 39,
@@ -4627,15 +3545,8 @@
       }
     }
   ],
-  "pieczara kwiku - sala 2": [
-    {
-      "to": "pieczara kwiku - sala 1"
-    }
-  ],
+  "pieczara kwiku - sala 2": [],
   "ciemnica szubrawcow p.1 - sala 1": [
-    {
-      "to": "fort eder"
-    },
     {
       "to": "ciemnica szubrawcow p.1 - sala 2",
       "via": {
@@ -4646,9 +3557,6 @@
   ],
   "ciemnica szubrawcow p.1 - sala 2": [
     {
-      "to": "ciemnica szubrawcow p.1 - sala 1"
-    },
-    {
       "to": "ciemnica szubrawcow p.1 - sala 3",
       "via": {
         "x": 36,
@@ -4657,9 +3565,6 @@
     }
   ],
   "ciemnica szubrawcow p.1 - sala 3": [
-    {
-      "to": "ciemnica szubrawcow p.1 - sala 2"
-    },
     {
       "to": "stary kupiecki trakt",
       "via": {
@@ -4670,9 +3575,6 @@
   ],
   "skarpiska tollokow": [
     {
-      "to": "mokradła"
-    },
-    {
       "to": "skalne turnie",
       "via": {
         "x": 63,
@@ -4680,15 +3582,8 @@
       }
     }
   ],
-  "skalne turnie": [
-    {
-      "to": "skarpiska tollokow"
-    }
-  ],
+  "skalne turnie": [],
   "stare wyrobisko p.4": [
-    {
-      "to": "nawiedzony jar"
-    },
     {
       "to": "stare wyrobisko p.3",
       "via": {
@@ -4697,29 +3592,15 @@
       }
     }
   ],
-  "stare wyrobisko p.3": [
-    {
-      "to": "stare wyrobisko p.4"
-    }
-  ],
-  "namiot vari krugera": [
-    {
-      "to": "wioska gnolli"
-    }
-  ],
+  "stare wyrobisko p.3": [],
+  "namiot vari krugera": [],
   "zdradzieckie przejscie p.1": [
-    {
-      "to": "andarum ilami"
-    },
     {
       "to": "głebokie skałki p.1",
       "via": {
         "x": 55,
         "y": 46
       }
-    },
-    {
-      "to": "głebokie skałki p.1"
     },
     {
       "to": "wylegarnia choukkerow p.1",
@@ -4731,17 +3612,11 @@
   ],
   "głebokie skałki p.1": [
     {
-      "to": "zdradzieckie przejscie p.1"
-    },
-    {
       "to": "głebokie skałki p.2",
       "via": {
         "x": 40,
         "y": 44
       }
-    },
-    {
-      "to": "głebokie skałki p.2"
     },
     {
       "to": "zdradzieckie przejscie p.1",
@@ -4753,17 +3628,11 @@
   ],
   "głebokie skałki p.2": [
     {
-      "to": "głebokie skałki p.1"
-    },
-    {
       "to": "głebokie skałki p.3",
       "via": {
         "x": 40,
         "y": 43
       }
-    },
-    {
-      "to": "głebokie skałki p.3"
     },
     {
       "to": "głebokie skałki p.1",
@@ -4775,9 +3644,6 @@
   ],
   "głebokie skałki p.3": [
     {
-      "to": "głebokie skałki p.2"
-    },
-    {
       "to": "głebokie skałki p.2",
       "via": {
         "x": 27,
@@ -4785,15 +3651,8 @@
       }
     }
   ],
-  "wylegarnia choukkerow p.1": [
-    {
-      "to": "zdradzieckie przejscie p.1"
-    }
-  ],
+  "wylegarnia choukkerow p.1": [],
   "wyjacy wawoz": [
-    {
-      "to": "cienisty bor"
-    },
     {
       "to": "babi wzgorek",
       "via": {
@@ -4804,9 +3663,6 @@
   ],
   "babi wzgorek": [
     {
-      "to": "wyjacy wawoz"
-    },
-    {
       "to": "goralskie przejscie",
       "via": {
         "x": 36,
@@ -4815,9 +3671,6 @@
     }
   ],
   "goralskie przejscie": [
-    {
-      "to": "babi wzgorek"
-    },
     {
       "to": "chata wojta fistuły",
       "via": {
@@ -4828,9 +3681,6 @@
   ],
   "chata wojta fistuły": [
     {
-      "to": "goralskie przejscie"
-    },
-    {
       "to": "chata wojta fistuły p.1",
       "via": {
         "x": 3,
@@ -4838,9 +3688,5 @@
       }
     }
   ],
-  "chata wojta fistuły p.1": [
-    {
-      "to": "chata wojta fistuły"
-    }
-  ]
+  "chata wojta fistuły p.1": []
 }
