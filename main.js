@@ -1209,11 +1209,47 @@ function setTempTarget(val){
 try{
   const mode = (localStorage.getItem('adi-bot_exp_mode') || 'exp') === 'e2';
   if(mode){
+
+// --- PERSISTENT E2 ANCHOR (survives F5 / relog) ---
+// Stores whether we've already "anchored" to the E2 coordinates on the current visit to the target map.
+const __adiE2CharKey = (function(){
+  try{
+    return String((window.hero && (hero.id || hero.nick || hero.name)) || (window.g && g.player && g.player.id) || 'default');
+  }catch(e){ return 'default'; }
+})();
+const __adiE2AnchorLSKey = 'adi-bot_e2_anchor_state_' + __adiE2CharKey;
+
+function __adiE2LoadAnchorState(){
+  try{
+    const raw = localStorage.getItem(__adiE2AnchorLSKey);
+    const st = raw ? JSON.parse(raw) : {};
+    if(typeof st !== 'object' || !st) return { target:null, done:false, lastMap:null };
+    return {
+      target: st.target != null ? String(st.target) : null,
+      done: !!st.done,
+      lastMap: st.lastMap != null ? String(st.lastMap) : null
+    };
+  }catch(e){
+    return { target:null, done:false, lastMap:null };
+  }
+}
+function __adiE2SaveAnchorState(st){
+  try{
+    localStorage.setItem(__adiE2AnchorLSKey, JSON.stringify({
+      target: st && st.target != null ? String(st.target) : null,
+      done: !!(st && st.done),
+      lastMap: st && st.lastMap != null ? String(st.lastMap) : null
+    }));
+  }catch(e){}
+}
+let __adiE2State = __adiE2LoadAnchorState();
+
     // KOTWICA E2: na danej wizycie na mapie E2 podchodzimy na kordy TYLKO RAZ.
     // Po walce / po ubiciu E2 nie wracamy już na siłę na kordy.
     window.__adiE2HoldSpot = false;
-    if(typeof window.__adiE2AnchorDone === 'undefined') window.__adiE2AnchorDone = false;
-    if(typeof window.__adiE2AnchorMap === 'undefined') window.__adiE2AnchorMap = null;
+    // init window flags from persisted state
+    window.__adiE2AnchorDone = !!__adiE2State.done;
+    window.__adiE2AnchorMap = __adiE2State.target;
     const raw = localStorage.getItem('adi-bot_e2_target');
     const tgt = raw ? JSON.parse(raw) : null;
     if(tgt && tgt.map != null && tgt.x != null && tgt.y != null){
@@ -1238,17 +1274,32 @@ try{
         const want = normMapName(tgt.map);
         window.__adiE2OnTargetMap = (cur === want);
 
-        // jeśli opuściliśmy mapę E2 (np. miasto po mikstury) -> po powrocie znowu podejdziemy raz na kordy
-        if(cur !== want){
-          window.__adiE2AnchorDone = false;
-          window.__adiE2AnchorMap = want;
-        }else{
-          // jesteśmy na mapie E2 — jeśli zmienił się cel mapy, reset kotwicy
-          if(window.__adiE2AnchorMap !== want){
-            window.__adiE2AnchorMap = want;
-            window.__adiE2AnchorDone = false;
-          }
-        }
+        
+// Persistent anchor transitions (survive F5 / relog)
+// - Reset anchor if target map changed
+if(__adiE2State.target !== want){
+  __adiE2State.target = want;
+  __adiE2State.done = false;
+}
+
+// Detect map transition since last tick (state in localStorage)
+if(__adiE2State.lastMap !== cur){
+  // Leaving the target map (np. miasto po mikstury) -> po powrocie znowu podejdziemy raz na kordy
+  if(__adiE2State.lastMap === want && cur !== want){
+    __adiE2State.done = false;
+  }
+  // Arriving on the target map -> podejdź raz na kordy
+  if(cur === want && __adiE2State.lastMap !== want){
+    __adiE2State.done = false;
+  }
+  __adiE2State.lastMap = cur;
+}else{
+  __adiE2State.lastMap = cur;
+}
+__adiE2SaveAnchorState(__adiE2State);
+
+window.__adiE2AnchorMap = want;
+window.__adiE2AnchorDone = !!__adiE2State.done;
 
         // 1) jeśli nie jesteśmy na mapie E2 -> jedź po grafie/bramkach
         if(cur !== want){
@@ -1295,6 +1346,7 @@ const __manualOverride = (__manualUntil && __manualNow < __manualUntil);
 if(!window.__adiE2AnchorDone){
   if(hero.x === tx && hero.y === ty){
     window.__adiE2AnchorDone = true;
+    try{ __adiE2State.done = true; __adiE2SaveAnchorState(__adiE2State); }catch(_e){}
   }else{
     if(!__e2Present && !__manualOverride){
       if(!bolcka){
