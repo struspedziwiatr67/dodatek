@@ -432,6 +432,117 @@ Lvl: **${n.lvl ?? "?"}**`,
     "Erem+Zbrojki": { map: "Świątynia Andarum - magazyn p.1, Świątynia Andarum - magazyn p.2, Erem Czarnego Słońca p.4 - sala 2, Erem Czarnego Słońca p.3 - południe, Erem Czarnego Słońca p.4 - sala 2, Erem Czarnego Słońca p.3, Erem Czarnego Słońca p.2, Erem Czarnego Słońca p.1 - północ, Erem Czarnego Słońca p.2, Erem Czarnego Słońca p.3, Erem Czarnego Słońca p.4 - sala 1, Erem Czarnego Słońca p.5" },
   };
 
+  // ===== E2 (Elity II) lista =====
+  const E2_TARGETS = [
+  {
+    "name": "Mushita",
+    "map": "Grota Dzikiego Kota",
+    "x": 23,
+    "y": 11
+  },
+  {
+    "name": "Kotołak Tropiciel",
+    "map": "Las Tropicieli",
+    "x": 51,
+    "y": 75
+  },
+  {
+    "name": "Shae Phu",
+    "map": "Przeklęta Strażnica - podziemia p.2 s.1",
+    "x": 25,
+    "y": 24
+  },
+  {
+    "name": "Zorg Jednooki Baron",
+    "map": "Schowek na łupy",
+    "x": 17,
+    "y": 57
+  },
+  {
+    "name": "Władca rzek",
+    "map": "Podmokła Dolina",
+    "x": 9,
+    "y": 11
+  },
+  {
+    "name": "Tyrtajos",
+    "map": "Pieczara Kwiku - sala 2",
+    "x": 13,
+    "y": 13
+  },
+  {
+    "name": "Szczęt alias Gładki",
+    "map": "Stary Kupiecki Trakt",
+    "x": 12,
+    "y": 75
+  },
+  {
+    "name": "Tollok Shimger",
+    "map": "Skalne Turnie",
+    "x": 48,
+    "y": 5
+  },
+  {
+    "name": "Razuglag Oklash",
+    "map": "Stare Wyrobisko p.3",
+    "x": 5,
+    "y": 6
+  },
+  {
+    "name": "Owadzia Matka",
+    "map": "Kopalnia Kapiącego Miodu p.2 - sala Owadziej Matki",
+    "x": 33,
+    "y": 15
+  },
+  {
+    "name": "Vari Kruger",
+    "map": "Namiot Vari Krugera",
+    "x": 4,
+    "y": 4
+  },
+  {
+    "name": "Tollok Atamatu",
+    "map": "Głębokie Skałki p.3",
+    "x": 13,
+    "y": 20
+  },
+  {
+    "name": "Choukker",
+    "map": "Wylęgarnia Choukkerów p.1",
+    "x": 40,
+    "y": 19
+  },
+  {
+    "name": "Gnom Figlid",
+    "map": "Zagrzybiałe Ścieżki p.3",
+    "x": 21,
+    "y": 20
+  },
+  {
+    "name": "Ozirus Władca Hieroglifów",
+    "map": "Piramida Pustynnego Władcy p.3",
+    "x": 22,
+    "y": 13
+  },
+  {
+    "name": "Borgoros Garamir III",
+    "map": "Twierdza Rogogłowych - Sala Byka",
+    "x": 16,
+    "y": 7
+  },
+  {
+    "name": "Wójt Fistuła",
+    "map": "Chata wójta Fistuły p.1",
+    "x": 13,
+    "y": 7
+  }
+];
+  function getE2ByName(name){
+    name = String(name||'').trim();
+    return E2_TARGETS.find(e=>String(e.name).trim()===name) || null;
+  }
+
+
   // ===== AUTO EXPOWISKO (po lvl) =====
   function getAutoExpowiskoByLevel(lvl){
     lvl = Number(lvl)||0;
@@ -1530,6 +1641,14 @@ function __adiAutoHealTick(){
     let input2=document.createElement(`input`); input2.type=`text`; input2.id=`adi-bot_maps`; input2.classList.add(`adi-bot_inputs`);
     input2.setAttribute(`tip`,`Wprowadź nazwy map`); box.appendChild(input2);
 
+    // ===== Tryb listy: Exp / E2 =====
+    let expMode=document.createElement(`select`); expMode.id=`adi-bot_exp_mode`; expMode.classList.add(`adi-bot_inputs`);
+    expMode.setAttribute(`tip`,`Wybierz tryb listy: Expowiska albo Elity II (E2)`);
+    { let o=document.createElement(`option`); o.setAttribute(`value`,`exp`); o.text=`Exp`; expMode.appendChild(o); }
+    { let o=document.createElement(`option`); o.setAttribute(`value`,`e2`); o.text=`E2`; expMode.appendChild(o); }
+    box.appendChild(expMode);
+
+    // ===== Lista Expowisk (jak było) =====
     let select=document.createElement(`select`); select.id=`adi-bot_list`; select.classList.add(`adi-bot_inputs`);
     select.setAttribute(`tip`,`Wybierz expowisko, aby dodatek wpisał mapy za Ciebie`);
     // AUTO na górze
@@ -1537,6 +1656,30 @@ function __adiAutoHealTick(){
     // reszta expowisk
     for(let i=0;i<Object.keys(expowiska).length;i++){ let o=document.createElement(`option`); o.setAttribute(`value`,Object.keys(expowiska)[i]); o.text=Object.keys(expowiska)[i]; select.appendChild(o); }
     box.appendChild(select);
+
+    // ===== Lista E2 (tylko nazwy) =====
+    let selectE2=document.createElement(`select`); selectE2.id=`adi-bot_e2_list`; selectE2.classList.add(`adi-bot_inputs`);
+    selectE2.setAttribute(`tip`,`Wybierz Elitę II (E2) – zapiszemy mapę i koordynaty podejścia`);
+    for(let i=0;i<E2_TARGETS.length;i++){
+      let o=document.createElement(`option`);
+      o.setAttribute(`value`, E2_TARGETS[i].name);
+      o.text = E2_TARGETS[i].name; // tylko nazwa
+      selectE2.appendChild(o);
+    }
+    box.appendChild(selectE2);
+
+    function __adi_setExpModeUI(mode){
+      mode = (mode==='e2') ? 'e2' : 'exp';
+      try{ localStorage.setItem('adi-bot_exp_mode', mode); }catch(_){}
+      if(mode==='e2'){
+        select.style.display = 'none';
+        selectE2.style.display = 'block';
+      }else{
+        select.style.display = 'block';
+        selectE2.style.display = 'none';
+      }
+    }
+
     // --- Auto-kupowanie mikstur (Torneg / Wysoka kapłanka Gryfia) ---
     const apWrap = document.createElement('div'); apWrap.classList.add('adi-bot_box'); apWrap.style.marginTop='6px';
     apWrap.setAttribute('tip','Auto-kupowanie mikstur u wybranego handlarza (Auto: najbliższy – graf | Torneg/Ithan/Karka-han/Werbin/Eder/Dom Tunii/Liściaste Rozstaje/...)');
@@ -2225,11 +2368,29 @@ try{
     // odczyt ustawień UI
     if(localStorage.getItem(`adi-bot_mobs`)) input1.value=localStorage.getItem(`adi-bot_mobs`);
     if(localStorage.getItem(`adi-bot_maps`)) input2.value=localStorage.getItem(`adi-bot_maps`);
+    // Tryb listy: Exp / E2
+    const savedMode = (localStorage.getItem('adi-bot_exp_mode') || 'exp').trim();
+    try{ expMode.value = (savedMode==='e2') ? 'e2' : 'exp'; }catch(_){}
+    try{ __adi_setExpModeUI(expMode.value); }catch(_){}
+
     {
       const savedExp = (localStorage.getItem(`adi-bot_expowiska`) || '').trim();
       if(savedExp === 'auto') select.value = 'auto';
       else if(savedExp && expowiska[savedExp]) select.value = savedExp;
     }
+    // restore E2 selection
+    try{
+      const savedE2 = (localStorage.getItem('adi-bot_e2_sel') || '').trim();
+      if(savedE2){
+        selectE2.value = savedE2;
+      }else if(selectE2.options.length){
+        selectE2.value = selectE2.options[0].value;
+      }
+      const e2 = getE2ByName(selectE2.value);
+      if(e2){
+        localStorage.setItem('adi-bot_e2_target', JSON.stringify(e2));
+      }
+    }catch(_){}
     // jeśli zapisane było AUTO, dopasuj mapy od razu
     if(select.value === 'auto'){
       const key = getSelectedExpKey();
@@ -2274,6 +2435,28 @@ const have = (window.getPotionCountByName ? window.getPotionCountByName(selName)
 
 
     // listenery UI
+    // Exp/E2 przełącznik listy
+    try{
+      expMode.addEventListener('change', ()=>{
+        const mode = expMode.value === 'e2' ? 'e2' : 'exp';
+        __adi_setExpModeUI(mode);
+        message(mode==='e2' ? 'Tryb listy: E2' : 'Tryb listy: Exp');
+      });
+    }catch(_){}
+
+    // Zmiana E2: zapisz wybór + mapę + koordynaty podejścia
+    try{
+      selectE2.addEventListener('change', ()=>{
+        try{ localStorage.setItem('adi-bot_e2_sel', String(selectE2.value||'')); }catch(_){}
+        const e2 = getE2ByName(selectE2.value);
+        if(e2){
+          try{ localStorage.setItem('adi-bot_e2_target', JSON.stringify(e2)); }catch(_){}
+          message(`Zapisano E2: "${e2.name}" (${e2.map}) (${e2.x},${e2.y})`);
+        }else{
+          message('Nie znaleziono definicji E2 dla: ' + selectE2.value);
+        }
+      });
+    }catch(_){}
     input1.addEventListener(`keyup`, ()=>localStorage.setItem(`adi-bot_mobs`, input1.value));
     input2.addEventListener(`keyup`, ()=>{
       localStorage.setItem(`adi-bot_maps`, input2.value);
@@ -3437,7 +3620,6 @@ if (typeof window.window.__adi_equipByNameSequence !== 'function') {
     setTimeout(() => URL.revokeObjectURL(url), 1500);
   }
 
-  
   function ensurePanel() {
     const tab = document.querySelector("#adi-tab-e2");
     if (!tab) return null;
@@ -3447,26 +3629,152 @@ if (typeof window.window.__adi_equipByNameSequence !== 'function') {
 
     root = document.createElement("div");
     root.id = "adi-e2timer-root";
-    // minimalistyczny wygląd jak na screenie: czarne tło wierszy, białe napisy
+    root.style.border = "2px solid lime";
+    root.style.borderRadius = "8px";
+    root.style.padding = "6px";
     root.style.margin = "6px 0";
-    root.style.padding = "0";
-    root.style.background = "transparent";
-    root.style.color = "#fff";
-    root.style.font = 'normal 13px/1.2 Arial, sans-serif';
+    root.style.background = "rgba(234,227,227,0.9)";
+    root.style.color = "#000";
+    root.style.font = 'normal 13px/1.2 "Comic Sans MS", Times, serif';
     root.style.textAlign = "left";
+
+    const header = document.createElement("div");
+    header.style.display = "flex";
+    header.style.alignItems = "center";
+    header.style.justifyContent = "space-between";
+    header.style.gap = "8px";
+
+    const title = document.createElement("div");
+    title.textContent = "Minutnik E2 (respawn)";
+    title.style.fontWeight = "700";
+
+    const btns = document.createElement("div");
+    btns.style.display = "flex";
+    btns.style.gap = "6px";
+    btns.style.alignItems = "center";
+
+    function mkBtn(txt, tip) {
+      const b = document.createElement("button");
+      b.textContent = txt;
+      b.classList.add("adi-bot_inputs");
+      b.style.display = "inline-block";
+      b.style.padding = "2px 8px";
+      b.style.margin = "0";
+      b.style.borderRadius = "8px";
+      b.style.fontSize = "14px";
+      b.style.width = "auto";
+      b.setAttribute("tip", tip || "");
+      return b;
+    }
+
+    const btnCfg = mkBtn("⚙", "Ustawienia minutnika");
+    const btnClear = mkBtn("🗑", "Wyczyść wszystkie timery");
+
+    btns.appendChild(btnCfg);
+    btns.appendChild(btnClear);
+    header.appendChild(title);
+    header.appendChild(btns);
 
     const body = document.createElement("div");
     body.id = "adi-e2timer-body";
-    body.style.display = "flex";
-    body.style.flexDirection = "column";
-    body.style.gap = "4px";
+    body.style.maxHeight = "220px";
+    body.style.overflow = "auto";
+    body.style.marginTop = "6px";
+    body.style.borderTop = "1px dashed rgba(0,0,0,.35)";
+    body.style.paddingTop = "6px";
 
+    const cfg = document.createElement("div");
+    cfg.id = "adi-e2timer-cfg";
+    cfg.style.display = "none";
+    cfg.style.marginTop = "6px";
+    cfg.style.borderTop = "1px dashed rgba(0,0,0,.35)";
+    cfg.style.paddingTop = "6px";
+
+    cfg.innerHTML = `
+      <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+        <label style="display:flex;gap:6px;align-items:center">
+          <input type="checkbox" id="adi-e2tm-enabled"> Włączony
+        </label>
+        <label style="display:flex;gap:6px;align-items:center">
+          <input type="checkbox" id="adi-e2tm-alwaysmax"> Zawsze do MAX
+        </label>
+        <label style="display:flex;gap:6px;align-items:center">
+          <span>Po MAX (s):</span>
+          <input type="number" id="adi-e2tm-stale" min="5" max="600" step="5" style="width:70px">
+        </label>
+        <label style="display:flex;gap:6px;align-items:center">
+          <input type="checkbox" id="adi-e2tm-compact"> Tryb kompakt
+        </label>
+      </div>
+
+      <div style="margin-top:8px;display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+        <label style="display:flex;gap:6px;align-items:center">
+          <input type="checkbox" id="adi-e2tm-elitefilter"> Filtr NPC (wt ≥)
+        </label>
+        <input type="number" id="adi-e2tm-wtmin" min="0" max="99" step="1" style="width:60px">
+      </div>
+
+      <div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap">
+        <button id="adi-e2tm-export" class="adi-bot_inputs" style="width:auto;padding:2px 10px;margin:0">Eksport JSON</button>
+      </div>
+
+      <div style="margin-top:6px;opacity:.85;font-size:11px">
+        Źródło: <b>npcs_del.respBaseSeconds</b> • Filtr: type==2 i (groupType==2 lub brak) i wt>=ustawienie
+      </div>
+    `;
+
+    const footer = document.createElement("div");
+    footer.style.marginTop = "6px";
+    footer.style.opacity = "0.85";
+    footer.style.fontSize = "11px";
+    footer.textContent = "Timer dodaje się po zabiciu (npcs_del).";
+
+    root.appendChild(header);
     root.appendChild(body);
+    root.appendChild(cfg);
+    root.appendChild(footer);
     tab.appendChild(root);
+
+    // wiring
+    const settings = loadSettings();
+    cfg.querySelector("#adi-e2tm-enabled").checked = !!settings.enabled;
+    cfg.querySelector("#adi-e2tm-alwaysmax").checked = !!settings.alwaysMax;
+    cfg.querySelector("#adi-e2tm-stale").value = String(settings.staleSec);
+    cfg.querySelector("#adi-e2tm-compact").checked = !!settings.compact;
+    cfg.querySelector("#adi-e2tm-elitefilter").checked = !!settings.useEliteFilter;
+    cfg.querySelector("#adi-e2tm-wtmin").value = String(settings.wtMin);
+
+    cfg.querySelector("#adi-e2tm-enabled").addEventListener("change", (e) => {
+      const s = loadSettings(); s.enabled = e.target.checked; saveSettings(s);
+    });
+    cfg.querySelector("#adi-e2tm-alwaysmax").addEventListener("change", (e) => {
+      const s = loadSettings(); s.alwaysMax = e.target.checked; saveSettings(s);
+    });
+    cfg.querySelector("#adi-e2tm-stale").addEventListener("change", (e) => {
+      const v = parseInt(e.target.value || String(DEFAULT_STALE_SEC), 10);
+      const s = loadSettings(); s.staleSec = Number.isFinite(v) ? v : DEFAULT_STALE_SEC; saveSettings(s);
+    });
+    cfg.querySelector("#adi-e2tm-compact").addEventListener("change", (e) => {
+      const s = loadSettings(); s.compact = e.target.checked; saveSettings(s);
+    });
+    cfg.querySelector("#adi-e2tm-elitefilter").addEventListener("change", (e) => {
+      const s = loadSettings(); s.useEliteFilter = e.target.checked; saveSettings(s);
+    });
+    cfg.querySelector("#adi-e2tm-wtmin").addEventListener("change", (e) => {
+      const v = parseInt(e.target.value || String(DEFAULT_WT_MIN), 10);
+      const s = loadSettings(); s.wtMin = Number.isFinite(v) ? v : DEFAULT_WT_MIN; saveSettings(s);
+    });
+    cfg.querySelector("#adi-e2tm-export").addEventListener("click", () => exportJson());
+
+    btnCfg.addEventListener("click", () => { cfg.style.display = (cfg.style.display === "none") ? "block" : "none"; });
+    btnClear.addEventListener("click", () => {
+      if (!confirm("Wyczyścić wszystkie timery?")) return;
+      saveTimers([]);
+      render();
+    });
 
     return root;
   }
-
 
   // ===================== CACHE z g.npc =====================
   const cache = new Map();
@@ -3594,35 +3902,30 @@ if (typeof window.window.__adi_equipByNameSequence !== 'function') {
       return;
     }
 
-    
     for (const t of timers) {
       const row = document.createElement("div");
       row.style.display = "grid";
-      row.style.gridTemplateColumns = "1fr auto auto";
-      row.style.gap = "10px";
+      row.style.gridTemplateColumns = s.compact ? "1fr auto" : "1fr auto auto";
+      row.style.gap = "8px";
       row.style.alignItems = "center";
-      row.style.padding = "6px 8px";
-      row.style.background = "#000";
-      row.style.borderRadius = "6px";
+      row.style.padding = "4px 0";
+      row.style.borderTop = "1px solid rgba(0,0,0,.15)";
 
       const name = document.createElement("div");
       name.textContent = t.name || "NPC";
       name.style.whiteSpace = "nowrap";
       name.style.overflow = "hidden";
       name.style.textOverflow = "ellipsis";
-      name.style.color = "#fff";
 
       const time = document.createElement("div");
       time.textContent = fmtHMS(remainingSec(t, s.alwaysMax));
       time.style.fontVariantNumeric = "tabular-nums";
-      time.style.color = "#fff";
 
       const del = document.createElement("div");
       del.textContent = "✖";
       del.style.cursor = "pointer";
+      del.style.opacity = "0.8";
       del.style.userSelect = "none";
-      del.style.color = "#fff";
-      del.style.opacity = "0.9";
       del.title = "Usuń timer";
       del.addEventListener("click", (ev) => {
         ev.preventDefault(); ev.stopPropagation();
@@ -3632,26 +3935,19 @@ if (typeof window.window.__adi_equipByNameSequence !== 'function') {
       });
 
       row.title =
-        `${t.name}
-` +
-        `${t.map} (${t.x},${t.y})
-` +
-        `Czas odrodzenia
-` +
-        `Min: ${toDateStr(t.min)}
-` +
-        `Max: ${toDateStr(t.max)}
-` +
-        `base: ${t.baseSeconds}s • rand: ${(t.rand*100).toFixed(0)}%
-` +
+        `${t.name}\n` +
+        `${t.map} (${t.x},${t.y})\n` +
+        `Czas odrodzenia\n` +
+        `Min: ${toDateStr(t.min)}\n` +
+        `Max: ${toDateStr(t.max)}\n` +
+        `base: ${t.baseSeconds}s • rand: ${(t.rand*100).toFixed(0)}%\n` +
         `wt: ${t.wt} lvl: ${t.lvl}`;
 
       row.appendChild(name);
       row.appendChild(time);
-      row.appendChild(del);
+      if (!s.compact) row.appendChild(del);
       body.appendChild(row);
     }
-
   }
 
   // aktualizuj UI co sekundę (jak w dodatku)
