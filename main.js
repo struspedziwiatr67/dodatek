@@ -1209,8 +1209,11 @@ function setTempTarget(val){
 try{
   const mode = (localStorage.getItem('adi-bot_exp_mode') || 'exp') === 'e2';
   if(mode){
-    // flaga pomocnicza: gdy dojdziemy na kordy E2 i nie ma celu, stoimy w miejscu
+    // KOTWICA E2: na danej wizycie na mapie E2 podchodzimy na kordy TYLKO RAZ.
+    // Po walce / po ubiciu E2 nie wracamy już na siłę na kordy.
     window.__adiE2HoldSpot = false;
+    if(typeof window.__adiE2AnchorDone === 'undefined') window.__adiE2AnchorDone = false;
+    if(typeof window.__adiE2AnchorMap === 'undefined') window.__adiE2AnchorMap = null;
     const raw = localStorage.getItem('adi-bot_e2_target');
     const tgt = raw ? JSON.parse(raw) : null;
     if(tgt && tgt.map != null && tgt.x != null && tgt.y != null){
@@ -1234,6 +1237,18 @@ try{
         const cur = normMapName(map.name);
         const want = normMapName(tgt.map);
         window.__adiE2OnTargetMap = (cur === want);
+
+        // jeśli opuściliśmy mapę E2 (np. miasto po mikstury) -> po powrocie znowu podejdziemy raz na kordy
+        if(cur !== want){
+          window.__adiE2AnchorDone = false;
+          window.__adiE2AnchorMap = want;
+        }else{
+          // jesteśmy na mapie E2 — jeśli zmienił się cel mapy, reset kotwicy
+          if(window.__adiE2AnchorMap !== want){
+            window.__adiE2AnchorMap = want;
+            window.__adiE2AnchorDone = false;
+          }
+        }
 
         // 1) jeśli nie jesteśmy na mapie E2 -> jedź po grafie/bramkach
         if(cur !== want){
@@ -1275,24 +1290,25 @@ const __manualUntil = (window.__adiE2ManualUntil|0);
 const __manualNow = Date.now();
 const __manualOverride = (__manualUntil && __manualNow < __manualUntil);
 
-if(hero.x !== tx || hero.y !== ty){
-  window.__adiE2HoldSpot = false;
-
-  // do punktu tylko gdy NIE ma E2 na mapie i nie ma ręcznego override
-  if(!__e2Present && !__manualOverride){
-    if(!bolcka){
-      a_goTo(tx, ty);
-      bolcka = true;
-      setTimeout(()=>bolcka=false, 700);
+// Podejdź na kordy TYLKO RAZ na wizytę na mapie E2.
+// Jeśli E2 jest na mapie (stoi obok) -> NIE przyklejamy do kordów, żeby bot mógł podejść i bić.
+if(!window.__adiE2AnchorDone){
+  if(hero.x === tx && hero.y === ty){
+    window.__adiE2AnchorDone = true;
+  }else{
+    if(!__e2Present && !__manualOverride){
+      if(!bolcka){
+        a_goTo(tx, ty);
+        bolcka = true;
+        setTimeout(()=>bolcka=false, 700);
+      }
+      return ret;
     }
-    return ret;
+    // E2 jest obok / gracz rusza ręcznie -> nie wracamy na siłę na punkt
   }
-  // E2 jest obok / gracz rusza ręcznie -> nie wracamy na siłę na punkt
 }
 
-// 3) stoimy (lub byliśmy) na kordach:
-//    - jeśli E2 nie ma na mapie -> trzymamy punkt i czekamy
-//    - jeśli E2 jest -> nie trzymamy na sztywno (pozwól podejść do bossa)
+// Trzymanie punktu: używane tylko, gdy stoimy dokładnie na kordach i czekamy (bez celu).
 window.__adiE2HoldSpot = (!__e2Present && !__manualOverride && hero.x === tx && hero.y === ty);
       }
     }
