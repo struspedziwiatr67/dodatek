@@ -592,7 +592,8 @@ Lvl: **${n.lvl ?? "?"}**`,
       }
       __graphRoute=null;
       __graphRouteTarget=null;
-      message(`AUTO expowisko → "${key}" (lvl ${hero && hero.lvl || 0})`);
+      // (wyłączone) spamowało żółtym powiadomieniem przy przechodzeniu między mapami
+      // message(`AUTO expowisko → "${key}" (lvl ${hero && hero.lvl || 0})`);
     }
   }
   // ===== MAP GRAPH (expowisko routing to the first map) =====
@@ -1208,6 +1209,8 @@ function setTempTarget(val){
 try{
   const mode = (localStorage.getItem('adi-bot_exp_mode') || 'exp') === 'e2';
   if(mode){
+    // flaga pomocnicza: gdy dojdziemy na kordy E2 i nie ma celu, stoimy w miejscu
+    window.__adiE2HoldSpot = false;
     const raw = localStorage.getItem('adi-bot_e2_target');
     const tgt = raw ? JSON.parse(raw) : null;
     if(tgt && tgt.map != null && tgt.x != null && tgt.y != null){
@@ -1248,6 +1251,7 @@ try{
 
         // 2) jesteśmy na mapie E2 -> podejdź dokładnie na kordy z pliku Elity II.txt
         if(hero.x !== tx || hero.y !== ty){
+          window.__adiE2HoldSpot = false;
           if(!bolcka){
             a_goTo(tx, ty);
             bolcka = true;
@@ -1256,7 +1260,8 @@ try{
           return ret;
         }
 
-        // 3) stoimy na kordach -> przechodzimy do normalnej logiki (atak/wybór mobów)
+        // 3) stoimy na kordach -> pozwól na wybór celu/atak, ale bez "dreptania" gdy brak celu
+        window.__adiE2HoldSpot = true;
       }
     }
   }
@@ -1280,6 +1285,15 @@ try{
         if($m_id) lockTarget();
         blokada2=false; blokada=false;
       }
+
+      // Tryb E2: jeśli już stoimy na kordach E2 i nie ma celu, to STOIMY w miejscu.
+      // (bez chodzenia 1 kratkę w lewo/prawo w pętli)
+      try{
+        const e2Mode = (localStorage.getItem('adi-bot_exp_mode') || 'exp') === 'e2';
+        if(e2Mode && window.__adiE2HoldSpot && !$m_id){
+          return ret;
+        }
+      }catch(_){ }
 
       if($m_id){
         let mob=g.npc[$m_id];
@@ -2561,7 +2575,8 @@ const have = (window.getPotionCountByName ? window.getPotionCountByName(selName)
         localStorage.setItem(`adi-bot_maps`, input2.value);
         localStorage.setItem(`alksjd`, 0);
 
-        if(select.value === 'auto') message(`Expowisko: AUTO → "${key}" (lvl ${hero && hero.lvl || 0})`);
+        // (wyłączone) spamowało żółtym powiadomieniem przy przechodzeniu między mapami
+        // if(select.value === 'auto') message(`Expowisko: AUTO → "${key}" (lvl ${hero && hero.lvl || 0})`);
         else message(`Zapisano expowisko "${select.value}"`);
       }else{
         message('Brak definicji expowiska dla: ' + key);
