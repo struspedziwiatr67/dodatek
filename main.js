@@ -3437,6 +3437,7 @@ if (typeof window.window.__adi_equipByNameSequence !== 'function') {
     setTimeout(() => URL.revokeObjectURL(url), 1500);
   }
 
+  
   function ensurePanel() {
     const tab = document.querySelector("#adi-tab-e2");
     if (!tab) return null;
@@ -3446,152 +3447,26 @@ if (typeof window.window.__adi_equipByNameSequence !== 'function') {
 
     root = document.createElement("div");
     root.id = "adi-e2timer-root";
-    root.style.border = "2px solid lime";
-    root.style.borderRadius = "8px";
-    root.style.padding = "6px";
+    // minimalistyczny wygląd jak na screenie: czarne tło wierszy, białe napisy
     root.style.margin = "6px 0";
-    root.style.background = "rgba(234,227,227,0.9)";
-    root.style.color = "#000";
-    root.style.font = 'normal 13px/1.2 "Comic Sans MS", Times, serif';
+    root.style.padding = "0";
+    root.style.background = "transparent";
+    root.style.color = "#fff";
+    root.style.font = 'normal 13px/1.2 Arial, sans-serif';
     root.style.textAlign = "left";
-
-    const header = document.createElement("div");
-    header.style.display = "flex";
-    header.style.alignItems = "center";
-    header.style.justifyContent = "space-between";
-    header.style.gap = "8px";
-
-    const title = document.createElement("div");
-    title.textContent = "Minutnik E2 (respawn)";
-    title.style.fontWeight = "700";
-
-    const btns = document.createElement("div");
-    btns.style.display = "flex";
-    btns.style.gap = "6px";
-    btns.style.alignItems = "center";
-
-    function mkBtn(txt, tip) {
-      const b = document.createElement("button");
-      b.textContent = txt;
-      b.classList.add("adi-bot_inputs");
-      b.style.display = "inline-block";
-      b.style.padding = "2px 8px";
-      b.style.margin = "0";
-      b.style.borderRadius = "8px";
-      b.style.fontSize = "14px";
-      b.style.width = "auto";
-      b.setAttribute("tip", tip || "");
-      return b;
-    }
-
-    const btnCfg = mkBtn("⚙", "Ustawienia minutnika");
-    const btnClear = mkBtn("🗑", "Wyczyść wszystkie timery");
-
-    btns.appendChild(btnCfg);
-    btns.appendChild(btnClear);
-    header.appendChild(title);
-    header.appendChild(btns);
 
     const body = document.createElement("div");
     body.id = "adi-e2timer-body";
-    body.style.maxHeight = "220px";
-    body.style.overflow = "auto";
-    body.style.marginTop = "6px";
-    body.style.borderTop = "1px dashed rgba(0,0,0,.35)";
-    body.style.paddingTop = "6px";
+    body.style.display = "flex";
+    body.style.flexDirection = "column";
+    body.style.gap = "4px";
 
-    const cfg = document.createElement("div");
-    cfg.id = "adi-e2timer-cfg";
-    cfg.style.display = "none";
-    cfg.style.marginTop = "6px";
-    cfg.style.borderTop = "1px dashed rgba(0,0,0,.35)";
-    cfg.style.paddingTop = "6px";
-
-    cfg.innerHTML = `
-      <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
-        <label style="display:flex;gap:6px;align-items:center">
-          <input type="checkbox" id="adi-e2tm-enabled"> Włączony
-        </label>
-        <label style="display:flex;gap:6px;align-items:center">
-          <input type="checkbox" id="adi-e2tm-alwaysmax"> Zawsze do MAX
-        </label>
-        <label style="display:flex;gap:6px;align-items:center">
-          <span>Po MAX (s):</span>
-          <input type="number" id="adi-e2tm-stale" min="5" max="600" step="5" style="width:70px">
-        </label>
-        <label style="display:flex;gap:6px;align-items:center">
-          <input type="checkbox" id="adi-e2tm-compact"> Tryb kompakt
-        </label>
-      </div>
-
-      <div style="margin-top:8px;display:flex;gap:10px;flex-wrap:wrap;align-items:center">
-        <label style="display:flex;gap:6px;align-items:center">
-          <input type="checkbox" id="adi-e2tm-elitefilter"> Filtr NPC (wt ≥)
-        </label>
-        <input type="number" id="adi-e2tm-wtmin" min="0" max="99" step="1" style="width:60px">
-      </div>
-
-      <div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap">
-        <button id="adi-e2tm-export" class="adi-bot_inputs" style="width:auto;padding:2px 10px;margin:0">Eksport JSON</button>
-      </div>
-
-      <div style="margin-top:6px;opacity:.85;font-size:11px">
-        Źródło: <b>npcs_del.respBaseSeconds</b> • Filtr: type==2 i (groupType==2 lub brak) i wt>=ustawienie
-      </div>
-    `;
-
-    const footer = document.createElement("div");
-    footer.style.marginTop = "6px";
-    footer.style.opacity = "0.85";
-    footer.style.fontSize = "11px";
-    footer.textContent = "Timer dodaje się po zabiciu (npcs_del).";
-
-    root.appendChild(header);
     root.appendChild(body);
-    root.appendChild(cfg);
-    root.appendChild(footer);
     tab.appendChild(root);
-
-    // wiring
-    const settings = loadSettings();
-    cfg.querySelector("#adi-e2tm-enabled").checked = !!settings.enabled;
-    cfg.querySelector("#adi-e2tm-alwaysmax").checked = !!settings.alwaysMax;
-    cfg.querySelector("#adi-e2tm-stale").value = String(settings.staleSec);
-    cfg.querySelector("#adi-e2tm-compact").checked = !!settings.compact;
-    cfg.querySelector("#adi-e2tm-elitefilter").checked = !!settings.useEliteFilter;
-    cfg.querySelector("#adi-e2tm-wtmin").value = String(settings.wtMin);
-
-    cfg.querySelector("#adi-e2tm-enabled").addEventListener("change", (e) => {
-      const s = loadSettings(); s.enabled = e.target.checked; saveSettings(s);
-    });
-    cfg.querySelector("#adi-e2tm-alwaysmax").addEventListener("change", (e) => {
-      const s = loadSettings(); s.alwaysMax = e.target.checked; saveSettings(s);
-    });
-    cfg.querySelector("#adi-e2tm-stale").addEventListener("change", (e) => {
-      const v = parseInt(e.target.value || String(DEFAULT_STALE_SEC), 10);
-      const s = loadSettings(); s.staleSec = Number.isFinite(v) ? v : DEFAULT_STALE_SEC; saveSettings(s);
-    });
-    cfg.querySelector("#adi-e2tm-compact").addEventListener("change", (e) => {
-      const s = loadSettings(); s.compact = e.target.checked; saveSettings(s);
-    });
-    cfg.querySelector("#adi-e2tm-elitefilter").addEventListener("change", (e) => {
-      const s = loadSettings(); s.useEliteFilter = e.target.checked; saveSettings(s);
-    });
-    cfg.querySelector("#adi-e2tm-wtmin").addEventListener("change", (e) => {
-      const v = parseInt(e.target.value || String(DEFAULT_WT_MIN), 10);
-      const s = loadSettings(); s.wtMin = Number.isFinite(v) ? v : DEFAULT_WT_MIN; saveSettings(s);
-    });
-    cfg.querySelector("#adi-e2tm-export").addEventListener("click", () => exportJson());
-
-    btnCfg.addEventListener("click", () => { cfg.style.display = (cfg.style.display === "none") ? "block" : "none"; });
-    btnClear.addEventListener("click", () => {
-      if (!confirm("Wyczyścić wszystkie timery?")) return;
-      saveTimers([]);
-      render();
-    });
 
     return root;
   }
+
 
   // ===================== CACHE z g.npc =====================
   const cache = new Map();
@@ -3719,30 +3594,35 @@ if (typeof window.window.__adi_equipByNameSequence !== 'function') {
       return;
     }
 
+    
     for (const t of timers) {
       const row = document.createElement("div");
       row.style.display = "grid";
-      row.style.gridTemplateColumns = s.compact ? "1fr auto" : "1fr auto auto";
-      row.style.gap = "8px";
+      row.style.gridTemplateColumns = "1fr auto auto";
+      row.style.gap = "10px";
       row.style.alignItems = "center";
-      row.style.padding = "4px 0";
-      row.style.borderTop = "1px solid rgba(0,0,0,.15)";
+      row.style.padding = "6px 8px";
+      row.style.background = "#000";
+      row.style.borderRadius = "6px";
 
       const name = document.createElement("div");
       name.textContent = t.name || "NPC";
       name.style.whiteSpace = "nowrap";
       name.style.overflow = "hidden";
       name.style.textOverflow = "ellipsis";
+      name.style.color = "#fff";
 
       const time = document.createElement("div");
       time.textContent = fmtHMS(remainingSec(t, s.alwaysMax));
       time.style.fontVariantNumeric = "tabular-nums";
+      time.style.color = "#fff";
 
       const del = document.createElement("div");
       del.textContent = "✖";
       del.style.cursor = "pointer";
-      del.style.opacity = "0.8";
       del.style.userSelect = "none";
+      del.style.color = "#fff";
+      del.style.opacity = "0.9";
       del.title = "Usuń timer";
       del.addEventListener("click", (ev) => {
         ev.preventDefault(); ev.stopPropagation();
@@ -3752,19 +3632,26 @@ if (typeof window.window.__adi_equipByNameSequence !== 'function') {
       });
 
       row.title =
-        `${t.name}\n` +
-        `${t.map} (${t.x},${t.y})\n` +
-        `Czas odrodzenia\n` +
-        `Min: ${toDateStr(t.min)}\n` +
-        `Max: ${toDateStr(t.max)}\n` +
-        `base: ${t.baseSeconds}s • rand: ${(t.rand*100).toFixed(0)}%\n` +
+        `${t.name}
+` +
+        `${t.map} (${t.x},${t.y})
+` +
+        `Czas odrodzenia
+` +
+        `Min: ${toDateStr(t.min)}
+` +
+        `Max: ${toDateStr(t.max)}
+` +
+        `base: ${t.baseSeconds}s • rand: ${(t.rand*100).toFixed(0)}%
+` +
         `wt: ${t.wt} lvl: ${t.lvl}`;
 
       row.appendChild(name);
       row.appendChild(time);
-      if (!s.compact) row.appendChild(del);
+      row.appendChild(del);
       body.appendChild(row);
     }
+
   }
 
   // aktualizuj UI co sekundę (jak w dodatku)
