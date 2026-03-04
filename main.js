@@ -1233,6 +1233,7 @@ try{
 
         const cur = normMapName(map.name);
         const want = normMapName(tgt.map);
+        window.__adiE2OnTargetMap = (cur === want);
 
         // 1) jeśli nie jesteśmy na mapie E2 -> jedź po grafie/bramkach
         if(cur !== want){
@@ -1249,19 +1250,50 @@ try{
           return ret;
         }
 
-        // 2) jesteśmy na mapie E2 -> podejdź dokładnie na kordy z pliku Elity II.txt
-        if(hero.x !== tx || hero.y !== ty){
-          window.__adiE2HoldSpot = false;
-          if(!bolcka){
-            a_goTo(tx, ty);
-            bolcka = true;
-            setTimeout(()=>bolcka=false, 700);
-          }
-          return ret;
-        }
+        // 2) jesteśmy na mapie E2 -> podejdź na kordy z pliku Elity II.txt, ALE:
+//    - jeśli wybrana E2 jest już na mapie, pozwól wyjść z punktu i podejść do niej
+//    - jeśli gracz rusza ręcznie myszką, na chwilę nie "przyklejaj" do kordów
+let __e2Present = false;
+try{
+  const selName = (localStorage.getItem('adi-bot_e2_sel') || '').trim();
+  const norm = (s)=>String(s||'').toLowerCase().normalize('NFKD').replace(/[̀-ͯ]/g,'').trim();
+  const wantName = norm(selName);
+  if(wantName){
+    for(const id in (g && g.npc || {})){
+      const n = g.npc[id];
+      if(!n) continue;
+      if(n.type != 2) continue;
+      if(!(n.groupType === 2 || n.groupType === undefined || n.groupType === null)) continue;
+      if((n.wt|0) < 20) continue;
+      const nName = norm(n.nick || n.name || n.n || '');
+      if(nName && nName === wantName){ __e2Present = true; break; }
+    }
+  }
+}catch(_){}
 
-        // 3) stoimy na kordach -> pozwól na wybór celu/atak, ale bez "dreptania" gdy brak celu
-        window.__adiE2HoldSpot = true;
+const __manualUntil = (window.__adiE2ManualUntil|0);
+const __manualNow = Date.now();
+const __manualOverride = (__manualUntil && __manualNow < __manualUntil);
+
+if(hero.x !== tx || hero.y !== ty){
+  window.__adiE2HoldSpot = false;
+
+  // do punktu tylko gdy NIE ma E2 na mapie i nie ma ręcznego override
+  if(!__e2Present && !__manualOverride){
+    if(!bolcka){
+      a_goTo(tx, ty);
+      bolcka = true;
+      setTimeout(()=>bolcka=false, 700);
+    }
+    return ret;
+  }
+  // E2 jest obok / gracz rusza ręcznie -> nie wracamy na siłę na punkt
+}
+
+// 3) stoimy (lub byliśmy) na kordach:
+//    - jeśli E2 nie ma na mapie -> trzymamy punkt i czekamy
+//    - jeśli E2 jest -> nie trzymamy na sztywno (pozwól podejść do bossa)
+window.__adiE2HoldSpot = (!__e2Present && !__manualOverride && hero.x === tx && hero.y === ty);
       }
     }
   }
@@ -1275,7 +1307,7 @@ try{
       // - jeśli E2 nie ma na mapie -> stoimy w miejscu
       try{
         const e2Mode = (localStorage.getItem('adi-bot_exp_mode') || 'exp') === 'e2';
-        if(e2Mode && window.__adiE2HoldSpot){
+        if(e2Mode && window.__adiE2OnTargetMap){
           const selName = (localStorage.getItem('adi-bot_e2_sel') || '').trim();
           const norm = (s)=>String(s||'').toLowerCase().normalize('NFKD').replace(/[̀-ͯ]/g,'').trim();
           const wantName = norm(selName);
