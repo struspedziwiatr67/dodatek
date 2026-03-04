@@ -1080,7 +1080,8 @@ try{
       function bindUI(){
         const listEl = document.getElementById("adi-e2timer-list");
         const cfgEl  = document.getElementById("adi-e2timer-cfg");
-        if(!listEl || !cfgEl) return false;
+        // listEl może jeszcze nie istnieć (np. zanim tab się dorysuje). Do bindowania ⚙ wystarczy cfgEl.
+        if(!cfgEl) return false;
 
         const btnCfg = document.getElementById("adi-e2timer-cfgbtn");
         const btnClear = document.getElementById("adi-e2timer-clear");
@@ -2376,6 +2377,19 @@ try{
       <div id="adi-e2timer-list" style="margin-top:8px;max-height:260px;overflow:auto;"></div>
     </div>
   `;
+
+  // spróbuj zapiąć eventy od razu (żeby ⚙ działał nawet zanim render/bindUI odpali)
+  setTimeout(() => {
+    try{
+      const btnCfg = document.getElementById("adi-e2timer-cfgbtn");
+      const cfgEl  = document.getElementById("adi-e2timer-cfg");
+      if(btnCfg && cfgEl && !btnCfg.__adiBound){
+        btnCfg.__adiBound = true;
+        btnCfg.addEventListener("click", ()=>{ cfgEl.style.display = (cfgEl.style.display==="none"||!cfgEl.style.display) ? "block" : "none"; });
+      }
+    }catch(e){}
+    try{ if(window.__adiE2Timer && window.__adiE2Timer.render) window.__adiE2Timer.render(); }catch(e){}
+  }, 200);
 }catch(e){ console.warn('[adi-bot] E2 timer UI failed', e); }
 // ===== /E2 UI =====
       const tabTest = document.createElement('div');
