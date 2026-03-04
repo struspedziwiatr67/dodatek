@@ -2577,7 +2577,7 @@ const have = (window.getPotionCountByName ? window.getPotionCountByName(selName)
 
         // (wyłączone) spamowało żółtym powiadomieniem przy przechodzeniu między mapami
         // if(select.value === 'auto') message(`Expowisko: AUTO → "${key}" (lvl ${hero && hero.lvl || 0})`);
-        else message(`Zapisano expowisko "${select.value}"`);
+        if(select.value !== 'auto') message(`Zapisano expowisko "${select.value}"`);
       }else{
         message('Brak definicji expowiska dla: ' + key);
       }
