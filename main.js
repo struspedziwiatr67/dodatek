@@ -1268,6 +1268,46 @@ try{
 }catch(_){}
       }catch(_){}
 
+      // ===== Tryb E2 (na kordach): bij TYLKO wybraną Elitę II =====
+      // Jeśli stoimy na docelowych kordach E2:
+      // - szukamy NPC po nazwie z listy (dokładnie ta E2)
+      // - ignorujemy pozostałe moby
+      // - jeśli E2 nie ma na mapie -> stoimy w miejscu
+      try{
+        const e2Mode = (localStorage.getItem('adi-bot_exp_mode') || 'exp') === 'e2';
+        if(e2Mode && window.__adiE2HoldSpot){
+          const selName = (localStorage.getItem('adi-bot_e2_sel') || '').trim();
+          const norm = (s)=>String(s||'').toLowerCase().normalize('NFKD').replace(/[̀-ͯ]/g,'').trim();
+          const wantName = norm(selName);
+          let bestId = undefined;
+          let bestD = 1e9;
+          if(wantName){
+            for(const id in (g && g.npc || {})){
+              const n = g.npc[id];
+              if(!n) continue;
+              // filtr jak w minutniku (E2): type==2, groupType==2 lub undefined, wt>=20
+              if(n.type != 2) continue;
+              if(!(n.groupType === 2 || n.groupType === undefined || n.groupType === null)) continue;
+              if((n.wt|0) < 20) continue;
+              const nName = norm(n.nick || n.name || n.n || '');
+              if(!nName || nName !== wantName) continue;
+              const d = Math.abs((hero && hero.x || 0) - (n.x||0)) + Math.abs((hero && hero.y || 0) - (n.y||0));
+              if(d < bestD){ bestD = d; bestId = id; }
+            }
+          }
+
+          if(bestId){
+            $m_id = bestId;
+            lockTarget();
+          }else{
+            // brak E2 -> stoimy, nie szukamy innych mobów
+            $m_id = undefined;
+            clearTargetLock();
+            return ret;
+          }
+        }
+      }catch(_){ }
+
       if(!$m_id && !bolcka && !isTargetLocked()){
         $m_id=self.findBestMob();
         if(!$m_id && localStorage.getItem(`adi-bot_expowiska`)){
