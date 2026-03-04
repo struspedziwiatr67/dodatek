@@ -946,7 +946,7 @@ try{
       const loadSettings = () => {
         const s = safeJsonParse(localStorage.getItem(SETTINGS_KEY) || "{}", {});
         return {
-          enabled: s.enabled ?? true,
+          enabled: true,
           alwaysMax: s.alwaysMax ?? false,
           staleSec: Number.isFinite(s.staleSec) ? s.staleSec : DEFAULT_STALE_SEC,
           useEliteFilter: s.useEliteFilter ?? true,
@@ -1013,8 +1013,7 @@ try{
 
       function addFromDel(delEntry){
         const s = loadSettings();
-        if(!s.enabled) return;
-        updateMapChange();
+updateMapChange();
         const tNow = nowUnix();
         if(tNow - lastMapChangeTs <= 2) return;
 
@@ -1085,16 +1084,13 @@ try{
 
         const btnCfg = document.getElementById("adi-e2timer-cfgbtn");
         const btnClear = document.getElementById("adi-e2timer-clear");
-        const cbEnabled = document.getElementById("adi-e2timer-enabled");
-        const cbAlwaysMax = document.getElementById("adi-e2timer-alwaysmax");
+const cbAlwaysMax = document.getElementById("adi-e2timer-alwaysmax");
         const inpStale = document.getElementById("adi-e2timer-stale");
         const cbElite = document.getElementById("adi-e2timer-elitefilter");
         const inpWt = document.getElementById("adi-e2timer-wtmin");
 
         const apply = () => {
-          const s = loadSettings();
-          if(cbEnabled) cbEnabled.checked = !!s.enabled;
-          if(cbAlwaysMax) cbAlwaysMax.checked = !!s.alwaysMax;
+          const s = loadSettings();if(cbAlwaysMax) cbAlwaysMax.checked = !!s.alwaysMax;
           if(inpStale) inpStale.value = String(s.staleSec);
           if(cbElite) cbElite.checked = !!s.useEliteFilter;
           if(inpWt) inpWt.value = String(s.wtMin);
@@ -1105,9 +1101,7 @@ try{
           saveTimers([]);
           render();
         });
-
-        cbEnabled && cbEnabled.addEventListener("change", (e)=>{ const s=loadSettings(); s.enabled=!!e.target.checked; saveSettings(s); render(); });
-        cbAlwaysMax && cbAlwaysMax.addEventListener("change", (e)=>{ const s=loadSettings(); s.alwaysMax=!!e.target.checked; saveSettings(s); render(); });
+cbAlwaysMax && cbAlwaysMax.addEventListener("change", (e)=>{ const s=loadSettings(); s.alwaysMax=!!e.target.checked; saveSettings(s); render(); });
         inpStale && inpStale.addEventListener("change", (e)=>{ const v=parseInt(e.target.value||"30",10); const s=loadSettings(); s.staleSec=Number.isFinite(v)?v:30; saveSettings(s); render(); });
         cbElite && cbElite.addEventListener("change", (e)=>{ const s=loadSettings(); s.useEliteFilter=!!e.target.checked; saveSettings(s); render(); });
         inpWt && inpWt.addEventListener("change", (e)=>{ const v=parseInt(e.target.value||"20",10); const s=loadSettings(); s.wtMin=Number.isFinite(v)?v:20; saveSettings(s); render(); });
@@ -1129,10 +1123,7 @@ try{
         timers.sort((a,b)=> remainingSec(a,s.alwaysMax)-remainingSec(b,s.alwaysMax));
 
         listEl.innerHTML = "";
-        if(!s.enabled){
-          listEl.innerHTML = "<div style='opacity:.8;'>Minutnik wyłączony.</div>";
-          return;
-        }
+        
         if(!timers.length){
           listEl.innerHTML = "<div style='opacity:.8;'>Brak timerów. Zabij E2, aby dodać.</div>";
           return;
@@ -2355,19 +2346,16 @@ try{
       </div>
 
       <div id="adi-e2timer-cfg" style="display:none;margin-top:8px;padding-top:8px;border-top:1px solid rgba(255,255,255,.15);">
-        <label style="display:flex;gap:8px;align-items:center;margin:4px 0;">
-          <input type="checkbox" id="adi-e2timer-enabled"> Włączony
-        </label>
-        <label style="display:flex;gap:8px;align-items:center;margin:4px 0;">
+<label style="display:flex;gap:8px;align-items:center;margin:4px 0;">
           <input type="checkbox" id="adi-e2timer-alwaysmax"> Zawsze do MAX
         </label>
         <label style="display:flex;gap:8px;align-items:center;margin:4px 0;">
           <span>Po MAX (s):</span>
-          <input type="number" id="adi-e2timer-stale" min="5" max="600" step="5" style="width:70px;">
+          <input type="number" id="adi-e2timer-stale" min="5" max="600" step="5" value="30" style="width:70px;">
         </label>
         <label style="display:flex;gap:8px;align-items:center;margin:4px 0;">
-          <input type="checkbox" id="adi-e2timer-elitefilter"> Filtr elit (wt ≥)
-          <input type="number" id="adi-e2timer-wtmin" min="0" max="99" step="1" style="width:60px;">
+          <input type="checkbox" id="adi-e2timer-elitefilter" checked> Filtr elit (wt ≥)
+          <input type="number" id="adi-e2timer-wtmin" min="0" max="99" step="1" value="20" style="width:60px;">
         </label>
         <div style="opacity:.85;font-size:11px;margin-top:6px;">
           Źródło: <b>npcs_del.respBaseSeconds</b> • Parowanie: <b>id → g.npc</b> • rand domyślnie ±10%
