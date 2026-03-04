@@ -400,42 +400,12 @@ Lvl: **${n.lvl ?? "?"}**`,
   // --- hotfix newNpc ---
   const newNpcOldCopyAf = preNewNpc;
   preNewNpc = function (npcs) {
-// E2 minutnik: przechwyć usuwane NPC przed wywołaniem oryginału
-const __adi_e2DelSnaps = [];
-try{
-  for (var __id in npcs) {
-    if (npcs[__id] && npcs[__id].del && typeof g !== "undefined" && g.npc && g.npc[__id]) {
-      const snap = g.npc[__id];
-      __adi_e2DelSnaps.push({ id: __id, snap: snap, delEntry: npcs[__id] });
-    }
-  }
-}catch(_){}
     for (var npc in npcs) {
       if (npcs[npc].del && g.npc[npc] && Math.abs(hero.x - g.npc[npc].x) + Math.abs(hero.y - g.npc[npc].y) > 13) {
         delete npcs[npc];
       }
     }
     newNpcOldCopyAf(npcs);
-try{
-  const nowMs = Date.now();
-  for(const it of __adi_e2DelSnaps){
-    const snap = it && it.snap;
-    if(!snap) continue;
-    if(!__adi_e2IsE2Npc(snap)) continue;
-
-    // warunki bezpieczeństwa: niedawno skończona walka i NPC blisko bohatera
-    const recentBattle = (nowMs - (__adi_e2LastBattleEndMs||0)) <= 7000;
-    let near = true;
-    try{
-      near = (typeof hero!=="undefined" && hero && Number.isFinite(hero.x) && Number.isFinite(hero.y) &&
-              Number.isFinite(snap.x) && Number.isFinite(snap.y) &&
-              (Math.abs(hero.x - snap.x) + Math.abs(hero.y - snap.y)) <= 6);
-    }catch(_){}
-    if(recentBattle && near){
-      __adi_e2AddTimer(snap, it.delEntry);
-    }
-  }
-}catch(e){ console.warn("[adi-bot][e2] del hook failed", e); }
   };
 
   // wyłączenie alertów i blokad
@@ -2105,22 +2075,6 @@ box.appendChild(autoHealRow);
       tabE2.id = 'adi-tab-e2';
       tabE2.className = 'adi-tab-content';
 
-      // --- E2: Minutnik (respawn) ---
-      tabE2.innerHTML = `
-        <div id="adi-e2TimerPanel" class="adi-e2TimerPanel">
-          <div class="adi-e2TimerHeader">
-            <div class="adi-e2TimerTitle">Minutnik E2 (respawn)</div>
-            <div class="adi-e2TimerActions">
-              <button type="button" id="adi-e2TimerClear" class="adi-e2TimerBtn" title="Wyczyść timery">🗑</button>
-            </div>
-          </div>
-          <div id="adi-e2TimerList" class="adi-e2TimerList">
-            <div class="adi-e2TimerEmpty">Brak timerów. Zabij E2, aby dodać.</div>
-          </div>
-        </div>
-      `;
-
-
       const tabTest = document.createElement('div');
       tabTest.id = 'adi-tab-test';
       tabTest.className = 'adi-tab-content';
@@ -2263,78 +2217,6 @@ try{
       #adi-bot_box .adi-tab:last-child{border-right:none;}
       #adi-bot_box .adi-tab:hover{background:#2a2a2a;}
       #adi-bot_box .adi-tab.active{background:#1e90ff;color:#000;font-weight:bold;}
-
-/* ===== E2 Timer ===== */
-#adi-bot_box #adi-e2TimerPanel{
-  background: rgba(20,20,20,0.88);
-  border: 2px solid #3aa657;
-  border-radius: 12px;
-  padding: 10px 10px 8px 10px;
-  color: #fff;
-  box-shadow: 0 10px 28px rgba(0,0,0,.35);
-  backdrop-filter: blur(2px);
-}
-#adi-bot_box .adi-e2TimerHeader{
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
-  gap:8px;
-  padding: 2px 0 8px 0;
-  border-bottom: 1px solid rgba(255,255,255,.12);
-  margin-bottom: 8px;
-}
-#adi-bot_box .adi-e2TimerTitle{
-  font-weight: 800;
-  font-size: 14px;
-  color: #eae3e3;
-}
-#adi-bot_box .adi-e2TimerActions{display:flex;gap:6px;align-items:center;}
-#adi-bot_box .adi-e2TimerBtn{
-  border: 0;
-  cursor: pointer;
-  padding: 4px 8px;
-  border-radius: 10px;
-  background: rgba(255,255,255,.12);
-  color: #fff;
-  font-weight: 700;
-  line-height: 1;
-}
-#adi-bot_box .adi-e2TimerBtn:hover{ background: rgba(255,255,255,.18); }
-#adi-bot_box .adi-e2TimerList{max-height: 240px; overflow:auto; padding-right: 2px;}
-#adi-bot_box .adi-e2TimerRow{
-  display:flex;
-  justify-content:space-between;
-  gap:10px;
-  padding: 5px 6px;
-  border-bottom: 1px solid rgba(255,255,255,0.12);
-  font-size: 13px;
-}
-#adi-bot_box .adi-e2TimerRow:last-child{border-bottom: none;}
-#adi-bot_box .adi-e2TimerName{
-  color: #ffd700;
-  font-weight: 800;
-  overflow:hidden;
-  text-overflow:ellipsis;
-  white-space:nowrap;
-  max-width: 70%;
-}
-#adi-bot_box .adi-e2TimerTime{
-  color: #7CFF7C;
-  font-weight: 800;
-  white-space: nowrap;
-}
-#adi-bot_box .adi-e2TimerMeta{
-  color: rgba(255,255,255,0.75);
-  font-weight: 600;
-  font-size: 11px;
-  margin-top: 2px;
-}
-#adi-bot_box .adi-e2TimerEmpty{
-  padding: 10px 6px;
-  color: rgba(255,255,255,0.80);
-  font-size: 13px;
-}
-
       #adi-bot_box .adi-tabwrap{padding:0;margin:0;}
       #adi-bot_box .adi-tab-content{display:none;}
       #adi-bot_box .adi-tab-content.active{display:block;}
@@ -2816,7 +2698,7 @@ try{
     var oldBattleMsgAFC=window.battleMsg;
     window.battleMsg=function(c,t){
       var ret=oldBattleMsgAFC.apply(this, arguments);
-      if(typeof c==="string" && c.indexOf("winner=")>=0){ __adi_e2LastBattleEndMs = Date.now(); var btn=document.querySelector("#battleclose"); if(btn) btn.click(); }
+      if(typeof c==="string" && c.indexOf("winner=")>=0){ var btn=document.querySelector("#battleclose"); if(btn) btn.click(); }
       if(typeof c==="object" && c && c.init===1){
         __lastAttackTime=0; __lastAttackTarget=null;
         try{ __adi_onBattleInit(c); }catch(e){}
@@ -2835,142 +2717,6 @@ try{
         }
       });
     }
-
-// =========================
-// E2: Minutnik respawn
-// =========================
-const __ADI_E2_TIMER_KEY = "adi-e2_respawn_timers_v1";
-
-function __adi_e2Now(){ return Math.floor(Date.now()/1000); }
-function __adi_e2SafeParse(s, fallback){ try{ return JSON.parse(s||""); }catch(_){ return fallback; } }
-
-function __adi_e2Load(){
-  const arr = __adi_e2SafeParse(localStorage.getItem(__ADI_E2_TIMER_KEY), []);
-  return Array.isArray(arr) ? arr.filter(Boolean) : [];
-}
-function __adi_e2Save(arr){
-  try{ localStorage.setItem(__ADI_E2_TIMER_KEY, JSON.stringify(arr||[])); }catch(_){}
-}
-
-function __adi_e2Fmt(sec){
-  sec = Math.max(0, sec|0);
-  const h = Math.floor(sec/3600); sec -= h*3600;
-  const m = Math.floor(sec/60); sec -= m*60;
-  const pad2 = (n)=> (n<10?"0":"")+n;
-  return `${pad2(h)}:${pad2(m)}:${pad2(sec)}`;
-}
-
-function __adi_e2IsE2Npc(npc){
-  try{
-    const ic = (npc && npc.icon) ? String(npc.icon) : "";
-    if(ic.includes("npc/e2")) return true;
-  }catch(_){}
-  return false;
-}
-
-function __adi_e2GuessBaseSeconds(npcSnap, delEntry){
-  // Priorytet: delEntry.respBaseSeconds (jak w minutniku+), potem npc.respBaseSeconds, potem fallback 3600.
-  const a = Number(delEntry && delEntry.respBaseSeconds);
-  if(Number.isFinite(a) && a>0) return a;
-  const b = Number(npcSnap && npcSnap.respBaseSeconds);
-  if(Number.isFinite(b) && b>0) return b;
-  const c = Number(npcSnap && npcSnap.respBase);
-  if(Number.isFinite(c) && c>0) return c;
-  return 3600;
-}
-
-function __adi_e2GuessRandFrac(delEntry){
-  // delEntry.resp_rand jest w % (np. 10 -> 10%)
-  const rr = (delEntry && delEntry.resp_rand != null) ? Number(delEntry.resp_rand) : NaN;
-  if(Number.isFinite(rr) && rr>=0) return rr/100;
-  return 0.10;
-}
-
-function __adi_e2AddTimer(npcSnap, delEntry){
-  try{
-    if(!npcSnap || !__adi_e2IsE2Npc(npcSnap)) return;
-
-    const tNow = __adi_e2Now();
-    const base = __adi_e2GuessBaseSeconds(npcSnap, delEntry);
-    const rand = __adi_e2GuessRandFrac(delEntry);
-
-    const min = tNow + Math.round(base - base*rand);
-    const max = tNow + Math.round(base + base*rand);
-
-    const timers = __adi_e2Load();
-    timers.push({
-      id: `${npcSnap.id||"e2"}-${tNow}-${Math.random().toString(16).slice(2)}`,
-      name: npcSnap.nick || npcSnap.name || "E2",
-      map: (typeof map !== "undefined" && map && map.name) ? map.name : "",
-      x: npcSnap.x, y: npcSnap.y,
-      baseSeconds: base,
-      rand,
-      killTs: tNow,
-      min, max
-    });
-    __adi_e2Save(timers);
-    __adi_e2Render();
-  }catch(e){ console.warn("[adi-bot][e2] addTimer failed", e); }
-}
-
-function __adi_e2Render(){
-  const list = document.getElementById("adi-e2TimerList");
-  if(!list) return;
-
-  const tNow = __adi_e2Now();
-  let timers = __adi_e2Load();
-
-  // usuń stare (po max+6h) i posortuj po max
-  timers = timers.filter(t => t && Number.isFinite(t.max) && (t.max + 21600) > tNow);
-  timers.sort((a,b)=> (a.max||0)-(b.max||0));
-  __adi_e2Save(timers);
-
-  list.innerHTML = "";
-  if(!timers.length){
-    const empty = document.createElement("div");
-    empty.className = "adi-e2TimerEmpty";
-    empty.textContent = "Brak timerów. Zabij E2, aby dodać.";
-    list.appendChild(empty);
-    return;
-  }
-
-  for(const t of timers){
-    const left = Math.max(0, (t.max||0) - tNow);
-    const row = document.createElement("div");
-    row.className = "adi-e2TimerRow";
-    const name = document.createElement("div");
-    name.className = "adi-e2TimerName";
-    name.textContent = t.name || "E2";
-    const time = document.createElement("div");
-    time.className = "adi-e2TimerTime";
-    time.textContent = __adi_e2Fmt(left);
-    row.appendChild(name);
-    row.appendChild(time);
-    list.appendChild(row);
-  }
-}
-
-// odświeżanie co sekundę (tylko render)
-setInterval(__adi_e2Render, 1000);
-
-// przycisk "wyczyść"
-setTimeout(()=>{
-  try{
-    const btn = document.getElementById("adi-e2TimerClear");
-    if(btn){
-      btn.addEventListener("click", ()=>{
-        __adi_e2Save([]);
-        __adi_e2Render();
-        try{ message("Wyczyszczono timery E2"); }catch(_){}
-      });
-    }
-  }catch(_){}
-  __adi_e2Render();
-}, 0);
-
-// heurystyka: po zakończeniu walki ustaw znacznik czasu, a timer dodajemy na usunięciu NPC E2 blisko bohatera
-let __adi_e2LastBattleEndMs = 0;
-
     // --- Handlarze EKWIPUNKU (auto dojazd i podejście pod NPC) ---
     const equipWrap = document.createElement('div'); equipWrap.classList.add('adi-bot_box'); equipWrap.style.marginTop='6px';
     // UI for equipment vendors is not needed (bot auto-selects) -> hide
@@ -3624,5 +3370,461 @@ if (typeof window.window.__adi_equipByNameSequence !== 'function') {
   };
 
   console.log('[adi-bot] SMART TRAVERSAL ACTIVE (fixed, no ping-pong)');
+})();
+
+
+
+
+// ===================== E2 MINUTNIK (respBaseSeconds) =====================
+// Wersja zintegrowana z botem (zakładka E2). Logika jak w "dobry minutnik dodatek.js":
+// - Timer z npcs_del.respBaseSeconds
+// - Parowanie: npcs_del.id -> g.npc[id]
+// - Filtr: type==2, groupType==2 lub undefined/null, wt >= ustawienie (domyślnie 20)
+// - Min/Max jak Minutnik+ (resp_rand lub ±10%)
+
+(() => {
+  "use strict";
+
+  const STORAGE_KEY  = "adi_e2timer_timers_v1";
+  const SETTINGS_KEY = "adi_e2timer_settings_v1";
+
+  const DEFAULT_WT_MIN = 20;
+  const DEFAULT_RAND = 0.10;
+  const IGNORE_AFTER_MAP_CHANGE_SEC = 2;
+  const DEFAULT_STALE_SEC = 30;
+
+  const nowUnix = () => Math.floor(Date.now() / 1000);
+  const safeJsonParse = (s, fallback) => { try { return JSON.parse(s); } catch { return fallback; } };
+
+  const pad2 = (n) => (n < 10 ? "0" : "") + n;
+  const fmtHMS = (sec) => {
+    sec = Math.max(0, sec | 0);
+    const h = Math.floor(sec / 3600); sec -= h * 3600;
+    const m = Math.floor(sec / 60); sec -= m * 60;
+    return `${pad2(h)}:${pad2(m)}:${pad2(sec)}`;
+  };
+  const toDateStr = (unix) => {
+    try { return new Date(unix * 1000).toLocaleString(); } catch { return String(unix); }
+  };
+
+  const loadSettings = () => {
+    const s = safeJsonParse(localStorage.getItem(SETTINGS_KEY) || "{}", {});
+    return {
+      enabled: s.enabled ?? true,
+      alwaysMax: s.alwaysMax ?? false,
+      staleSec: Number.isFinite(s.staleSec) ? s.staleSec : DEFAULT_STALE_SEC,
+      compact: s.compact ?? false,
+      useEliteFilter: s.useEliteFilter ?? true,
+      wtMin: Number.isFinite(s.wtMin) ? s.wtMin : DEFAULT_WT_MIN
+    };
+  };
+  const saveSettings = (s) => localStorage.setItem(SETTINGS_KEY, JSON.stringify(s));
+
+  const loadTimers = () => safeJsonParse(localStorage.getItem(STORAGE_KEY) || "[]", []).filter(Boolean);
+  const saveTimers = (arr) => localStorage.setItem(STORAGE_KEY, JSON.stringify(arr || []));
+
+  function exportJson() {
+    const payload = { exportedAt: new Date().toISOString(), timers: loadTimers() };
+    const json = JSON.stringify(payload, null, 2);
+    const blob = new Blob([json], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `e2_timers_${new Date().toISOString().replace(/[:.]/g, "-")}.json`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1500);
+  }
+
+  function ensurePanel() {
+    const tab = document.querySelector("#adi-tab-e2");
+    if (!tab) return null;
+
+    let root = tab.querySelector("#adi-e2timer-root");
+    if (root) return root;
+
+    root = document.createElement("div");
+    root.id = "adi-e2timer-root";
+    root.style.border = "2px solid lime";
+    root.style.borderRadius = "8px";
+    root.style.padding = "6px";
+    root.style.margin = "6px 0";
+    root.style.background = "rgba(234,227,227,0.9)";
+    root.style.color = "#000";
+    root.style.font = 'normal 13px/1.2 "Comic Sans MS", Times, serif';
+    root.style.textAlign = "left";
+
+    const header = document.createElement("div");
+    header.style.display = "flex";
+    header.style.alignItems = "center";
+    header.style.justifyContent = "space-between";
+    header.style.gap = "8px";
+
+    const title = document.createElement("div");
+    title.textContent = "Minutnik E2 (respawn)";
+    title.style.fontWeight = "700";
+
+    const btns = document.createElement("div");
+    btns.style.display = "flex";
+    btns.style.gap = "6px";
+    btns.style.alignItems = "center";
+
+    function mkBtn(txt, tip) {
+      const b = document.createElement("button");
+      b.textContent = txt;
+      b.classList.add("adi-bot_inputs");
+      b.style.display = "inline-block";
+      b.style.padding = "2px 8px";
+      b.style.margin = "0";
+      b.style.borderRadius = "8px";
+      b.style.fontSize = "14px";
+      b.style.width = "auto";
+      b.setAttribute("tip", tip || "");
+      return b;
+    }
+
+    const btnCfg = mkBtn("⚙", "Ustawienia minutnika");
+    const btnClear = mkBtn("🗑", "Wyczyść wszystkie timery");
+
+    btns.appendChild(btnCfg);
+    btns.appendChild(btnClear);
+    header.appendChild(title);
+    header.appendChild(btns);
+
+    const body = document.createElement("div");
+    body.id = "adi-e2timer-body";
+    body.style.maxHeight = "220px";
+    body.style.overflow = "auto";
+    body.style.marginTop = "6px";
+    body.style.borderTop = "1px dashed rgba(0,0,0,.35)";
+    body.style.paddingTop = "6px";
+
+    const cfg = document.createElement("div");
+    cfg.id = "adi-e2timer-cfg";
+    cfg.style.display = "none";
+    cfg.style.marginTop = "6px";
+    cfg.style.borderTop = "1px dashed rgba(0,0,0,.35)";
+    cfg.style.paddingTop = "6px";
+
+    cfg.innerHTML = `
+      <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+        <label style="display:flex;gap:6px;align-items:center">
+          <input type="checkbox" id="adi-e2tm-enabled"> Włączony
+        </label>
+        <label style="display:flex;gap:6px;align-items:center">
+          <input type="checkbox" id="adi-e2tm-alwaysmax"> Zawsze do MAX
+        </label>
+        <label style="display:flex;gap:6px;align-items:center">
+          <span>Po MAX (s):</span>
+          <input type="number" id="adi-e2tm-stale" min="5" max="600" step="5" style="width:70px">
+        </label>
+        <label style="display:flex;gap:6px;align-items:center">
+          <input type="checkbox" id="adi-e2tm-compact"> Tryb kompakt
+        </label>
+      </div>
+
+      <div style="margin-top:8px;display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+        <label style="display:flex;gap:6px;align-items:center">
+          <input type="checkbox" id="adi-e2tm-elitefilter"> Filtr NPC (wt ≥)
+        </label>
+        <input type="number" id="adi-e2tm-wtmin" min="0" max="99" step="1" style="width:60px">
+      </div>
+
+      <div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap">
+        <button id="adi-e2tm-export" class="adi-bot_inputs" style="width:auto;padding:2px 10px;margin:0">Eksport JSON</button>
+      </div>
+
+      <div style="margin-top:6px;opacity:.85;font-size:11px">
+        Źródło: <b>npcs_del.respBaseSeconds</b> • Filtr: type==2 i (groupType==2 lub brak) i wt>=ustawienie
+      </div>
+    `;
+
+    const footer = document.createElement("div");
+    footer.style.marginTop = "6px";
+    footer.style.opacity = "0.85";
+    footer.style.fontSize = "11px";
+    footer.textContent = "Timer dodaje się po zabiciu (npcs_del).";
+
+    root.appendChild(header);
+    root.appendChild(body);
+    root.appendChild(cfg);
+    root.appendChild(footer);
+    tab.appendChild(root);
+
+    // wiring
+    const settings = loadSettings();
+    cfg.querySelector("#adi-e2tm-enabled").checked = !!settings.enabled;
+    cfg.querySelector("#adi-e2tm-alwaysmax").checked = !!settings.alwaysMax;
+    cfg.querySelector("#adi-e2tm-stale").value = String(settings.staleSec);
+    cfg.querySelector("#adi-e2tm-compact").checked = !!settings.compact;
+    cfg.querySelector("#adi-e2tm-elitefilter").checked = !!settings.useEliteFilter;
+    cfg.querySelector("#adi-e2tm-wtmin").value = String(settings.wtMin);
+
+    cfg.querySelector("#adi-e2tm-enabled").addEventListener("change", (e) => {
+      const s = loadSettings(); s.enabled = e.target.checked; saveSettings(s);
+    });
+    cfg.querySelector("#adi-e2tm-alwaysmax").addEventListener("change", (e) => {
+      const s = loadSettings(); s.alwaysMax = e.target.checked; saveSettings(s);
+    });
+    cfg.querySelector("#adi-e2tm-stale").addEventListener("change", (e) => {
+      const v = parseInt(e.target.value || String(DEFAULT_STALE_SEC), 10);
+      const s = loadSettings(); s.staleSec = Number.isFinite(v) ? v : DEFAULT_STALE_SEC; saveSettings(s);
+    });
+    cfg.querySelector("#adi-e2tm-compact").addEventListener("change", (e) => {
+      const s = loadSettings(); s.compact = e.target.checked; saveSettings(s);
+    });
+    cfg.querySelector("#adi-e2tm-elitefilter").addEventListener("change", (e) => {
+      const s = loadSettings(); s.useEliteFilter = e.target.checked; saveSettings(s);
+    });
+    cfg.querySelector("#adi-e2tm-wtmin").addEventListener("change", (e) => {
+      const v = parseInt(e.target.value || String(DEFAULT_WT_MIN), 10);
+      const s = loadSettings(); s.wtMin = Number.isFinite(v) ? v : DEFAULT_WT_MIN; saveSettings(s);
+    });
+    cfg.querySelector("#adi-e2tm-export").addEventListener("click", () => exportJson());
+
+    btnCfg.addEventListener("click", () => { cfg.style.display = (cfg.style.display === "none") ? "block" : "none"; });
+    btnClear.addEventListener("click", () => {
+      if (!confirm("Wyczyścić wszystkie timery?")) return;
+      saveTimers([]);
+      render();
+    });
+
+    return root;
+  }
+
+  // ===================== CACHE z g.npc =====================
+  const cache = new Map();
+  function pollGNpc() {
+    try {
+      if (!window.g?.npc) return;
+      const t = nowUnix();
+      for (const id in g.npc) {
+        const n = g.npc[id];
+        if (!n) continue;
+        cache.set(String(id), {
+          id: String(id),
+          name: String(n.nick || n.name || ""),
+          wt: n.wt,
+          lvl: n.lvl,
+          x: n.x, y: n.y,
+          icon: String(n.icon || n.ticon || ""),
+          type: n.type,
+          groupType: n.groupType,
+          tpl: n.tpl,
+          grp: n.grp,
+          lastSeen: t
+        });
+      }
+      for (const [id, s] of cache) {
+        if (t - s.lastSeen > 20) cache.delete(id);
+      }
+    } catch {}
+  }
+  setInterval(pollGNpc, 250);
+
+  // ===================== TIMER LOGIKA =====================
+  let lastMapName = "";
+  let lastMapChangeTs = 0;
+  const getMapName = () => (window.map && map.name) ? String(map.name) : "";
+  function updateMapChange() {
+    const m = getMapName();
+    const t = nowUnix();
+    if (m && m !== lastMapName) {
+      lastMapName = m;
+      lastMapChangeTs = t;
+    }
+  }
+
+  function remainingSec(timer, alwaysMax) {
+    const n = nowUnix();
+    const reachedMin = n >= timer.min;
+    const target = (reachedMin || alwaysMax) ? timer.max : timer.min;
+    return Math.max(0, target - n);
+  }
+
+  function passesFilter(npcSnap) {
+    const s = loadSettings();
+    if (!s.useEliteFilter) return true;
+
+    const isNpc = (npcSnap.type === 2) && (npcSnap.groupType === 2 || npcSnap.groupType == null);
+    if (!isNpc) return false;
+
+    const wt = Number(npcSnap.wt);
+    return Number.isFinite(wt) ? wt >= s.wtMin : false;
+  }
+
+  function addTimer(delEntry) {
+    const s = loadSettings();
+    if (!s.enabled) return;
+
+    const tNow = nowUnix();
+    if (tNow - lastMapChangeTs <= IGNORE_AFTER_MAP_CHANGE_SEC) return;
+
+    const base = Number(delEntry?.respBaseSeconds);
+    if (!Number.isFinite(base) || base <= 0) return;
+
+    const delId = (delEntry?.id != null) ? String(delEntry.id) : null;
+    const npc = delId ? cache.get(delId) : null;
+    if (!npc) return;
+
+    if (!passesFilter(npc)) return;
+
+    const rand = (delEntry?.resp_rand != null) ? (Number(delEntry.resp_rand) / 100) : DEFAULT_RAND;
+    const min = tNow + Math.round(base - base * rand);
+    const max = tNow + Math.round(base + base * rand);
+
+    const timers = loadTimers();
+    timers.push({
+      id: `${npc.id}-${tNow}-${Math.random().toString(16).slice(2)}`,
+      npcId: npc.id,
+      name: npc.name,
+      map: getMapName(),
+      x: npc.x,
+      y: npc.y,
+      icon: npc.icon,
+      wt: npc.wt,
+      lvl: npc.lvl,
+      baseSeconds: base,
+      rand,
+      killTs: tNow,
+      min,
+      max
+    });
+    saveTimers(timers);
+  }
+
+  function render() {
+    const root = ensurePanel();
+    if (!root) return;
+
+    const body = root.querySelector("#adi-e2timer-body");
+    const s = loadSettings();
+    const n = nowUnix();
+
+    let timers = loadTimers().filter(t => t && n < (t.max + s.staleSec));
+    saveTimers(timers);
+
+    timers.sort((a, b) => remainingSec(a, s.alwaysMax) - remainingSec(b, s.alwaysMax));
+
+    body.innerHTML = "";
+
+    if (!s.enabled) {
+      body.innerHTML = `<div style="opacity:.75;padding:4px 0">Minutnik wyłączony.</div>`;
+      return;
+    }
+
+    if (!timers.length) {
+      body.innerHTML = `<div style="opacity:.75;padding:4px 0">Brak timerów. Zabij NPC (E2), aby dodać.</div>`;
+      return;
+    }
+
+    for (const t of timers) {
+      const row = document.createElement("div");
+      row.style.display = "grid";
+      row.style.gridTemplateColumns = s.compact ? "1fr auto" : "1fr auto auto";
+      row.style.gap = "8px";
+      row.style.alignItems = "center";
+      row.style.padding = "4px 0";
+      row.style.borderTop = "1px solid rgba(0,0,0,.15)";
+
+      const name = document.createElement("div");
+      name.textContent = t.name || "NPC";
+      name.style.whiteSpace = "nowrap";
+      name.style.overflow = "hidden";
+      name.style.textOverflow = "ellipsis";
+
+      const time = document.createElement("div");
+      time.textContent = fmtHMS(remainingSec(t, s.alwaysMax));
+      time.style.fontVariantNumeric = "tabular-nums";
+
+      const del = document.createElement("div");
+      del.textContent = "✖";
+      del.style.cursor = "pointer";
+      del.style.opacity = "0.8";
+      del.style.userSelect = "none";
+      del.title = "Usuń timer";
+      del.addEventListener("click", (ev) => {
+        ev.preventDefault(); ev.stopPropagation();
+        const arr = loadTimers().filter(x => x && x.id !== t.id);
+        saveTimers(arr);
+        render();
+      });
+
+      row.title =
+        `${t.name}\n` +
+        `${t.map} (${t.x},${t.y})\n` +
+        `Czas odrodzenia\n` +
+        `Min: ${toDateStr(t.min)}\n` +
+        `Max: ${toDateStr(t.max)}\n` +
+        `base: ${t.baseSeconds}s • rand: ${(t.rand*100).toFixed(0)}%\n` +
+        `wt: ${t.wt} lvl: ${t.lvl}`;
+
+      row.appendChild(name);
+      row.appendChild(time);
+      if (!s.compact) row.appendChild(del);
+      body.appendChild(row);
+    }
+  }
+
+  // aktualizuj UI co sekundę (jak w dodatku)
+  setInterval(render, 1000);
+  setTimeout(render, 1200);
+
+  function handleInput(data) {
+    try {
+      updateMapChange();
+
+      const del = data?.npcs_del;
+      if (!del) return;
+
+      const arr = Array.isArray(del) ? del : (typeof del === "object" ? Object.values(del) : []);
+      for (const e of arr) {
+        if (e && e.respBaseSeconds != null) addTimer(e);
+      }
+    } catch {}
+  }
+
+  // ===================== PODPINANIE DO parseInput (botPI + basePI) =====================
+  function wrapFn(fn) {
+    if (typeof fn !== "function") return fn;
+    if (fn.__adiE2TimerWrapped) return fn;
+    const wrapped = function () {
+      const ret = fn.apply(this, arguments);
+      try { handleInput(arguments[0]); } catch {}
+      return ret;
+    };
+    wrapped.__adiE2TimerWrapped = true;
+    return wrapped;
+  }
+
+  function tryInstall() {
+    try {
+      const bot = window.adiwilkTestBot;
+      if (bot) {
+        if (bot.basePI) bot.basePI = wrapFn(bot.basePI);
+        if (bot.botPI)  bot.botPI  = wrapFn(bot.botPI);
+      }
+
+      // Jeżeli ktoś nadpisał parseInput poza botem, też owiń:
+      if (typeof window.parseInput === "function") {
+        if (!window.parseInput.__adiE2TimerWrapped) {
+          const old = window.parseInput;
+          window.parseInput = function () {
+            const ret = old.apply(this, arguments);
+            try { handleInput(arguments[0]); } catch {}
+            return ret;
+          };
+          window.parseInput.__adiE2TimerWrapped = true;
+        }
+      }
+    } catch {}
+  }
+
+  // instaluj kilkukrotnie, bo bot/UI ładuje się w różnych momentach
+  tryInstall();
+  setTimeout(tryInstall, 1500);
+  setTimeout(tryInstall, 5000);
+
 })();
 
