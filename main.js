@@ -1202,6 +1202,65 @@ function setTempTarget(val){
           // twardy priorytet -> pomijamy całą resztę (exp, moby, trasy na expowisko)
           return ret;
         }
+
+
+// ===== PRIORITY: E2 mode (idź na mapę E2 i podejdź na kordy) =====
+try{
+  const mode = (localStorage.getItem('adi-bot_exp_mode') || 'exp') === 'e2';
+  if(mode){
+    const raw = localStorage.getItem('adi-bot_e2_target');
+    const tgt = raw ? JSON.parse(raw) : null;
+    if(tgt && tgt.map != null && tgt.x != null && tgt.y != null){
+      const tx = Number(tgt.x), ty = Number(tgt.y);
+      if(Number.isFinite(tx) && Number.isFinite(ty)){
+        // zsynchronizuj listę dozwolonych map tak, aby zawierała wyłącznie mapę E2
+        const mapsInput = document.querySelector('#adi-bot_maps');
+        if(mapsInput && mapsInput.value.trim() !== String(tgt.map)){
+          mapsInput.value = String(tgt.map);
+          try{ localStorage.setItem('adi-bot_maps', mapsInput.value); }catch(_){}
+          try{ localStorage.setItem('alksjd','0'); }catch(_){}
+        }
+
+        // utrzymuj temp-target na mapę E2, żeby findBestGw prowadził tylko tam
+        try{ setTempTarget(String(tgt.map)); }catch(_){}
+
+        // podczas dojazdu / podejścia nie szukaj mobów
+        $m_id = undefined;
+        clearTargetLock(); blokada = false; blokada2 = false;
+
+        const cur = normMapName(map.name);
+        const want = normMapName(tgt.map);
+
+        // 1) jeśli nie jesteśmy na mapie E2 -> jedź po grafie/bramkach
+        if(cur !== want){
+          $map_cords = self.findBestGw();
+          if($map_cords && !bolcka){
+            if(hero.x == $map_cords.x && hero.y == $map_cords.y){
+              _g('walk');
+            }else{
+              a_goTo($map_cords.x, $map_cords.y);
+              bolcka = true;
+              setTimeout(()=>bolcka=false, 2000);
+            }
+          }
+          return ret;
+        }
+
+        // 2) jesteśmy na mapie E2 -> podejdź dokładnie na kordy z pliku Elity II.txt
+        if(hero.x !== tx || hero.y !== ty){
+          if(!bolcka){
+            a_goTo(tx, ty);
+            bolcka = true;
+            setTimeout(()=>bolcka=false, 700);
+          }
+          return ret;
+        }
+
+        // 3) stoimy na kordach -> przechodzimy do normalnej logiki (atak/wybór mobów)
+      }
+    }
+  }
+}catch(_){}
       }catch(_){}
 
       if(!$m_id && !bolcka && !isTargetLocked()){
