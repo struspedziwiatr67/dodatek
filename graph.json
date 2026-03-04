@@ -4563,5 +4563,284 @@
     {
       "to": "dziewicza knieja"
     }
+  ],
+  "lesna przełecz": [
+    {
+      "to": "torneg"
+    },
+    {
+      "to": "kryjowka dzikich kotow",
+      "via": {
+        "x": 62,
+        "y": 0
+      }
+    }
+  ],
+  "kryjowka dzikich kotow": [
+    {
+      "to": "lesna przełecz"
+    },
+    {
+      "to": "grota dzikiego kota",
+      "via": {
+        "x": 38,
+        "y": 18
+      }
+    },
+    {
+      "to": "grota dzikiego kota"
+    }
+  ],
+  "grota dzikiego kota": [
+    {
+      "to": "kryjowka dzikich kotow"
+    },
+    {
+      "to": "kryjowka dzikich kotow",
+      "via": {
+        "x": 34,
+        "y": 37
+      }
+    }
+  ],
+  "racicowy matecznik": [
+    {
+      "to": "spokojne przejscie"
+    },
+    {
+      "to": "pieczara kwiku - sala 1",
+      "via": {
+        "x": 6,
+        "y": 31
+      }
+    }
+  ],
+  "pieczara kwiku - sala 1": [
+    {
+      "to": "racicowy matecznik"
+    },
+    {
+      "to": "pieczara kwiku - sala 2",
+      "via": {
+        "x": 39,
+        "y": 2
+      }
+    }
+  ],
+  "pieczara kwiku - sala 2": [
+    {
+      "to": "pieczara kwiku - sala 1"
+    }
+  ],
+  "ciemnica szubrawcow p.1 - sala 1": [
+    {
+      "to": "fort eder"
+    },
+    {
+      "to": "ciemnica szubrawcow p.1 - sala 2",
+      "via": {
+        "x": 6,
+        "y": 40
+      }
+    }
+  ],
+  "ciemnica szubrawcow p.1 - sala 2": [
+    {
+      "to": "ciemnica szubrawcow p.1 - sala 1"
+    },
+    {
+      "to": "ciemnica szubrawcow p.1 - sala 3",
+      "via": {
+        "x": 36,
+        "y": 39
+      }
+    }
+  ],
+  "ciemnica szubrawcow p.1 - sala 3": [
+    {
+      "to": "ciemnica szubrawcow p.1 - sala 2"
+    },
+    {
+      "to": "stary kupiecki trakt",
+      "via": {
+        "x": 58,
+        "y": 45
+      }
+    }
+  ],
+  "skarpiska tollokow": [
+    {
+      "to": "mokradła"
+    },
+    {
+      "to": "skalne turnie",
+      "via": {
+        "x": 63,
+        "y": 30
+      }
+    }
+  ],
+  "skalne turnie": [
+    {
+      "to": "skarpiska tollokow"
+    }
+  ],
+  "stare wyrobisko p.4": [
+    {
+      "to": "nawiedzony jar"
+    },
+    {
+      "to": "stare wyrobisko p.3",
+      "via": {
+        "x": 23,
+        "y": 29
+      }
+    }
+  ],
+  "stare wyrobisko p.3": [
+    {
+      "to": "stare wyrobisko p.4"
+    }
+  ],
+  "namiot vari krugera": [
+    {
+      "to": "wioska gnolli"
+    }
+  ],
+  "zdradzieckie przejscie p.1": [
+    {
+      "to": "andarum ilami"
+    },
+    {
+      "to": "głebokie skałki p.1",
+      "via": {
+        "x": 55,
+        "y": 46
+      }
+    },
+    {
+      "to": "głebokie skałki p.1"
+    },
+    {
+      "to": "wylegarnia choukkerow p.1",
+      "via": {
+        "x": 5,
+        "y": 71
+      }
+    }
+  ],
+  "głebokie skałki p.1": [
+    {
+      "to": "zdradzieckie przejscie p.1"
+    },
+    {
+      "to": "głebokie skałki p.2",
+      "via": {
+        "x": 40,
+        "y": 44
+      }
+    },
+    {
+      "to": "głebokie skałki p.2"
+    },
+    {
+      "to": "zdradzieckie przejscie p.1",
+      "via": {
+        "x": 3,
+        "y": 6
+      }
+    }
+  ],
+  "głebokie skałki p.2": [
+    {
+      "to": "głebokie skałki p.1"
+    },
+    {
+      "to": "głebokie skałki p.3",
+      "via": {
+        "x": 40,
+        "y": 43
+      }
+    },
+    {
+      "to": "głebokie skałki p.3"
+    },
+    {
+      "to": "głebokie skałki p.1",
+      "via": {
+        "x": 27,
+        "y": 5
+      }
+    }
+  ],
+  "głebokie skałki p.3": [
+    {
+      "to": "głebokie skałki p.2"
+    },
+    {
+      "to": "głebokie skałki p.2",
+      "via": {
+        "x": 27,
+        "y": 1
+      }
+    }
+  ],
+  "wylegarnia choukkerow p.1": [
+    {
+      "to": "zdradzieckie przejscie p.1"
+    }
+  ],
+  "wyjacy wawoz": [
+    {
+      "to": "cienisty bor"
+    },
+    {
+      "to": "babi wzgorek",
+      "via": {
+        "x": 63,
+        "y": 71
+      }
+    }
+  ],
+  "babi wzgorek": [
+    {
+      "to": "wyjacy wawoz"
+    },
+    {
+      "to": "goralskie przejscie",
+      "via": {
+        "x": 36,
+        "y": 95
+      }
+    }
+  ],
+  "goralskie przejscie": [
+    {
+      "to": "babi wzgorek"
+    },
+    {
+      "to": "chata wojta fistuły",
+      "via": {
+        "x": 50,
+        "y": 7
+      }
+    }
+  ],
+  "chata wojta fistuły": [
+    {
+      "to": "goralskie przejscie"
+    },
+    {
+      "to": "chata wojta fistuły p.1",
+      "via": {
+        "x": 3,
+        "y": 3
+      }
+    }
+  ],
+  "chata wojta fistuły p.1": [
+    {
+      "to": "chata wojta fistuły"
+    }
   ]
 }
