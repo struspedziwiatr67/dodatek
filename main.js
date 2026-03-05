@@ -301,6 +301,34 @@ const HERO_DISCORD_WEBHOOK = "https://discord.com/api/webhooks/14711759854948884
     return false;
   }
 
+  function __adi_planRelog10sBeforeMin(){
+    try{
+      // uses E2 minutnik storage (adi_e2timer_timers_v1)
+      const selName = __adi_getSelectedE2Name();
+      if(!selName) return false;
+
+      const timersRaw = localStorage.getItem('adi_e2timer_timers_v1') || '[]';
+      let timers = [];
+      try{ timers = JSON.parse(timersRaw) || []; }catch(_){ timers = []; }
+
+      // find the newest timer for selected E2 name
+      const cand = timers
+        .filter(t => t && String(t.name||'').trim() === String(selName).trim() && Number.isFinite(Number(t.min)))
+        .sort((a,b)=> (Number(b.killTs)||0) - (Number(a.killTs)||0))[0];
+
+      if(!cand) return false;
+
+      const relogAtSec = Math.max(0, Math.floor(Number(cand.min) - 10)); // 10s before MIN
+      localStorage.setItem('adi-bot_relog_at_sec', String(relogAtSec));
+      localStorage.setItem('adi-bot_relog_for', String(selName));
+      localStorage.setItem('adi-bot_relog_timer_id', String(cand.id||''));
+      // reset "done" flag (new cycle)
+      localStorage.removeItem('adi-bot_relog_done');
+      return true;
+    }catch(_){}
+    return false;
+  }
+
   function __adi_logoutAfterE2(){
     try{
       // one-shot guard (prevents spam if tick fires multiple times / UI double-handles events)
@@ -309,10 +337,72 @@ const HERO_DISCORD_WEBHOOK = "https://discord.com/api/webhooks/14711759854948884
       if(Date.now()-last < 15000) return; // 15s cooldown
       localStorage.setItem(k, String(Date.now()));
     }catch(_){ }
+
+    // zaplanuj ponowne wejście 10s przed MIN respawnem (minutnik E2)
+    try{ __adi_planRelog10sBeforeMin(); }catch(_){}
+
     setTimeout(()=>{
       __adi_clickLogout();
     }, 1000);
   }
+
+  // === AUTO RELOG NA STRONIE LOGOWANIA (margonem.pl) ===
+  (function(){
+    const CHECK_MS = 250;
+    const CLICK_COOLDOWN_MS = 8000;
+
+    function q(sel){
+      try{ return document.querySelector(sel); }catch(_){ return null; }
+    }
+    function simpleClick(el){
+      try{ if(!el) return false; el.click(); return true; }catch(_){ return false; }
+    }
+
+    function isLoginPage(){
+      // heurystyka: przycisk "Wejdź do gry" istnieje w DOM
+      return !!q('div.c-btn.enter-game, .c-btn.enter-game');
+    }
+
+    let lastClickAt = 0;
+
+    function tick(){
+      try{
+        if(!isLoginPage()) return;
+
+        // already done for this cycle?
+        if(localStorage.getItem('adi-bot_relog_done') === '1') return;
+
+        const atSec = parseInt(localStorage.getItem('adi-bot_relog_at_sec')||'0',10) || 0;
+        if(!atSec) return;
+
+        const nowSec = Math.floor(Date.now()/1000);
+        if(nowSec < atSec) return;
+
+        // anti-spam
+        const nowMs = Date.now();
+        if(nowMs - lastClickAt < CLICK_COOLDOWN_MS) return;
+
+        lastClickAt = nowMs;
+
+        // 1) zamknij info (X) jeśli jest
+        const close = q('div.close-game-info, .close-game-info');
+        if(close) simpleClick(close);
+
+        // 2) kliknij "Wejdź do gry"
+        setTimeout(()=>{
+          const enter = q('div.c-btn.enter-game, .c-btn.enter-game');
+          if(enter){
+            simpleClick(enter);
+            localStorage.setItem('adi-bot_relog_done','1');
+          }
+        }, 180);
+      }catch(_){}
+    }
+
+    setInterval(tick, CHECK_MS);
+    setTimeout(tick, 800);
+  })();
+  // === /AUTO RELOG ===
 
   function __adiE2LogoutTick(){
     try{
