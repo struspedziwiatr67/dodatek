@@ -301,6 +301,31 @@ const HERO_DISCORD_WEBHOOK = "https://discord.com/api/webhooks/14711759854948884
     return false;
   }
 
+
+  // === CROSS-SUBDOMAIN STORAGE via cookies (works between jaruna.* and www.*) ===
+  function __adi_setCookie(name, value, maxAgeSec){
+    try{
+      const v = encodeURIComponent(String(value ?? ""));
+      const maxAge = Number(maxAgeSec) > 0 ? `; Max-Age=${Math.floor(maxAgeSec)}` : "";
+      // domain=.margonem.pl -> widoczne na www.margonem.pl i jaruna.margonem.pl
+      document.cookie = `${name}=${v}${maxAge}; Path=/; Domain=.margonem.pl; SameSite=Lax`;
+      return true;
+    }catch(e){ return false; }
+  }
+
+  function __adi_getCookie(name){
+    try{
+      const m = document.cookie.match(new RegExp('(?:^|;\\s*)' + name.replace(/[.*+?^${}()|[\\]\\\\]/g,'\\\\$&') + '=([^;]*)'));
+      return m ? decodeURIComponent(m[1]) : null;
+    }catch(e){ return null; }
+  }
+
+  function __adi_delCookie(name){
+    try{
+      document.cookie = `${name}=; Max-Age=0; Path=/; Domain=.margonem.pl; SameSite=Lax`;
+    }catch(e){}
+  }
+
   function __adi_planRelog10sBeforeMin(){
     try{
       // uses E2 minutnik storage (adi_e2timer_timers_v1)
@@ -319,11 +344,11 @@ const HERO_DISCORD_WEBHOOK = "https://discord.com/api/webhooks/14711759854948884
       if(!cand) return false;
 
       const relogAtSec = Math.max(0, Math.floor(Number(cand.min) - 10)); // 10s before MIN
-      localStorage.setItem('adi-bot_relog_at_sec', String(relogAtSec));
-      localStorage.setItem('adi-bot_relog_for', String(selName));
-      localStorage.setItem('adi-bot_relog_timer_id', String(cand.id||''));
+      __adi_setCookie('adi_relog_at_sec', String(relogAtSec), 24*60*60);     // 1 dzień
+      __adi_setCookie('adi_relog_for', String(selName), 24*60*60);
+      __adi_setCookie('adi_relog_timer_id', String(cand.id||''), 24*60*60);
       // reset "done" flag (new cycle)
-      localStorage.removeItem('adi-bot_relog_done');
+      __adi_delCookie('adi_relog_done');
       return true;
     }catch(_){}
     return false;
@@ -370,9 +395,9 @@ const HERO_DISCORD_WEBHOOK = "https://discord.com/api/webhooks/14711759854948884
         if(!isLoginPage()) return;
 
         // already done for this cycle?
-        if(localStorage.getItem('adi-bot_relog_done') === '1') return;
+        if(__adi_getCookie('adi_relog_done') === '1') return;
 
-        const atSec = parseInt(localStorage.getItem('adi-bot_relog_at_sec')||'0',10) || 0;
+        const atSec = parseInt(__adi_getCookie('adi_relog_at_sec')||'0',10) || 0;
         if(!atSec) return;
 
         const nowSec = Math.floor(Date.now()/1000);
@@ -393,9 +418,9 @@ const HERO_DISCORD_WEBHOOK = "https://discord.com/api/webhooks/14711759854948884
           const enter = q('div.c-btn.enter-game, .c-btn.enter-game');
           if(enter){
             simpleClick(enter);
-            localStorage.setItem('adi-bot_relog_done','1');
+            __adi_setCookie('adi_relog_done','1', 24*60*60);
           }
-        }, 180);
+        }, 1000);
       }catch(_){}
     }
 
