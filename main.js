@@ -4072,7 +4072,7 @@ if (typeof window.window.__adi_equipByNameSequence !== 'function') {
     const max = tNow + Math.round(base + base * rand);
 
     const timers = loadTimers();
-    timers.push({
+    const newT = {
       id: `${npc.id}-${tNow}-${Math.random().toString(16).slice(2)}`,
       npcId: npc.id,
       name: npc.name,
@@ -4087,8 +4087,10 @@ if (typeof window.window.__adi_equipByNameSequence !== 'function') {
       killTs: tNow,
       min,
       max
-    });
+    };
+    timers.push(newT);
     saveTimers(timers);
+    return newT;
   }
 
   function render() {
@@ -4168,7 +4170,136 @@ if (typeof window.window.__adi_equipByNameSequence !== 'function') {
   setInterval(render, 1000);
   setTimeout(render, 1200);
 
-  function handleInput(data) {
+  
+  // ===================== E2: AUTO-LOGOUT + AUTO-RELOG =====================
+  // Po zabiciu wybranej Elity II: odczekaj 1s i kliknij "wyloguj" (#logoutbut),
+  // a następnie wróć do gry ok. 5 sekund przed MIN czasem odrodzenia z minutnika E2.
+  const __ADI_E2_RELOG_KEY = "adi-bot_e2_relog_state";
+
+  function __adiNorm(s){
+    return String(s||"").toLowerCase().normalize("NFKD").replace(/[̀-ͯ]/g,"").trim();
+  }
+
+  function __adiLoadRelogState(){
+    try{
+      const raw = localStorage.getItem(__ADI_E2_RELOG_KEY);
+      const st = raw ? JSON.parse(raw) : null;
+      if(!st || typeof st !== "object") return null;
+      if(typeof st.minTs !== "number") return null;
+      return {
+        name: st.name ? String(st.name) : "",
+        minTs: st.minTs|0,
+        createdAt: st.createdAt|0,
+        logoutClicked: !!st.logoutClicked,
+        backTriggered: !!st.backTriggered
+      };
+    }catch(_){ return null; }
+  }
+  function __adiSaveRelogState(st){
+    try{
+      if(!st){ localStorage.removeItem(__ADI_E2_RELOG_KEY); return; }
+      localStorage.setItem(__ADI_E2_RELOG_KEY, JSON.stringify(st));
+    }catch(_){}
+  }
+
+  function __adiIsInGame(){
+    try{ return !!(window.hero && window.map && window.g); }catch(_){ return false; }
+  }
+
+  function __adiClickLogout(){
+    try{
+      const btn = document.querySelector("#logoutbut");
+      if(btn){ btn.click(); return true; }
+    }catch(_){}
+    return false;
+  }
+
+  function maybeLogoutAfterE2Kill(delEntry, createdTimer){
+    // warunki: tryb E2 + wybrana E2 + pasuje nazwa
+    const mode = (localStorage.getItem("adi-bot_exp_mode") || "exp") === "e2";
+    if(!mode) return;
+
+    const sel = (localStorage.getItem("adi-bot_e2_sel") || "").trim();
+    if(!sel) return;
+
+    const npc = (delEntry && delEntry.id != null && window.g && g.npc) ? g.npc[String(delEntry.id)] : null;
+    const npcName = __adiNorm(npc ? (npc.nick || npc.name || npc.n || "") : "");
+    if(!npcName) return;
+
+    if(__adiNorm(sel) !== npcName) return;
+
+    // musi być na docelowej mapie E2 (żeby nie wylogowywał od losowych E2 gdzieś indziej)
+    try{
+      const raw = localStorage.getItem("adi-bot_e2_target");
+      const tgt = raw ? JSON.parse(raw) : null;
+      if(tgt && tgt.map){
+        const cur = __adiNorm(window.map && map.name);
+        const want = __adiNorm(tgt.map);
+        if(cur && want && cur !== want) return;
+      }
+    }catch(_){}
+
+    // mamy kill wybranej E2 -> zaplanuj relog
+    const minMs = createdTimer && createdTimer.min ? (createdTimer.min * 1000) : null;
+    if(!minMs || !Number.isFinite(minMs)) return;
+
+    // zabezpieczenie przed spamem
+    const existing = __adiLoadRelogState();
+    const now = Date.now();
+    if(existing && (now - (existing.createdAt||0) < 15000)) return;
+
+    __adiSaveRelogState({
+      name: sel,
+      minTs: minMs,
+      createdAt: now,
+      logoutClicked: false,
+      backTriggered: false
+    });
+
+    // Kliknij wyloguj po 1s (żeby walka/loot się domknęły)
+    setTimeout(()=> {
+      const st = __adiLoadRelogState();
+      if(!st || st.logoutClicked) return;
+      if(__adiIsInGame()){
+        if(__adiClickLogout()){
+          st.logoutClicked = true;
+          __adiSaveRelogState(st);
+        }
+      }
+    }, 1000);
+  }
+
+  // Watcher: gdy jesteśmy poza grą, wróć "wstecz" ~5s przed MIN respa.
+  setInterval(() => {
+    const st = __adiLoadRelogState();
+    if(!st) return;
+
+    const now = Date.now();
+
+    // Jeśli już wróciliśmy do gry, sprzątnij stan
+    if(__adiIsInGame()){
+      // jeśli min już minął dawno, usuń stan
+      if(now > st.minTs + 5*60*1000){ // po 5 min sprzątaj na pewno
+        __adiSaveRelogState(null);
+      }
+      return;
+    }
+
+    // poza grą: trigger back 5s przed min
+    const triggerAt = (st.minTs - 5000);
+    if(!st.backTriggered && now >= triggerAt){
+      st.backTriggered = true;
+      __adiSaveRelogState(st);
+      try{ history.back(); }catch(_){}
+    }
+
+    // jeśli już dawno po min i nadal poza grą, sprzątaj stan żeby nie pętlić
+    if(now > st.minTs + 60000){
+      __adiSaveRelogState(null);
+    }
+  }, 500);
+
+function handleInput(data) {
     try {
       updateMapChange();
 
@@ -4177,7 +4308,10 @@ if (typeof window.window.__adi_equipByNameSequence !== 'function') {
 
       const arr = Array.isArray(del) ? del : (typeof del === "object" ? Object.values(del) : []);
       for (const e of arr) {
-        if (e && e.respBaseSeconds != null) addTimer(e);
+        if (e && e.respBaseSeconds != null) {
+        const created = addTimer(e);
+        try{ maybeLogoutAfterE2Kill(e, created); }catch(_){ }
+      }
       }
     } catch {}
   }
