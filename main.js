@@ -11,11 +11,7 @@
 // ===== HARD GUARD: block attacking elites when checkbox is OFF (works even if target selection misses) =====
 (function(){
   function __adi_noEliteEnabled(){
-    try{
-      // if E2 mode selected ignore elite checkbox
-      if(localStorage.getItem('adi-bot_exp_mode')==='e2') return false;
-      return localStorage.getItem('adi-bot_allow_elite') === '0';
-    }catch(e){ return false; }
+    try{ return localStorage.getItem('adi-bot_allow_elite') === '0'; }catch(e){ return false; }
   }
   function __adi_isEliteIcon(n){
     try{
@@ -175,7 +171,9 @@
 
   setTimeout(tick, 600);
   setInterval(tick, CHECK_MS);
-})();
+
+    return true;
+  })();
 
 var TpG3Y86zpgrtWMzb, ZHN4ekpZ5m95pFbJ, YQTtmEs6a5mTXE5a;
 
@@ -221,12 +219,6 @@ const HERO_DISCORD_WEBHOOK = "https://discord.com/api/webhooks/14711759854948884
   // Trigger: we have seen selected E2 on the target map, then it disappears shortly after (death),
   // even if another player killed it. Extra guards prevent false positives from fog / map changes.
   let __adiE2Logout = { wasPresent:false, lastSeen:0, map:null, triggered:false, lastSig:null };
-
-  // UI toggle (checkbox): "Logaj po zbiciu E2"
-  const __ADI_E2_LOGOUT_ENABLED_KEY = 'adi-bot_logout_after_e2';
-  function __adi_isLogoutAfterE2Enabled(){
-    try{ return localStorage.getItem(__ADI_E2_LOGOUT_ENABLED_KEY) === '1'; }catch(_){ return false; }
-  }
 
   function __adi_normName(s){
     return String(s||'')
@@ -311,6 +303,31 @@ const HERO_DISCORD_WEBHOOK = "https://discord.com/api/webhooks/14711759854948884
     return false;
   }
 
+
+  // === CROSS-SUBDOMAIN STORAGE via cookies (works between jaruna.* and www.*) ===
+  function __adi_setCookie(name, value, maxAgeSec){
+    try{
+      const v = encodeURIComponent(String(value ?? ""));
+      const maxAge = Number(maxAgeSec) > 0 ? `; Max-Age=${Math.floor(maxAgeSec)}` : "";
+      // domain=.margonem.pl -> widoczne na www.margonem.pl i jaruna.margonem.pl
+      document.cookie = `${name}=${v}${maxAge}; Path=/; Domain=.margonem.pl; SameSite=Lax`;
+      return true;
+    }catch(e){ return false; }
+  }
+
+  function __adi_getCookie(name){
+    try{
+      const m = document.cookie.match(new RegExp('(?:^|;\\s*)' + name.replace(/[.*+?^${}()|[\\]\\\\]/g,'\\\\$&') + '=([^;]*)'));
+      return m ? decodeURIComponent(m[1]) : null;
+    }catch(e){ return null; }
+  }
+
+  function __adi_delCookie(name){
+    try{
+      document.cookie = `${name}=; Max-Age=0; Path=/; Domain=.margonem.pl; SameSite=Lax`;
+    }catch(e){}
+  }
+
   function __adi_planRelog10sBeforeMin(){
     try{
       // uses E2 minutnik storage (adi_e2timer_timers_v1)
@@ -329,17 +346,20 @@ const HERO_DISCORD_WEBHOOK = "https://discord.com/api/webhooks/14711759854948884
       if(!cand) return false;
 
       const relogAtSec = Math.max(0, Math.floor(Number(cand.min) - 10)); // 10s before MIN
-      localStorage.setItem('adi-bot_relog_at_sec', String(relogAtSec));
-      localStorage.setItem('adi-bot_relog_for', String(selName));
-      localStorage.setItem('adi-bot_relog_timer_id', String(cand.id||''));
+      __adi_setCookie('adi_relog_at_sec', String(relogAtSec), 24*60*60);     // 1 dzień
+      __adi_setCookie('adi_relog_for', String(selName), 24*60*60);
+      __adi_setCookie('adi_relog_timer_id', String(cand.id||''), 24*60*60);
       // reset "done" flag (new cycle)
-      localStorage.removeItem('adi-bot_relog_done');
+      __adi_delCookie('adi_relog_done');
       return true;
     }catch(_){}
     return false;
   }
 
   function __adi_logoutAfterE2(){
+  // czy włączone "Logaj po zbiciu E2"?
+    try{ if(localStorage.getItem('adi-bot_relog_after_e2')!=='1') return false; }catch(_){ return false; }
+
     try{
       // one-shot guard (prevents spam if tick fires multiple times / UI double-handles events)
       const k='adi-bot_logout_once';
@@ -353,7 +373,7 @@ const HERO_DISCORD_WEBHOOK = "https://discord.com/api/webhooks/14711759854948884
 
     setTimeout(()=>{
       __adi_clickLogout();
-    }, 1000);
+    }, 5000);
   }
 
   // === AUTO RELOG NA STRONIE LOGOWANIA (margonem.pl) ===
@@ -380,9 +400,9 @@ const HERO_DISCORD_WEBHOOK = "https://discord.com/api/webhooks/14711759854948884
         if(!isLoginPage()) return;
 
         // already done for this cycle?
-        if(localStorage.getItem('adi-bot_relog_done') === '1') return;
+        if(__adi_getCookie('adi_relog_done') === '1') return;
 
-        const atSec = parseInt(localStorage.getItem('adi-bot_relog_at_sec')||'0',10) || 0;
+        const atSec = parseInt(__adi_getCookie('adi_relog_at_sec')||'0',10) || 0;
         if(!atSec) return;
 
         const nowSec = Math.floor(Date.now()/1000);
@@ -403,9 +423,9 @@ const HERO_DISCORD_WEBHOOK = "https://discord.com/api/webhooks/14711759854948884
           const enter = q('div.c-btn.enter-game, .c-btn.enter-game');
           if(enter){
             simpleClick(enter);
-            localStorage.setItem('adi-bot_relog_done','1');
+            __adi_setCookie('adi_relog_done','1', 24*60*60);
           }
-        }, 180);
+        }, 1000);
       }catch(_){}
     }
 
@@ -416,15 +436,6 @@ const HERO_DISCORD_WEBHOOK = "https://discord.com/api/webhooks/14711759854948884
 
   function __adiE2LogoutTick(){
     try{
-      // checkbox off -> do nothing + reset internal state
-      if(!__adi_isLogoutAfterE2Enabled()){
-        __adiE2Logout.wasPresent=false;
-        __adiE2Logout.lastSeen=0;
-        __adiE2Logout.lastSig=null;
-        __adiE2Logout.triggered=false;
-        return;
-      }
-
       if(__adiE2Logout.triggered) return;
       if(!window.map || !map.name) return;
       if(!window.hero) return;
@@ -474,9 +485,14 @@ const HERO_DISCORD_WEBHOOK = "https://discord.com/api/webhooks/14711759854948884
           : true;
 
         if(near && window.g && !g.battle){
-          __adiE2Logout.triggered = true;
-          console.log('[adi-bot] E2 zniknęło z mapy (prawdopodobnie ubite) -> wyloguję za 1s');
-          __adi_logoutAfterE2();
+          const relogEnabled = (function(){ try{ return localStorage.getItem('adi-bot_relog_after_e2')==='1'; }catch(_){ return false; } })();
+          if(relogEnabled){
+            __adiE2Logout.triggered = true;
+            console.log('[adi-bot] E2 zniknęło z mapy (prawdopodobnie ubite) -> wyloguję za 5s');
+            __adi_logoutAfterE2();
+          }else{
+            console.log('[adi-bot] Relog po E2 jest WYŁ — nie wylogowuję (możesz włączyć checkbox "Logaj po zbiciu E2")');
+          }
         }
       }
     }catch(_){}
@@ -2636,6 +2652,15 @@ try{ window.__adi_normTxt = __adi_normTxt; window.getPotionCountByName = getPoti
     let chkElite=document.createElement("input"); chkElite.type="checkbox"; chkElite.id="adi-bot_allow_elite"; chkElite.style.marginRight="6px";
     eliteWrap.appendChild(chkElite); eliteWrap.appendChild(document.createTextNode("Walcz z elitami")); box.appendChild(eliteWrap);
 
+    // LOGAJ PO ZBICIU E2
+    try{ if(localStorage.getItem('adi-bot_relog_after_e2')===null) localStorage.setItem('adi-bot_relog_after_e2','1'); }catch(_){}
+    let relogWrap=document.createElement("label"); relogWrap.style.display="block"; relogWrap.style.margin="4px 0 0";
+    let chkRelog=document.createElement("input"); chkRelog.type="checkbox"; chkRelog.id="adi-bot_relog_after_e2"; chkRelog.style.marginRight="6px";
+    try{ chkRelog.checked = (localStorage.getItem('adi-bot_relog_after_e2')==='1'); }catch(_){ chkRelog.checked = true; }
+    chkRelog.addEventListener("change", ()=>{ try{ localStorage.setItem('adi-bot_relog_after_e2', chkRelog.checked ? '1':'0'); }catch(_){ } });
+    relogWrap.appendChild(chkRelog); relogWrap.appendChild(document.createTextNode("Logaj po zbiciu E2")); box.appendChild(relogWrap);
+
+
     // AUTO UMIEJĘTNOŚCI
     let autoSkillsWrap=document.createElement("label"); autoSkillsWrap.style.display="block"; autoSkillsWrap.style.margin="4px 0 0";
     let chkAutoSkills=document.createElement("input"); chkAutoSkills.type="checkbox"; chkAutoSkills.id="adi-bot_auto_skills"; chkAutoSkills.style.marginRight="6px";
@@ -4161,32 +4186,6 @@ if (typeof window.window.__adi_equipByNameSequence !== 'function') {
     header.appendChild(title);
     header.appendChild(btns);
 
-    // === Bot: "Logaj po zbiciu E2" (auto logout after E2 killed) ===
-    const logoutRow = document.createElement('div');
-    logoutRow.style.display = 'flex';
-    logoutRow.style.alignItems = 'center';
-    logoutRow.style.gap = '6px';
-    logoutRow.style.marginTop = '6px';
-
-    const chkLogout = document.createElement('input');
-    chkLogout.type = 'checkbox';
-    chkLogout.id = 'adi-bot_logout_after_e2';
-    chkLogout.style.marginRight = '4px';
-
-    const lblLogout = document.createElement('label');
-    lblLogout.htmlFor = 'adi-bot_logout_after_e2';
-    lblLogout.textContent = 'Logaj po zbiciu E2';
-    lblLogout.setAttribute('tip', 'Gdy wybrana Elita II zniknie z mapy (została ubita), bot wyloguje postać i wróci 10s przed MIN respawnem (wg minutnika E2).');
-
-    // restore + persist
-    try{ chkLogout.checked = (localStorage.getItem('adi-bot_logout_after_e2') === '1'); }catch(_){ chkLogout.checked = false; }
-    chkLogout.addEventListener('change', ()=>{
-      try{ localStorage.setItem('adi-bot_logout_after_e2', chkLogout.checked ? '1' : '0'); }catch(_){ }
-    });
-
-    logoutRow.appendChild(chkLogout);
-    logoutRow.appendChild(lblLogout);
-
     const body = document.createElement("div");
     body.id = "adi-e2timer-body";
     body.style.maxHeight = "220px";
@@ -4242,7 +4241,6 @@ if (typeof window.window.__adi_equipByNameSequence !== 'function') {
     footer.textContent = "Timer dodaje się po zabiciu (npcs_del).";
 
     root.appendChild(header);
-    root.appendChild(logoutRow);
     root.appendChild(body);
     root.appendChild(cfg);
     root.appendChild(footer);
