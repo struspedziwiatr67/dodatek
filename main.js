@@ -11,7 +11,11 @@
 // ===== HARD GUARD: block attacking elites when checkbox is OFF (works even if target selection misses) =====
 (function(){
   function __adi_noEliteEnabled(){
-    try{ return localStorage.getItem('adi-bot_allow_elite') === '0'; }catch(e){ return false; }
+    try{
+      const mode = (localStorage.getItem('adi-bot_exp_mode') || 'exp').trim();
+      if(mode === 'e2') return false; // w trybie E2 checkbox elity jest ignorowany
+      return localStorage.getItem('adi-bot_allow_elite') === '0';
+    }catch(e){ return false; }
   }
   function __adi_isEliteIcon(n){
     try{
@@ -482,7 +486,11 @@ const HERO_DISCORD_WEBHOOK = "https://discord.com/api/webhooks/14711759854948884
         if(near && window.g && !g.battle){
           __adiE2Logout.triggered = true;
           console.log('[adi-bot] E2 zniknęło z mapy (prawdopodobnie ubite) -> wyloguję za 1s');
-          __adi_logoutAfterE2();
+          if(localStorage.getItem('adi-bot_relog_after_e2')==='1'){
+            __adi_logoutAfterE2();
+          }else{
+            console.log('[adi-bot] Relog po E2 jest WYŁ — nie wylogowuję.');
+          }
         }
       }
     }catch(_){}
@@ -1179,7 +1187,8 @@ function setTempTarget(val){
     // mapa na czarnej liście -> nie atakuj
     try{ if(typeof __adi_isAttackBlockedOnMap==='function' && __adi_isAttackBlockedOnMap()) return; }catch(_){ }
     try{
-      if(localStorage.getItem('adi-bot_allow_elite')==='0'){
+      const __mode = (localStorage.getItem('adi-bot_exp_mode') || 'exp').trim();
+      if(__mode !== 'e2' && localStorage.getItem('adi-bot_allow_elite')==='0'){
         const npc = (typeof g!=='undefined' && g && g.npc) ? g.npc[targetId] : null;
         if(npc){
           if(npc.grp ? groupHasElite(npc.grp) : isElite(npc)) return;
@@ -1984,7 +1993,10 @@ function __adiAutoHealTick(){
     const npc=g.npc[id];
     try{ if(typeof __adiIsBlacklisted==='function' && __adiIsBlacklisted(id)) return false; }catch(_){ }
 
-    const allowElite = localStorage.getItem('adi-bot_allow_elite')==='1';
+    let allowElite = localStorage.getItem('adi-bot_allow_elite')==='1';
+
+    // w trybie E2 checkbox "Walcz z elitami" nie jest brany pod uwagę
+    try{ const mode = (localStorage.getItem('adi-bot_exp_mode') || 'exp').trim(); if(mode === 'e2') allowElite = true; }catch(_){ }
 
     if(!allowElite){
       if(npc.grp){ if(groupHasElite(npc.grp)) return false; }
@@ -2642,6 +2654,11 @@ try{ window.__adi_normTxt = __adi_normTxt; window.getPotionCountByName = getPoti
     let chkElite=document.createElement("input"); chkElite.type="checkbox"; chkElite.id="adi-bot_allow_elite"; chkElite.style.marginRight="6px";
     eliteWrap.appendChild(chkElite); eliteWrap.appendChild(document.createTextNode("Walcz z elitami")); box.appendChild(eliteWrap);
 
+    // LOGAJ PO ZBICIU E2
+    let relogAfterE2Wrap=document.createElement("label"); relogAfterE2Wrap.style.display="block"; relogAfterE2Wrap.style.margin="4px 0 0";
+    let chkRelogAfterE2=document.createElement("input"); chkRelogAfterE2.type="checkbox"; chkRelogAfterE2.id="adi-bot_relog_after_e2"; chkRelogAfterE2.style.marginRight="6px";
+    relogAfterE2Wrap.appendChild(chkRelogAfterE2); relogAfterE2Wrap.appendChild(document.createTextNode("Logaj po zbiciu E2")); box.appendChild(relogAfterE2Wrap);
+
     // AUTO UMIEJĘTNOŚCI
     let autoSkillsWrap=document.createElement("label"); autoSkillsWrap.style.display="block"; autoSkillsWrap.style.margin="4px 0 0";
     let chkAutoSkills=document.createElement("input"); chkAutoSkills.type="checkbox"; chkAutoSkills.id="adi-bot_auto_skills"; chkAutoSkills.style.marginRight="6px";
@@ -2893,6 +2910,11 @@ try{
     }
     chkExh.checked = localStorage.getItem("adi-bot_exh_enabled")==="1";
     const eliteOn = localStorage.getItem("adi-bot_allow_elite")==="1"; chkElite.checked = eliteOn;
+
+    // default: zachowaj dotychczasowe zachowanie (logowanie po zbiciu E2 włączone)
+    if(localStorage.getItem("adi-bot_relog_after_e2")==null){ localStorage.setItem("adi-bot_relog_after_e2","1"); }
+    try{ chkRelogAfterE2.checked = localStorage.getItem("adi-bot_relog_after_e2")==="1"; }catch(_){ }
+
     const autoSkillsOn = localStorage.getItem("adi-bot_auto_skills")==="1"; try{ chkAutoSkills.checked = autoSkillsOn; }catch(_){ }
 // AUTOHEAL
 try{
@@ -3002,6 +3024,7 @@ const have = (window.getPotionCountByName ? window.getPotionCountByName(selName)
     });
 
 chkElite.addEventListener("change", ()=>{ localStorage.setItem("adi-bot_allow_elite", chkElite.checked?"1":"0"); message(chkElite.checked?"Elity: WŁ":"Elity: WYŁ"); });
+    try{ chkRelogAfterE2.addEventListener("change", ()=>{ localStorage.setItem("adi-bot_relog_after_e2", chkRelogAfterE2.checked?"1":"0"); message(chkRelogAfterE2.checked?"Relog po E2: WŁ":"Relog po E2: WYŁ"); }); }catch(_){ }
     try{ chkAutoSkills.addEventListener("change", ()=>{ localStorage.setItem("adi-bot_auto_skills", chkAutoSkills.checked?"1":"0"); message(chkAutoSkills.checked?"Auto umiejętności: WŁ":"Auto umiejętności: WYŁ"); }); }catch(_){ }
 // AUTOHEAL: zapisz ustawienia
 try{
@@ -3344,6 +3367,8 @@ try{
 
     function __adi_onBattleInit(initObj){
       try{
+        const __mode = (localStorage.getItem("adi-bot_exp_mode") || "exp").trim();
+        if(__mode === "e2") return; // w trybie E2 checkbox elity jest ignorowany
         if(localStorage.getItem("adi-bot_allow_elite")!=="0") return;
 
         const units=[];
