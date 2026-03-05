@@ -4477,4 +4477,3 @@ if (typeof window.window.__adi_equipByNameSequence !== 'function') {
   setTimeout(tryInstall, 5000);
 
 })();
-
