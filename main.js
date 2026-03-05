@@ -1606,7 +1606,7 @@ let __adiE2State = __adiE2LoadAnchorState();
         const want = normMapName(tgt.map);
         window.__adiE2OnTargetMap = (cur === want);
 
-        
+
 // Persistent anchor transitions (survive F5 / relog)
 // - Reset anchor if target map changed
 if(__adiE2State.target !== want){
