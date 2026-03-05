@@ -4222,22 +4222,14 @@ if (typeof window.window.__adi_equipByNameSequence !== 'function') {
     const sel = (localStorage.getItem("adi-bot_e2_sel") || "").trim();
     if(!sel) return;
 
-    const npc = (delEntry && delEntry.id != null && window.g && g.npc) ? g.npc[String(delEntry.id)] : null;
+    const delId = (delEntry && delEntry.id != null) ? String(delEntry.id) : null;
+    const npc = delId ? (cache.get(delId) || ((window.g && g.npc) ? g.npc[delId] : null)) : null;
     const npcName = __adiNorm(npc ? (npc.nick || npc.name || npc.n || "") : "");
     if(!npcName) return;
 
     if(__adiNorm(sel) !== npcName) return;
 
-    // musi być na docelowej mapie E2 (żeby nie wylogowywał od losowych E2 gdzieś indziej)
-    try{
-      const raw = localStorage.getItem("adi-bot_e2_target");
-      const tgt = raw ? JSON.parse(raw) : null;
-      if(tgt && tgt.map){
-        const cur = __adiNorm(window.map && map.name);
-        const want = __adiNorm(tgt.map);
-        if(cur && want && cur !== want) return;
-      }
-    }catch(_){}
+    // (opcjonalnie) można ograniczyć do docelowej mapy; wyłączone, bo kill może być wykryty zanim map.name się zsynchronizuje.
 
     // mamy kill wybranej E2 -> zaplanuj relog
     const minMs = createdTimer && createdTimer.min ? (createdTimer.min * 1000) : null;
@@ -4297,18 +4289,7 @@ if (typeof window.window.__adi_equipByNameSequence !== 'function') {
     const sel = (localStorage.getItem("adi-bot_e2_sel") || "").trim();
     if(!sel) return;
 
-    // opcjonalnie: tylko na docelowej mapie (żeby nie wylogowywać gdzieś po drodze)
-    try{
-      const raw = localStorage.getItem("adi-bot_e2_target");
-      const tgt = raw ? JSON.parse(raw) : null;
-      if(tgt && tgt.map){
-        const cur = __adiNorm(window.map && map.name);
-        const wantMap = __adiNorm(tgt.map);
-        if(cur && wantMap && cur !== wantMap) return;
-      }
-    }catch(_){ }
-
-    const t = __adiGetSelectedE2Timer();
+        const t = __adiGetSelectedE2Timer();
     if(!t || !t.min) return;
     const minMs = (t.min * 1000);
     if(!Number.isFinite(minMs) || minMs <= 0) return;
