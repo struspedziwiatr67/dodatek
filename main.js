@@ -220,7 +220,18 @@ const HERO_DISCORD_WEBHOOK = "https://discord.com/api/webhooks/14711759854948884
   // === AUTO LOGOUT after E2 killed (by anyone nearby) ===
   // Trigger: we have seen selected E2 on the target map, then it disappears shortly after (death),
   // even if another player killed it. Extra guards prevent false positives from fog / map changes.
-  let __adiE2Logout = { wasPresent:false, lastSeen:0, map:null, triggered:false, lastSig:null };
+  // State for "logout after E2" logic.
+  // NOTE: Battle can last longer than 2.5s, so we also detect "battle just ended" near spawn.
+  let __adiE2Logout = {
+    wasPresent:false,
+    lastSeen:0,
+    map:null,
+    triggered:false,
+    lastSig:null,
+    inBattle:false,
+    lastBattleEnd:0,
+    lastBattleStart:0
+  };
 
   function __adi_normName(s){
     return String(s||'')
@@ -372,13 +383,15 @@ const HERO_DISCORD_WEBHOOK = "https://discord.com/api/webhooks/14711759854948884
 
     setTimeout(()=>{
       __adi_clickLogout();
-    }, 1000);
+    }, 5000); // daj serwerowi chwilę po walce zanim wylogujesz (mniej 429/Too Many Requests)
   }
 
   // === AUTO RELOG NA STRONIE LOGOWANIA (margonem.pl) ===
   (function(){
     const CHECK_MS = 250;
-    const CLICK_COOLDOWN_MS = 8000;
+    const CLICK_COOLDOWN_MS = 8000;   // lokalny cooldown na tick
+    const LOGIN_COOLDOWN_MS = 20000;  // twarda blokada, żeby nie spamować logowania (429)
+    const AFTER_CLOSE_WAIT_MS = 2500; // po kliknięciu X odczekaj zanim klikniesz "Wejdź do gry"
 
     function q(sel){
       try{ return document.querySelector(sel); }catch(_){ return null; }
@@ -397,6 +410,10 @@ const HERO_DISCORD_WEBHOOK = "https://discord.com/api/webhooks/14711759854948884
     function tick(){
       try{
         if(!isLoginPage()) return;
+
+        // twardy cooldown (cookie), żeby po odświeżeniu strony też nie spamować logowania
+        const cdUntil = parseInt(__adi_getCookie('adi_relog_cd_until')||'0',10) || 0;
+        if(Date.now() < cdUntil) return;
 
         // already done for this cycle?
         if(__adi_getCookie('adi_relog_done') === '1') return;
@@ -417,14 +434,15 @@ const HERO_DISCORD_WEBHOOK = "https://discord.com/api/webhooks/14711759854948884
         const close = q('div.close-game-info, .close-game-info');
         if(close) simpleClick(close);
 
-        // 2) kliknij "Wejdź do gry"
+        // 2) kliknij "Wejdź do gry" (JEDEN raz) + ustaw twardy cooldown
         setTimeout(()=>{
           const enter = q('div.c-btn.enter-game, .c-btn.enter-game');
           if(enter){
             simpleClick(enter);
+            __adi_setCookie('adi_relog_cd_until', String(Date.now() + LOGIN_COOLDOWN_MS), 24*60*60);
             __adi_setCookie('adi_relog_done','1', 24*60*60);
           }
-        }, 1000);
+        }, AFTER_CLOSE_WAIT_MS);
       }catch(_){}
     }
 
@@ -441,7 +459,26 @@ const HERO_DISCORD_WEBHOOK = "https://discord.com/api/webhooks/14711759854948884
       if(window.g && (g.dead || g.resp || g.reload)) return;
 
       const mode = (localStorage.getItem('adi-bot_exp_mode') || 'exp');
-      if(mode !== 'e2') { __adiE2Logout.wasPresent=false; __adiE2Logout.map=null; return; }
+      if(mode !== 'e2') {
+        __adiE2Logout.wasPresent=false;
+        __adiE2Logout.map=null;
+        __adiE2Logout.inBattle=false;
+        __adiE2Logout.lastBattleEnd=0;
+        __adiE2Logout.lastBattleStart=0;
+        return;
+      }
+
+      // Track battle transitions (E2 fight can last longer than the short "lost sight" window)
+      try{
+        const nowBattle = !!(window.g && g.battle);
+        if(nowBattle && !__adiE2Logout.inBattle){
+          __adiE2Logout.inBattle = true;
+          __adiE2Logout.lastBattleStart = Date.now();
+        }else if(!nowBattle && __adiE2Logout.inBattle){
+          __adiE2Logout.inBattle = false;
+          __adiE2Logout.lastBattleEnd = Date.now();
+        }
+      }catch(_){ }
 
       const tgt = __adi_loadE2Target();
       if(!tgt || !tgt.map) return;
@@ -454,6 +491,9 @@ const HERO_DISCORD_WEBHOOK = "https://discord.com/api/webhooks/14711759854948884
         __adiE2Logout.wasPresent=false;
         __adiE2Logout.lastSeen=0;
         __adiE2Logout.lastSig=null;
+        __adiE2Logout.inBattle=false;
+        __adiE2Logout.lastBattleEnd=0;
+        __adiE2Logout.lastBattleStart=0;
         __adiE2Logout.map=curMap;
       }else if(!__adiE2Logout.map){
         __adiE2Logout.map=curMap;
@@ -475,8 +515,13 @@ const HERO_DISCORD_WEBHOOK = "https://discord.com/api/webhooks/14711759854948884
         return;
       }
 
-      // not found: if we saw it very recently, assume it's been killed (even by someone else)
-      if(__adiE2Logout.wasPresent && (now - (__adiE2Logout.lastSeen||0)) <= 2500){
+      // not found:
+      // - if we saw it very recently -> it likely got killed (maybe by someone else)
+      // - OR if a battle just ended near spawn -> we likely killed it (battle can take long)
+      const justLostSight = (__adiE2Logout.wasPresent && (now - (__adiE2Logout.lastSeen||0)) <= 2500);
+      const justEndedBattle = (__adiE2Logout.lastBattleEnd && (now - __adiE2Logout.lastBattleEnd) <= 9000);
+
+      if(__adiE2Logout.wasPresent && (justLostSight || justEndedBattle)){
         // guard: stay near the expected spawn coords, so fog / moving away won't cause false logout
         const tx = Number(tgt.x), ty = Number(tgt.y);
         const near = (Number.isFinite(tx) && Number.isFinite(ty))
