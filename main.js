@@ -11,7 +11,11 @@
 // ===== HARD GUARD: block attacking elites when checkbox is OFF (works even if target selection misses) =====
 (function(){
   function __adi_noEliteEnabled(){
-    try{ return localStorage.getItem('adi-bot_allow_elite') === '0'; }catch(e){ return false; }
+    try{
+      const mode = (localStorage.getItem('adi-bot_exp_mode') || 'exp').trim();
+      if(mode === 'e2') return false; // w trybie E2 checkbox elity jest ignorowany
+      return localStorage.getItem('adi-bot_allow_elite') === '0';
+    }catch(e){ return false; }
   }
   function __adi_isEliteIcon(n){
     try{
@@ -171,9 +175,7 @@
 
   setTimeout(tick, 600);
   setInterval(tick, CHECK_MS);
-
-    return true;
-  })();
+})();
 
 var TpG3Y86zpgrtWMzb, ZHN4ekpZ5m95pFbJ, YQTtmEs6a5mTXE5a;
 
@@ -218,7 +220,18 @@ const HERO_DISCORD_WEBHOOK = "https://discord.com/api/webhooks/14711759854948884
   // === AUTO LOGOUT after E2 killed (by anyone nearby) ===
   // Trigger: we have seen selected E2 on the target map, then it disappears shortly after (death),
   // even if another player killed it. Extra guards prevent false positives from fog / map changes.
-  let __adiE2Logout = { wasPresent:false, lastSeen:0, map:null, triggered:false, lastSig:null };
+  // State for "logout after E2" logic.
+  // NOTE: Battle can last longer than 2.5s, so we also detect "battle just ended" near spawn.
+  let __adiE2Logout = {
+    wasPresent:false,
+    lastSeen:0,
+    map:null,
+    triggered:false,
+    lastSig:null,
+    inBattle:false,
+    lastBattleEnd:0,
+    lastBattleStart:0
+  };
 
   function __adi_normName(s){
     return String(s||'')
@@ -357,9 +370,6 @@ const HERO_DISCORD_WEBHOOK = "https://discord.com/api/webhooks/14711759854948884
   }
 
   function __adi_logoutAfterE2(){
-  // czy włączone "Logaj po zbiciu E2"?
-    try{ if(localStorage.getItem('adi-bot_relog_after_e2')!=='1') return false; }catch(_){ return false; }
-
     try{
       // one-shot guard (prevents spam if tick fires multiple times / UI double-handles events)
       const k='adi-bot_logout_once';
@@ -373,13 +383,15 @@ const HERO_DISCORD_WEBHOOK = "https://discord.com/api/webhooks/14711759854948884
 
     setTimeout(()=>{
       __adi_clickLogout();
-    }, 5000);
+    }, 5000); // daj serwerowi chwilę po walce zanim wylogujesz (mniej 429/Too Many Requests)
   }
 
   // === AUTO RELOG NA STRONIE LOGOWANIA (margonem.pl) ===
   (function(){
     const CHECK_MS = 250;
-    const CLICK_COOLDOWN_MS = 8000;
+    const CLICK_COOLDOWN_MS = 8000;   // lokalny cooldown na tick
+    const LOGIN_COOLDOWN_MS = 20000;  // twarda blokada, żeby nie spamować logowania (429)
+    const AFTER_CLOSE_WAIT_MS = 2500; // po kliknięciu X odczekaj zanim klikniesz "Wejdź do gry"
 
     function q(sel){
       try{ return document.querySelector(sel); }catch(_){ return null; }
@@ -398,6 +410,10 @@ const HERO_DISCORD_WEBHOOK = "https://discord.com/api/webhooks/14711759854948884
     function tick(){
       try{
         if(!isLoginPage()) return;
+
+        // twardy cooldown (cookie), żeby po odświeżeniu strony też nie spamować logowania
+        const cdUntil = parseInt(__adi_getCookie('adi_relog_cd_until')||'0',10) || 0;
+        if(Date.now() < cdUntil) return;
 
         // already done for this cycle?
         if(__adi_getCookie('adi_relog_done') === '1') return;
@@ -418,14 +434,15 @@ const HERO_DISCORD_WEBHOOK = "https://discord.com/api/webhooks/14711759854948884
         const close = q('div.close-game-info, .close-game-info');
         if(close) simpleClick(close);
 
-        // 2) kliknij "Wejdź do gry"
+        // 2) kliknij "Wejdź do gry" (JEDEN raz) + ustaw twardy cooldown
         setTimeout(()=>{
           const enter = q('div.c-btn.enter-game, .c-btn.enter-game');
           if(enter){
             simpleClick(enter);
+            __adi_setCookie('adi_relog_cd_until', String(Date.now() + LOGIN_COOLDOWN_MS), 24*60*60);
             __adi_setCookie('adi_relog_done','1', 24*60*60);
           }
-        }, 1000);
+        }, AFTER_CLOSE_WAIT_MS);
       }catch(_){}
     }
 
@@ -442,7 +459,26 @@ const HERO_DISCORD_WEBHOOK = "https://discord.com/api/webhooks/14711759854948884
       if(window.g && (g.dead || g.resp || g.reload)) return;
 
       const mode = (localStorage.getItem('adi-bot_exp_mode') || 'exp');
-      if(mode !== 'e2') { __adiE2Logout.wasPresent=false; __adiE2Logout.map=null; return; }
+      if(mode !== 'e2') {
+        __adiE2Logout.wasPresent=false;
+        __adiE2Logout.map=null;
+        __adiE2Logout.inBattle=false;
+        __adiE2Logout.lastBattleEnd=0;
+        __adiE2Logout.lastBattleStart=0;
+        return;
+      }
+
+      // Track battle transitions (E2 fight can last longer than the short "lost sight" window)
+      try{
+        const nowBattle = !!(window.g && g.battle);
+        if(nowBattle && !__adiE2Logout.inBattle){
+          __adiE2Logout.inBattle = true;
+          __adiE2Logout.lastBattleStart = Date.now();
+        }else if(!nowBattle && __adiE2Logout.inBattle){
+          __adiE2Logout.inBattle = false;
+          __adiE2Logout.lastBattleEnd = Date.now();
+        }
+      }catch(_){ }
 
       const tgt = __adi_loadE2Target();
       if(!tgt || !tgt.map) return;
@@ -455,6 +491,9 @@ const HERO_DISCORD_WEBHOOK = "https://discord.com/api/webhooks/14711759854948884
         __adiE2Logout.wasPresent=false;
         __adiE2Logout.lastSeen=0;
         __adiE2Logout.lastSig=null;
+        __adiE2Logout.inBattle=false;
+        __adiE2Logout.lastBattleEnd=0;
+        __adiE2Logout.lastBattleStart=0;
         __adiE2Logout.map=curMap;
       }else if(!__adiE2Logout.map){
         __adiE2Logout.map=curMap;
@@ -476,8 +515,13 @@ const HERO_DISCORD_WEBHOOK = "https://discord.com/api/webhooks/14711759854948884
         return;
       }
 
-      // not found: if we saw it very recently, assume it's been killed (even by someone else)
-      if(__adiE2Logout.wasPresent && (now - (__adiE2Logout.lastSeen||0)) <= 2500){
+      // not found:
+      // - if we saw it very recently -> it likely got killed (maybe by someone else)
+      // - OR if a battle just ended near spawn -> we likely killed it (battle can take long)
+      const justLostSight = (__adiE2Logout.wasPresent && (now - (__adiE2Logout.lastSeen||0)) <= 2500);
+      const justEndedBattle = (__adiE2Logout.lastBattleEnd && (now - __adiE2Logout.lastBattleEnd) <= 9000);
+
+      if(__adiE2Logout.wasPresent && (justLostSight || justEndedBattle)){
         // guard: stay near the expected spawn coords, so fog / moving away won't cause false logout
         const tx = Number(tgt.x), ty = Number(tgt.y);
         const near = (Number.isFinite(tx) && Number.isFinite(ty))
@@ -485,13 +529,12 @@ const HERO_DISCORD_WEBHOOK = "https://discord.com/api/webhooks/14711759854948884
           : true;
 
         if(near && window.g && !g.battle){
-          const relogEnabled = (function(){ try{ return localStorage.getItem('adi-bot_relog_after_e2')==='1'; }catch(_){ return false; } })();
-          if(relogEnabled){
-            __adiE2Logout.triggered = true;
-            console.log('[adi-bot] E2 zniknęło z mapy (prawdopodobnie ubite) -> wyloguję za 5s');
+          __adiE2Logout.triggered = true;
+          console.log('[adi-bot] E2 zniknęło z mapy (prawdopodobnie ubite) -> wyloguję za 1s');
+          if(localStorage.getItem('adi-bot_relog_after_e2')==='1'){
             __adi_logoutAfterE2();
           }else{
-            console.log('[adi-bot] Relog po E2 jest WYŁ — nie wylogowuję (możesz włączyć checkbox "Logaj po zbiciu E2")');
+            console.log('[adi-bot] Relog po E2 jest WYŁ — nie wylogowuję.');
           }
         }
       }
@@ -1189,7 +1232,8 @@ function setTempTarget(val){
     // mapa na czarnej liście -> nie atakuj
     try{ if(typeof __adi_isAttackBlockedOnMap==='function' && __adi_isAttackBlockedOnMap()) return; }catch(_){ }
     try{
-      if(localStorage.getItem('adi-bot_allow_elite')==='0'){
+      const __mode = (localStorage.getItem('adi-bot_exp_mode') || 'exp').trim();
+      if(__mode !== 'e2' && localStorage.getItem('adi-bot_allow_elite')==='0'){
         const npc = (typeof g!=='undefined' && g && g.npc) ? g.npc[targetId] : null;
         if(npc){
           if(npc.grp ? groupHasElite(npc.grp) : isElite(npc)) return;
@@ -1994,7 +2038,10 @@ function __adiAutoHealTick(){
     const npc=g.npc[id];
     try{ if(typeof __adiIsBlacklisted==='function' && __adiIsBlacklisted(id)) return false; }catch(_){ }
 
-    const allowElite = localStorage.getItem('adi-bot_allow_elite')==='1';
+    let allowElite = localStorage.getItem('adi-bot_allow_elite')==='1';
+
+    // w trybie E2 checkbox "Walcz z elitami" nie jest brany pod uwagę
+    try{ const mode = (localStorage.getItem('adi-bot_exp_mode') || 'exp').trim(); if(mode === 'e2') allowElite = true; }catch(_){ }
 
     if(!allowElite){
       if(npc.grp){ if(groupHasElite(npc.grp)) return false; }
@@ -2653,13 +2700,9 @@ try{ window.__adi_normTxt = __adi_normTxt; window.getPotionCountByName = getPoti
     eliteWrap.appendChild(chkElite); eliteWrap.appendChild(document.createTextNode("Walcz z elitami")); box.appendChild(eliteWrap);
 
     // LOGAJ PO ZBICIU E2
-    try{ if(localStorage.getItem('adi-bot_relog_after_e2')===null) localStorage.setItem('adi-bot_relog_after_e2','1'); }catch(_){}
-    let relogWrap=document.createElement("label"); relogWrap.style.display="block"; relogWrap.style.margin="4px 0 0";
-    let chkRelog=document.createElement("input"); chkRelog.type="checkbox"; chkRelog.id="adi-bot_relog_after_e2"; chkRelog.style.marginRight="6px";
-    try{ chkRelog.checked = (localStorage.getItem('adi-bot_relog_after_e2')==='1'); }catch(_){ chkRelog.checked = true; }
-    chkRelog.addEventListener("change", ()=>{ try{ localStorage.setItem('adi-bot_relog_after_e2', chkRelog.checked ? '1':'0'); }catch(_){ } });
-    relogWrap.appendChild(chkRelog); relogWrap.appendChild(document.createTextNode("Logaj po zbiciu E2")); box.appendChild(relogWrap);
-
+    let relogAfterE2Wrap=document.createElement("label"); relogAfterE2Wrap.style.display="block"; relogAfterE2Wrap.style.margin="4px 0 0";
+    let chkRelogAfterE2=document.createElement("input"); chkRelogAfterE2.type="checkbox"; chkRelogAfterE2.id="adi-bot_relog_after_e2"; chkRelogAfterE2.style.marginRight="6px";
+    relogAfterE2Wrap.appendChild(chkRelogAfterE2); relogAfterE2Wrap.appendChild(document.createTextNode("Logaj po zbiciu E2")); box.appendChild(relogAfterE2Wrap);
 
     // AUTO UMIEJĘTNOŚCI
     let autoSkillsWrap=document.createElement("label"); autoSkillsWrap.style.display="block"; autoSkillsWrap.style.margin="4px 0 0";
@@ -2912,6 +2955,11 @@ try{
     }
     chkExh.checked = localStorage.getItem("adi-bot_exh_enabled")==="1";
     const eliteOn = localStorage.getItem("adi-bot_allow_elite")==="1"; chkElite.checked = eliteOn;
+
+    // default: zachowaj dotychczasowe zachowanie (logowanie po zbiciu E2 włączone)
+    if(localStorage.getItem("adi-bot_relog_after_e2")==null){ localStorage.setItem("adi-bot_relog_after_e2","1"); }
+    try{ chkRelogAfterE2.checked = localStorage.getItem("adi-bot_relog_after_e2")==="1"; }catch(_){ }
+
     const autoSkillsOn = localStorage.getItem("adi-bot_auto_skills")==="1"; try{ chkAutoSkills.checked = autoSkillsOn; }catch(_){ }
 // AUTOHEAL
 try{
@@ -3021,6 +3069,7 @@ const have = (window.getPotionCountByName ? window.getPotionCountByName(selName)
     });
 
 chkElite.addEventListener("change", ()=>{ localStorage.setItem("adi-bot_allow_elite", chkElite.checked?"1":"0"); message(chkElite.checked?"Elity: WŁ":"Elity: WYŁ"); });
+    try{ chkRelogAfterE2.addEventListener("change", ()=>{ localStorage.setItem("adi-bot_relog_after_e2", chkRelogAfterE2.checked?"1":"0"); message(chkRelogAfterE2.checked?"Relog po E2: WŁ":"Relog po E2: WYŁ"); }); }catch(_){ }
     try{ chkAutoSkills.addEventListener("change", ()=>{ localStorage.setItem("adi-bot_auto_skills", chkAutoSkills.checked?"1":"0"); message(chkAutoSkills.checked?"Auto umiejętności: WŁ":"Auto umiejętności: WYŁ"); }); }catch(_){ }
 // AUTOHEAL: zapisz ustawienia
 try{
@@ -3363,6 +3412,8 @@ try{
 
     function __adi_onBattleInit(initObj){
       try{
+        const __mode = (localStorage.getItem("adi-bot_exp_mode") || "exp").trim();
+        if(__mode === "e2") return; // w trybie E2 checkbox elity jest ignorowany
         if(localStorage.getItem("adi-bot_allow_elite")!=="0") return;
 
         const units=[];
