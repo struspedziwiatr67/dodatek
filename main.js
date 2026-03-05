@@ -222,6 +222,12 @@ const HERO_DISCORD_WEBHOOK = "https://discord.com/api/webhooks/14711759854948884
   // even if another player killed it. Extra guards prevent false positives from fog / map changes.
   let __adiE2Logout = { wasPresent:false, lastSeen:0, map:null, triggered:false, lastSig:null };
 
+  // UI toggle (checkbox): "Logaj po zbiciu E2"
+  const __ADI_E2_LOGOUT_ENABLED_KEY = 'adi-bot_logout_after_e2';
+  function __adi_isLogoutAfterE2Enabled(){
+    try{ return localStorage.getItem(__ADI_E2_LOGOUT_ENABLED_KEY) === '1'; }catch(_){ return false; }
+  }
+
   function __adi_normName(s){
     return String(s||'')
       .toLowerCase()
@@ -410,6 +416,15 @@ const HERO_DISCORD_WEBHOOK = "https://discord.com/api/webhooks/14711759854948884
 
   function __adiE2LogoutTick(){
     try{
+      // checkbox off -> do nothing + reset internal state
+      if(!__adi_isLogoutAfterE2Enabled()){
+        __adiE2Logout.wasPresent=false;
+        __adiE2Logout.lastSeen=0;
+        __adiE2Logout.lastSig=null;
+        __adiE2Logout.triggered=false;
+        return;
+      }
+
       if(__adiE2Logout.triggered) return;
       if(!window.map || !map.name) return;
       if(!window.hero) return;
@@ -4146,6 +4161,32 @@ if (typeof window.window.__adi_equipByNameSequence !== 'function') {
     header.appendChild(title);
     header.appendChild(btns);
 
+    // === Bot: "Logaj po zbiciu E2" (auto logout after E2 killed) ===
+    const logoutRow = document.createElement('div');
+    logoutRow.style.display = 'flex';
+    logoutRow.style.alignItems = 'center';
+    logoutRow.style.gap = '6px';
+    logoutRow.style.marginTop = '6px';
+
+    const chkLogout = document.createElement('input');
+    chkLogout.type = 'checkbox';
+    chkLogout.id = 'adi-bot_logout_after_e2';
+    chkLogout.style.marginRight = '4px';
+
+    const lblLogout = document.createElement('label');
+    lblLogout.htmlFor = 'adi-bot_logout_after_e2';
+    lblLogout.textContent = 'Logaj po zbiciu E2';
+    lblLogout.setAttribute('tip', 'Gdy wybrana Elita II zniknie z mapy (została ubita), bot wyloguje postać i wróci 10s przed MIN respawnem (wg minutnika E2).');
+
+    // restore + persist
+    try{ chkLogout.checked = (localStorage.getItem('adi-bot_logout_after_e2') === '1'); }catch(_){ chkLogout.checked = false; }
+    chkLogout.addEventListener('change', ()=>{
+      try{ localStorage.setItem('adi-bot_logout_after_e2', chkLogout.checked ? '1' : '0'); }catch(_){ }
+    });
+
+    logoutRow.appendChild(chkLogout);
+    logoutRow.appendChild(lblLogout);
+
     const body = document.createElement("div");
     body.id = "adi-e2timer-body";
     body.style.maxHeight = "220px";
@@ -4201,6 +4242,7 @@ if (typeof window.window.__adi_equipByNameSequence !== 'function') {
     footer.textContent = "Timer dodaje się po zabiciu (npcs_del).";
 
     root.appendChild(header);
+    root.appendChild(logoutRow);
     root.appendChild(body);
     root.appendChild(cfg);
     root.appendChild(footer);
