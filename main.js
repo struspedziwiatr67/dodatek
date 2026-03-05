@@ -213,6 +213,168 @@ const HERO_DISCORD_WEBHOOK = "https://discord.com/api/webhooks/14711759854948884
   }
   // ------------------------------------
 
+  // === AUTO LOGOUT after E2 killed (by anyone nearby) ===
+  // Trigger: we have seen selected E2 on the target map, then it disappears shortly after (death),
+  // even if another player killed it. Extra guards prevent false positives from fog / map changes.
+  let __adiE2Logout = { wasPresent:false, lastSeen:0, map:null, triggered:false, lastSig:null };
+
+  function __adi_normName(s){
+    return String(s||'')
+      .toLowerCase()
+      .normalize('NFKD').replace(/[\u0300-\u036f]/g,'')
+      .replace(/\u00A0/g,' ')
+      .replace(/[^a-z0-9]+/g,' ')
+      .replace(/\s+/g,' ')
+      .trim();
+  }
+
+  function __adi_getSelectedE2Name(){
+    try{
+      // stored by E2 dropdown
+      const fromLS = (localStorage.getItem('adi-bot_e2_sel') || '').trim();
+      if(fromLS) return fromLS;
+      const el = document.querySelector('#adi-bot_e2_list');
+      return (el && el.value) ? String(el.value) : '';
+    }catch(_){ return ''; }
+  }
+
+  function __adi_loadE2Target(){
+    try{
+      const raw = localStorage.getItem('adi-bot_e2_target');
+      return raw ? JSON.parse(raw) : null;
+    }catch(_){ return null; }
+  }
+
+  function __adi_findE2NpcByName(name){
+    try{
+      if(!window.g || !g.npc) return null;
+      const want = __adi_normName(name);
+      if(!want) return null;
+
+      for(const id in g.npc){
+        const n = g.npc[id];
+        if(!n) continue;
+        // E2 are NPC type 2 (mob) and usually have wt >= 20
+        if(n.type != 2) continue;
+        if((n.wt|0) < 20) continue;
+        // groupType==2 often marks elites; tolerate undefined/null for old engine
+        if(!(n.groupType === 2 || n.groupType === undefined || n.groupType === null)) continue;
+
+        const nm = __adi_normName(n.nick || n.name || n.n || '');
+        if(nm && nm === want) return n;
+      }
+    }catch(_){}
+    return null;
+  }
+
+  function __adi_distManhattan(x1,y1,x2,y2){
+    try{ return Math.abs((x1|0)-(x2|0)) + Math.abs((y1|0)-(y2|0)); }catch(_){ return 9999; }
+  }
+
+  function __adi_clickLogout(){
+    try{
+      // try main doc + iframes (iframe-aware)
+      const docs = [document];
+      try{
+        const iframes = document.querySelectorAll('iframe');
+        for(const fr of iframes){
+          try{
+            const d = fr.contentDocument || (fr.contentWindow && fr.contentWindow.document);
+            if(d) docs.push(d);
+          }catch(_){}
+        }
+      }catch(_){}
+
+      for(const d of docs){
+        try{
+          const btn = d.querySelector('#logoutbut');
+          if(btn){
+            try{
+              const ev = (type)=>new MouseEvent(type,{bubbles:true,cancelable:true,view:window});
+              btn.dispatchEvent(ev('mouseover'));
+              btn.dispatchEvent(ev('mousedown'));
+              btn.dispatchEvent(ev('mouseup'));
+              btn.dispatchEvent(ev('click'));
+            }catch(_e){
+              try{ btn.click(); }catch(__){}
+            }
+            return true;
+          }
+        }catch(_){}
+      }
+
+      // fallback: call logout() if available
+      if(typeof logout === 'function'){ logout(); return true; }
+    }catch(_){}
+    return false;
+  }
+
+  function __adi_logoutAfterE2(){
+    setTimeout(()=>{
+      __adi_clickLogout();
+    }, 1000);
+  }
+
+  function __adiE2LogoutTick(){
+    try{
+      if(__adiE2Logout.triggered) return;
+      if(!window.map || !map.name) return;
+      if(!window.hero) return;
+      if(window.g && (g.dead || g.resp || g.reload)) return;
+
+      const mode = (localStorage.getItem('adi-bot_exp_mode') || 'exp');
+      if(mode !== 'e2') { __adiE2Logout.wasPresent=false; __adiE2Logout.map=null; return; }
+
+      const tgt = __adi_loadE2Target();
+      if(!tgt || !tgt.map) return;
+
+      const curMap = normMapName(map.name);
+      const wantMap = normMapName(tgt.map);
+
+      // reset state on map change
+      if(__adiE2Logout.map && __adiE2Logout.map !== curMap){
+        __adiE2Logout.wasPresent=false;
+        __adiE2Logout.lastSeen=0;
+        __adiE2Logout.lastSig=null;
+        __adiE2Logout.map=curMap;
+      }else if(!__adiE2Logout.map){
+        __adiE2Logout.map=curMap;
+      }
+
+      // only monitor on the target map
+      if(curMap !== wantMap) return;
+
+      const selName = __adi_getSelectedE2Name();
+      if(!selName) return;
+
+      const now = Date.now();
+      const n = __adi_findE2NpcByName(selName);
+
+      if(n){
+        __adiE2Logout.wasPresent = true;
+        __adiE2Logout.lastSeen = now;
+        __adiE2Logout.lastSig = n.grp ? ('grp:'+n.grp) : ('id:'+n.id);
+        return;
+      }
+
+      // not found: if we saw it very recently, assume it's been killed (even by someone else)
+      if(__adiE2Logout.wasPresent && (now - (__adiE2Logout.lastSeen||0)) <= 2500){
+        // guard: stay near the expected spawn coords, so fog / moving away won't cause false logout
+        const tx = Number(tgt.x), ty = Number(tgt.y);
+        const near = (Number.isFinite(tx) && Number.isFinite(ty))
+          ? (__adi_distManhattan(hero.x, hero.y, tx, ty) <= 20)
+          : true;
+
+        if(near && window.g && !g.battle){
+          __adiE2Logout.triggered = true;
+          console.log('[adi-bot] E2 zniknęło z mapy (prawdopodobnie ubite) -> wyloguję za 1s');
+          __adi_logoutAfterE2();
+        }
+      }
+    }catch(_){}
+  }
+  // === /AUTO LOGOUT ===
+
   // === cache obrazków Herosów ===
   const HERO_IMG_CACHE_KEY = "adi-bot_heroimg_cache";
   const HERO_IMG_CACHE_TTL = 14 * 24 * 60 * 60 * 1000;
@@ -1067,6 +1229,8 @@ function setTempTarget(val){
     // logika ruch/atak + tryb wyczerpania
     if(!g.battle && !g.dead && start){
       try{ __adiAutoHealTick(); }catch(_){}
+      try{ __adiE2LogoutTick(); }catch(_){ }
+
       syncAutoExpowiskoUI();
       const exhEnabled=localStorage.getItem("adi-bot_exh_enabled")==="1";
       const exhTargetMap=(localStorage.getItem("adi-bot_exh_map")||"Dom Roana").trim();
