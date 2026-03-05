@@ -4269,6 +4269,86 @@ if (typeof window.window.__adi_equipByNameSequence !== 'function') {
     }, 1000);
   }
 
+  // Jeśli inny gracz zabije E2, nasz bot też powinien wylogować.
+  // Najpewniejszy sygnał: minutnik E2 dla wybranej nazwy "resetuje się" (minTs zmienia się na nowe, późniejsze).
+  const __ADI_E2_LAST_MIN_KEY = "adi-bot_e2_last_min_ts";
+
+  function __adiGetSelectedE2Timer(){
+    try{
+      const sel = (localStorage.getItem("adi-bot_e2_sel") || "").trim();
+      if(!sel) return null;
+      const timers = loadTimers();
+      const want = __adiNorm(sel);
+      for(const t of timers){
+        if(!t) continue;
+        const nm = __adiNorm(t.name || "");
+        if(nm && nm === want) return t;
+      }
+    }catch(_){ }
+    return null;
+  }
+
+  function __adiMaybeLogoutOnTimerReset(){
+    // tylko w trybie E2 i tylko gdy jesteśmy w grze
+    const mode = (localStorage.getItem("adi-bot_exp_mode") || "exp") === "e2";
+    if(!mode) return;
+    if(!__adiIsInGame()) return;
+
+    const sel = (localStorage.getItem("adi-bot_e2_sel") || "").trim();
+    if(!sel) return;
+
+    // opcjonalnie: tylko na docelowej mapie (żeby nie wylogowywać gdzieś po drodze)
+    try{
+      const raw = localStorage.getItem("adi-bot_e2_target");
+      const tgt = raw ? JSON.parse(raw) : null;
+      if(tgt && tgt.map){
+        const cur = __adiNorm(window.map && map.name);
+        const wantMap = __adiNorm(tgt.map);
+        if(cur && wantMap && cur !== wantMap) return;
+      }
+    }catch(_){ }
+
+    const t = __adiGetSelectedE2Timer();
+    if(!t || !t.min) return;
+    const minMs = (t.min * 1000);
+    if(!Number.isFinite(minMs) || minMs <= 0) return;
+
+    const key = __ADI_E2_LAST_MIN_KEY + ":" + __adiNorm(sel);
+    const last = parseInt(localStorage.getItem(key) || "0", 10) || 0;
+    // zapisuj zawsze bieżące min
+    localStorage.setItem(key, String(minMs));
+
+    // jeśli to pierwsze odczytanie (last==0) -> tylko zapamiętaj
+    if(!last) return;
+
+    // "reset" timera: min przesunął się zauważalnie w przyszłość (np. o >10s)
+    if(minMs > last + 10000){
+      // jeśli już mamy stan reloga, nie duplikuj
+      const existing = __adiLoadRelogState();
+      const now = Date.now();
+      if(existing && (now - (existing.createdAt||0) < 15000)) return;
+
+      __adiSaveRelogState({
+        name: sel,
+        minTs: minMs,
+        createdAt: now,
+        logoutClicked: false,
+        backTriggered: false
+      });
+
+      setTimeout(()=>{
+        const st = __adiLoadRelogState();
+        if(!st || st.logoutClicked) return;
+        if(__adiIsInGame()){
+          if(__adiClickLogout()){
+            st.logoutClicked = true;
+            __adiSaveRelogState(st);
+          }
+        }
+      }, 1000);
+    }
+  }
+
   // Watcher: gdy jesteśmy poza grą, wróć "wstecz" ~5s przed MIN respa.
   setInterval(() => {
     const st = __adiLoadRelogState();
@@ -4298,6 +4378,11 @@ if (typeof window.window.__adi_equipByNameSequence !== 'function') {
       __adiSaveRelogState(null);
     }
   }, 500);
+
+  // Watcher #2: gdy minutnik dla wybranej E2 zresetuje się (ktoś zabił E2), wyloguj.
+  setInterval(() => {
+    try{ __adiMaybeLogoutOnTimerReset(); }catch(_){ }
+  }, 350);
 
 function handleInput(data) {
     try {
