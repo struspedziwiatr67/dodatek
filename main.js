@@ -322,8 +322,10 @@ const HERO_DISCORD_WEBHOOK = "https://discord.com/api/webhooks/14711759854948884
       localStorage.setItem('adi-bot_relog_at_sec', String(relogAtSec));
       localStorage.setItem('adi-bot_relog_for', String(selName));
       localStorage.setItem('adi-bot_relog_timer_id', String(cand.id||''));
-      // reset "done" flag (new cycle)
+      // reset flags (new cycle)
       localStorage.removeItem('adi-bot_relog_done');
+      localStorage.removeItem('adi-bot_relog_started');
+      localStorage.removeItem('adi-bot_relog_clicked');
       return true;
     }catch(_){}
     return false;
@@ -348,8 +350,9 @@ const HERO_DISCORD_WEBHOOK = "https://discord.com/api/webhooks/14711759854948884
 
   // === AUTO RELOG NA STRONIE LOGOWANIA (margonem.pl) ===
   (function(){
-    const CHECK_MS = 250;
-    const CLICK_COOLDOWN_MS = 8000;
+    const CHECK_MS = 500;              // rzadziej sprawdzaj (mniej ryzyka)
+    const START_COOLDOWN_MS = 60000;   // uruchom sekwencję max 1x/min
+    const AFTER_X_DELAY_MS = 1000;     // po znalezieniu X odczekaj 1s, potem "Wejdź do gry"
 
     function q(sel){
       try{ return document.querySelector(sel); }catch(_){ return null; }
@@ -363,13 +366,11 @@ const HERO_DISCORD_WEBHOOK = "https://discord.com/api/webhooks/14711759854948884
       return !!q('div.c-btn.enter-game, .c-btn.enter-game');
     }
 
-    let lastClickAt = 0;
-
     function tick(){
       try{
         if(!isLoginPage()) return;
 
-        // already done for this cycle?
+        // już wykonane dla tego cyklu
         if(localStorage.getItem('adi-bot_relog_done') === '1') return;
 
         const atSec = parseInt(localStorage.getItem('adi-bot_relog_at_sec')||'0',10) || 0;
@@ -378,29 +379,38 @@ const HERO_DISCORD_WEBHOOK = "https://discord.com/api/webhooks/14711759854948884
         const nowSec = Math.floor(Date.now()/1000);
         if(nowSec < atSec) return;
 
-        // anti-spam
+        // twardy bezpiecznik: nie startuj sekwencji częściej niż 1x/min
         const nowMs = Date.now();
-        if(nowMs - lastClickAt < CLICK_COOLDOWN_MS) return;
+        const started = parseInt(localStorage.getItem('adi-bot_relog_started')||'0',10) || 0;
+        if(started && (nowMs - started) < START_COOLDOWN_MS) return;
 
-        lastClickAt = nowMs;
+        localStorage.setItem('adi-bot_relog_started', String(nowMs));
 
         // 1) zamknij info (X) jeśli jest
         const close = q('div.close-game-info, .close-game-info');
         if(close) simpleClick(close);
 
-        // 2) kliknij "Wejdź do gry"
+        // 2) po 1s kliknij "Wejdź do gry" – TYLKO RAZ
         setTimeout(()=>{
-          const enter = q('div.c-btn.enter-game, .c-btn.enter-game');
-          if(enter){
-            simpleClick(enter);
+          try{
+            if(localStorage.getItem('adi-bot_relog_clicked') === '1') return;
+            localStorage.setItem('adi-bot_relog_clicked', '1');
+
+            const enter = q('div.c-btn.enter-game, .c-btn.enter-game');
+            if(enter){
+              simpleClick(enter);
+            }
+            // nawet jeśli enter nie znaleziony (DOM zdążył się przeładować), nie spamujemy –
+            // kolejna próba dopiero po cooldownie
             localStorage.setItem('adi-bot_relog_done','1');
-          }
-        }, 180);
+          }catch(_){}
+        }, AFTER_X_DELAY_MS);
+
       }catch(_){}
     }
 
     setInterval(tick, CHECK_MS);
-    setTimeout(tick, 800);
+    setTimeout(tick, 1000);
   })();
   // === /AUTO RELOG ===
 
