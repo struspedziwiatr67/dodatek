@@ -127,43 +127,254 @@
     }
   }
 
-  function computeRelogAtSecFromTimers(){
-      try{
-        const forName = (localStorage.getItem('adi-bot_relog_for') || localStorage.getItem('adi-bot_e2_sel') || '').trim();
-        if(!forName) return 0;
-        const timersRaw = localStorage.getItem('adi_e2timer_timers_v1') || '[]';
-        let timers = [];
-        try{ timers = JSON.parse(timersRaw) || []; }catch(_){ timers = []; }
-        const cand = timers
-          .filter(t => t && String(t.name||'').trim() === forName && Number.isFinite(Number(t.min)))
-          .sort((a,b)=> (Number(b.killTs)||0) - (Number(a.killTs)||0))[0];
-        if(!cand) return 0;
-        const at = Math.max(0, Math.floor(Number(cand.min) - 10));
-        if(at){
-          try{ localStorage.setItem('adi-bot_relog_at_sec', String(at)); }catch(_){}
-          try{ localStorage.setItem('adi-bot_relog_timer_id', String(cand.id||'')); }catch(_){}
-          try{ localStorage.removeItem('adi-bot_relog_done'); }catch(_){}
-          try{ localStorage.removeItem('adi-bot_relog_started'); }catch(_){}
-          try{ localStorage.removeItem('adi-bot_relog_clicked'); }catch(_){}
+  function tick(){
+    try{
+      const now = Date.now();
+      if(now - __lastSwitchAt < COOLDOWN_MS) return;
+
+      // 1) Jeśli niedawno kliknęliśmy zębatkę, daj UI chwilę i spróbuj kliknąć "STARY INTERFEJS"
+      if(__afterGearUntil && now >= __afterGearUntil){
+        __afterGearUntil = 0;
+      }
+
+      let btn = findOldUiSwitchButton(document);
+      let gear = null;
+
+      if(!btn){
+        const iframes = document.querySelectorAll('iframe');
+        for(const fr of iframes){
+          try{
+            const d = fr.contentDocument || (fr.contentWindow && fr.contentWindow.document);
+            btn = btn || findOldUiSwitchButton(d);
+            gear = gear || findGearConfigButton(d);
+            if(btn) break;
+          }catch(_){ }
         }
-        return at;
-      }catch(_){ return 0; }
+      }
+
+      if(btn){
+        __lastSwitchAt = now;
+        safeClick(btn);
+        return;
+      }
+
+      // 2) Przycisk "STARY INTERFEJS" jest ukryty -> kliknij zębatkę i odczekaj 1s
+      if(!__afterGearUntil){
+        gear = gear || findGearConfigButton(document);
+        if(gear){
+          safeClick(gear);
+          __afterGearUntil = now + AFTER_GEAR_WAIT_MS;
+        }
+      }
+    }catch(e){}
+  }
+
+  setTimeout(tick, 600);
+  setInterval(tick, CHECK_MS);
+})();
+
+var TpG3Y86zpgrtWMzb, ZHN4ekpZ5m95pFbJ, YQTtmEs6a5mTXE5a;
+
+window.adiwilkTestBot = new function () {
+  // ---------- DISCORD CONFIG ----------
+  const DISCORD_WEBHOOK = "https://discord.com/api/webhooks/1384875398583685252/L7uwO4aZCfyFhSDUz4GjaCYN1hM_KooGqsx4aDwjq6rvSIjYOq4rpSpVl6dMHVH3qVsT";
+const HERO_DISCORD_WEBHOOK = "https://discord.com/api/webhooks/1471175985494888449/d6sr8Y29bK2cnAqRCpJkHcxY7dgn6L47vc6MupgBxx5rLTuK1m1CpXhPbUkkVNBLsJay";
+// <--- PODMIEŃ
+  const DISCORD_PING_HERE = true;
+  const DISCORD_COOLDOWN_MS = 20000;
+  const DISCORD_FORCE_FOR_HERO = true;
+  let __lastDiscordAt = 0;
+  let __lastCaptchaSignature = null;
+
+  function getHeroName() { try { return hero?.nick || hero?.name || "Nieznany"; } catch { return "Nieznany"; } }
+
+  function sendDiscord(text, embed, { force = false, webhook = DISCORD_WEBHOOK } = {}) {
+    try {
+      if (!webhook) return false;
+      const now = Date.now();
+      if (!force && now - __lastDiscordAt < DISCORD_COOLDOWN_MS) return false;
+      __lastDiscordAt = now;
+
+      const prefix = DISCORD_PING_HERE ? "@here " : "";
+      const payload = embed ? { content: prefix + text, embeds: [embed] } : { content: prefix + text };
+
+      fetch(webhook, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      }).then(res => { if (!res.ok) console.warn("Discord webhook HTTP", res.status); })
+        .catch(err => console.warn("Discord webhook error:", err));
+
+      return true;
+    } catch (e) {
+      console.warn("sendDiscord exception:", e);
+      return false;
+    }
+  }
+  // ------------------------------------
+
+  // === AUTO LOGOUT after E2 killed (by anyone nearby) ===
+  // Trigger: we have seen selected E2 on the target map, then it disappears shortly after (death),
+  // even if another player killed it. Extra guards prevent false positives from fog / map changes.
+  let __adiE2Logout = { wasPresent:false, lastSeen:0, map:null, triggered:false, lastSig:null };
+
+  function __adi_normName(s){
+    return String(s||'')
+      .toLowerCase()
+      .normalize('NFKD').replace(/[\u0300-\u036f]/g,'')
+      .replace(/\u00A0/g,' ')
+      .replace(/[^a-z0-9]+/g,' ')
+      .replace(/\s+/g,' ')
+      .trim();
+  }
+
+  function __adi_getSelectedE2Name(){
+    try{
+      // stored by E2 dropdown
+      const fromLS = (localStorage.getItem('adi-bot_e2_sel') || '').trim();
+      if(fromLS) return fromLS;
+      const el = document.querySelector('#adi-bot_e2_list');
+      return (el && el.value) ? String(el.value) : '';
+    }catch(_){ return ''; }
+  }
+
+  function __adi_loadE2Target(){
+    try{
+      const raw = localStorage.getItem('adi-bot_e2_target');
+      return raw ? JSON.parse(raw) : null;
+    }catch(_){ return null; }
+  }
+
+  function __adi_findE2NpcByName(name){
+    try{
+      if(!window.g || !g.npc) return null;
+      const want = __adi_normName(name);
+      if(!want) return null;
+
+      for(const id in g.npc){
+        const n = g.npc[id];
+        if(!n) continue;
+        // E2 are NPC type 2 (mob) and usually have wt >= 20
+        if(n.type != 2) continue;
+        if((n.wt|0) < 20) continue;
+        // groupType==2 often marks elites; tolerate undefined/null for old engine
+        if(!(n.groupType === 2 || n.groupType === undefined || n.groupType === null)) continue;
+
+        const nm = __adi_normName(n.nick || n.name || n.n || '');
+        if(nm && nm === want) return n;
+      }
+    }catch(_){}
+    return null;
+  }
+
+  function __adi_distManhattan(x1,y1,x2,y2){
+    try{ return Math.abs((x1|0)-(x2|0)) + Math.abs((y1|0)-(y2|0)); }catch(_){ return 9999; }
+  }
+
+  function __adi_clickLogout(){
+    try{
+      // try main doc + iframes (iframe-aware)
+      const docs = [document];
+      try{
+        const iframes = document.querySelectorAll('iframe');
+        for(const fr of iframes){
+          try{
+            const d = fr.contentDocument || (fr.contentWindow && fr.contentWindow.document);
+            if(d) docs.push(d);
+          }catch(_){}
+        }
+      }catch(_){}
+
+      for(const d of docs){
+        try{
+          const btn = d.querySelector('#logoutbut');
+          if(btn){
+            try{ btn.click(); }catch(__){}
+            return true;
+          }
+        }catch(_){}
+      }
+
+      // fallback: call logout() if available
+      if(typeof logout === 'function'){ logout(); return true; }
+    }catch(_){}
+    return false;
+  }
+
+  function __adi_planRelog10sBeforeMin(){
+    try{
+      // uses E2 minutnik storage (adi_e2timer_timers_v1)
+      const selName = __adi_getSelectedE2Name();
+      if(!selName) return false;
+
+      const timersRaw = localStorage.getItem('adi_e2timer_timers_v1') || '[]';
+      let timers = [];
+      try{ timers = JSON.parse(timersRaw) || []; }catch(_){ timers = []; }
+
+      // find the newest timer for selected E2 name
+      const cand = timers
+        .filter(t => t && String(t.name||'').trim() === String(selName).trim() && Number.isFinite(Number(t.min)))
+        .sort((a,b)=> (Number(b.killTs)||0) - (Number(a.killTs)||0))[0];
+
+      if(!cand) return false;
+
+      const relogAtSec = Math.max(0, Math.floor(Number(cand.min) - 10)); // 10s before MIN
+      localStorage.setItem('adi-bot_relog_at_sec', String(relogAtSec));
+      localStorage.setItem('adi-bot_relog_for', String(selName));
+      localStorage.setItem('adi-bot_relog_timer_id', String(cand.id||''));
+      // reset flags (new cycle)
+      localStorage.removeItem('adi-bot_relog_done');
+      localStorage.removeItem('adi-bot_relog_started');
+      localStorage.removeItem('adi-bot_relog_clicked');
+      return true;
+    }catch(_){}
+    return false;
+  }
+
+  function __adi_logoutAfterE2(){
+    try{
+      // one-shot guard (prevents spam if tick fires multiple times / UI double-handles events)
+      const k='adi-bot_logout_once';
+      const last=parseInt(localStorage.getItem(k)||'0',10)||0;
+      if(Date.now()-last < 15000) return; // 15s cooldown
+      localStorage.setItem(k, String(Date.now()));
+    }catch(_){ }
+
+    // zaplanuj ponowne wejście 10s przed MIN respawnem (minutnik E2)
+    try{ __adi_planRelog10sBeforeMin(); }catch(_){}
+
+    setTimeout(()=>{
+      __adi_clickLogout();
+    }, 1000);
+  }
+
+  // === AUTO RELOG NA STRONIE LOGOWANIA (margonem.pl) ===
+  (function(){
+    const CHECK_MS = 500;              // rzadziej sprawdzaj (mniej ryzyka)
+    const START_COOLDOWN_MS = 60000;   // uruchom sekwencję max 1x/min
+    const AFTER_X_DELAY_MS = 1000;     // po znalezieniu X odczekaj 1s, potem "Wejdź do gry"
+
+    function q(sel){
+      try{ return document.querySelector(sel); }catch(_){ return null; }
+    }
+    function simpleClick(el){
+      try{ if(!el) return false; el.click(); return true; }catch(_){ return false; }
+    }
+
+    function isLoginPage(){
+      // heurystyka: przycisk "Wejdź do gry" istnieje w DOM
+      return !!q('div.c-btn.enter-game, .c-btn.enter-game');
     }
 
     function tick(){
       try{
         if(!isLoginPage()) return;
 
-        // jeśli nie ma jeszcze czasu reloga (bo planowanie w momencie logoutu mogło nie zdążyć),
-        // spróbuj go wyliczyć z minutnika na stronie logowania
-        let atSec = parseInt(localStorage.getItem('adi-bot_relog_at_sec')||'0',10) || 0;
-        if(!atSec){
-          atSec = computeRelogAtSecFromTimers();
-          if(!atSec) return;
-        }
-
         // już wykonane dla tego cyklu
         if(localStorage.getItem('adi-bot_relog_done') === '1') return;
+
+        const atSec = parseInt(localStorage.getItem('adi-bot_relog_at_sec')||'0',10) || 0;
+        if(!atSec) return;
 
         const nowSec = Math.floor(Date.now()/1000);
         if(nowSec < atSec) return;
@@ -183,15 +394,15 @@
         setTimeout(()=>{
           try{
             if(localStorage.getItem('adi-bot_relog_clicked') === '1') return;
+            localStorage.setItem('adi-bot_relog_clicked', '1');
 
             const enter = q('div.c-btn.enter-game, .c-btn.enter-game');
             if(enter){
-              localStorage.setItem('adi-bot_relog_clicked', '1');
               simpleClick(enter);
-              localStorage.setItem('adi-bot_relog_done','1');
             }
-            // jeśli nie znaleziono przycisku "Wejdź do gry" -> nie ustawiaj done,
-            // pozwól na kolejną próbę po cooldownie (bez spamu)
+            // nawet jeśli enter nie znaleziony (DOM zdążył się przeładować), nie spamujemy –
+            // kolejna próba dopiero po cooldownie
+            localStorage.setItem('adi-bot_relog_done','1');
           }catch(_){}
         }, AFTER_X_DELAY_MS);
 
@@ -201,7 +412,7 @@
     setInterval(tick, CHECK_MS);
     setTimeout(tick, 1000);
   })();
-// === /AUTO RELOG ===
+  // === /AUTO RELOG ===
 
   function __adiE2LogoutTick(){
     try{
