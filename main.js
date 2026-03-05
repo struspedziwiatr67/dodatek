@@ -289,15 +289,7 @@ const HERO_DISCORD_WEBHOOK = "https://discord.com/api/webhooks/14711759854948884
         try{
           const btn = d.querySelector('#logoutbut');
           if(btn){
-            try{
-              const ev = (type)=>new MouseEvent(type,{bubbles:true,cancelable:true,view:window});
-              btn.dispatchEvent(ev('mouseover'));
-              btn.dispatchEvent(ev('mousedown'));
-              btn.dispatchEvent(ev('mouseup'));
-              btn.dispatchEvent(ev('click'));
-            }catch(_e){
-              try{ btn.click(); }catch(__){}
-            }
+            try{ btn.click(); }catch(__){}
             return true;
           }
         }catch(_){}
@@ -310,6 +302,13 @@ const HERO_DISCORD_WEBHOOK = "https://discord.com/api/webhooks/14711759854948884
   }
 
   function __adi_logoutAfterE2(){
+    try{
+      // one-shot guard (prevents spam if tick fires multiple times / UI double-handles events)
+      const k='adi-bot_logout_once';
+      const last=parseInt(localStorage.getItem(k)||'0',10)||0;
+      if(Date.now()-last < 15000) return; // 15s cooldown
+      localStorage.setItem(k, String(Date.now()));
+    }catch(_){ }
     setTimeout(()=>{
       __adi_clickLogout();
     }, 1000);
