@@ -5177,17 +5177,12 @@ if (typeof window.window.__adi_equipByNameSequence !== 'function') {
       const imageInfo = await adiResolveLootImageFile(item);
       const embed = adiBuildLootEmbed(item, rarity, imageInfo);
 
-      const rarityLabel = adiLootRarityLabel(rarity);
-      const contentText = (rarityLabel === 'Legendarny')
-        ? '@here Nowy locik - Legendarny 😍 🤩 🤯 😱'
-        : `@here Nowy locik - ${rarityLabel}`;
-
       if(imageInfo && imageInfo.mode === 'file' && imageInfo.blob){
         const form = new FormData();
         form.append(
           'payload_json',
           JSON.stringify({
-            content: contentText,
+            content: `@here Nowy locik - ${adiLootRarityLabel(rarity)}`,
             embeds: [embed]
           })
         );
@@ -5202,7 +5197,7 @@ if (typeof window.window.__adi_equipByNameSequence !== 'function') {
       }
 
       const payload = {
-        content: contentText,
+        content: `@here Nowy locik - ${adiLootRarityLabel(rarity)}`,
         embeds: [embed]
       };
 
