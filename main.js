@@ -5127,21 +5127,33 @@ if (typeof window.window.__adi_equipByNameSequence !== 'function') {
 
   function adiGetTotalBagSpace(){
     try{
-      const bagIds = ['bs0', 'bs1', 'bs2'];
+      const bagIds = ['bs0','bs1','bs2'];
       let used = 0;
       let total = 0;
 
       for(const id of bagIds){
         const el = document.getElementById(id) || document.querySelector(`#${id}`) || document.querySelector(`small[id="${id}"]`);
-        const txt = String(el?.textContent || '').replace(/\s+/g, '').trim();
-        if(!txt) continue;
+        if(!el) continue;
+        const t = String(el.textContent || '').replace(/\s+/g,'').trim();
+        if(!t) continue;
 
-        const m = txt.match(/(\d+)\s*\/\s*(\d+)/);
-        if(!m) continue;
-
-        used += Number(m[1] || 0);
-        total += Number(m[2] || 0);
+        const m = t.match(/(\d+)\/(\d+)/);
+        if(m){
+          used += Number(m[1]||0);
+          total += Number(m[2]||0);
+        }else{
+          const n = parseInt(t,10);
+          if(!isNaN(n)){
+            used += n;
+            total += 30;
+          }
+        }
       }
+
+      if(total<=0) return null;
+      return {used,total,free:Math.max(0,total-used),text:`${used}/${total}`};
+    }catch(_){return null;}
+  }
 
       if(total <= 0) return null;
       return {
