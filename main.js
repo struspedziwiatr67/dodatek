@@ -179,6 +179,122 @@
 
 var TpG3Y86zpgrtWMzb, ZHN4ekpZ5m95pFbJ, YQTtmEs6a5mTXE5a;
 
+
+// ===== ADDON: HP% i EXP% na paskach (always ON, no bot UI changes) =====
+(function(){
+  try{
+    if(window.__adiHpExpPctInstalled) return;
+    window.__adiHpExpPctInstalled = true;
+
+    // Zaokrąglanie liczb do b miejsc po przecinku (zgodne z dodatkiem z gg.txt)
+    if(typeof Math.decimal !== 'function'){
+      Math.decimal = function(a,b){
+        var c = Math.pow(10, b);
+        var d = Math.round(a * c) / c;
+        return d;
+      };
+    }
+
+    function getAllDocs(){
+      var docs = [document];
+      try{
+        var iframes = document.querySelectorAll('iframe');
+        for(var i=0;i<iframes.length;i++){
+          try{
+            var d = iframes[i].contentDocument || (iframes[i].contentWindow && iframes[i].contentWindow.document);
+            if(d) docs.push(d);
+          }catch(_){}
+        }
+      }catch(_){}
+      return docs;
+    }
+
+    function ensureSpans(doc){
+      try{
+        if(!doc) return false;
+        var life1 = doc.querySelector('#life1');
+        var exp1  = doc.querySelector('#exp1');
+        if(!life1 || !exp1) return false;
+
+        // HP
+        if(!doc.getElementById('hpProcent')){
+          var hp = doc.createElement('span');
+          hp.id = 'hpProcent';
+          hp.style.position = 'absolute';
+          hp.style.zIndex = '303';
+          hp.style.width = '114px';
+          hp.style.textAlign = 'center';
+          hp.style.fontSize = '10px';
+          life1.appendChild(hp);
+        }
+
+        // EXP
+        if(!doc.getElementById('expProcent')){
+          var ex = doc.createElement('span');
+          ex.id = 'expProcent';
+          ex.style.position = 'absolute';
+          ex.style.zIndex = '303';
+          ex.style.width = '114px';
+          ex.style.textAlign = 'center';
+          ex.style.fontSize = '10px';
+          exp1.appendChild(ex);
+        }
+        return true;
+      }catch(_){
+        return false;
+      }
+    }
+
+    function setProcentValueForDoc(doc){
+      try{
+        if(!doc || !window.hero) return;
+        if(!doc.getElementById('hpProcent') || !doc.getElementById('expProcent')) return;
+
+        var maxhp = Number(hero.maxhp) || 0;
+        var hpv   = Number(hero.hp) || 0;
+        var life  = maxhp > 0 ? Math.decimal(hpv / maxhp * 100, 1) : 0;
+
+        var lvl   = Number(hero.lvl) || 1;
+        var expv  = Number(hero.exp) || 0;
+        var exp1  = Math.pow(lvl - 1, 4);
+        var exp2  = Math.pow(lvl, 4);
+        var denom = (exp2 - exp1);
+        var exp   = denom > 0 ? Math.decimal((expv - exp1) / denom * 100, 1) : 0;
+
+        var hpEl = doc.getElementById('hpProcent');
+        var exEl = doc.getElementById('expProcent');
+
+        hpEl.textContent = life + '%';
+        exEl.textContent = exp + '%';
+
+        // zachowaj tooltipy z pasków (jak w oryginalnym dodatku)
+        try{
+          var life1 = doc.querySelector('#life1');
+          var expb  = doc.querySelector('#exp1');
+          if(life1){ hpEl.setAttribute('tip', life1.getAttribute('tip') || hpEl.getAttribute('tip') || ''); }
+          if(expb){  exEl.setAttribute('tip', expb.getAttribute('tip') || exEl.getAttribute('tip') || ''); }
+        }catch(_){}
+      }catch(_){}
+    }
+
+    // tick: najpierw dołóż spany, potem aktualizuj wartości
+    function tick(){
+      try{
+        var docs = getAllDocs();
+        for(var i=0;i<docs.length;i++){
+          ensureSpans(docs[i]);
+          setProcentValueForDoc(docs[i]);
+        }
+      }catch(_){}
+    }
+
+    tick();
+    setInterval(tick, 200);
+  }catch(_){}
+})();
+// ===== /ADDON =====
+
+
 window.adiwilkTestBot = new function () {
   // ---------- DISCORD CONFIG ----------
   const DISCORD_WEBHOOK = "https://discord.com/api/webhooks/1384875398583685252/L7uwO4aZCfyFhSDUz4GjaCYN1hM_KooGqsx4aDwjq6rvSIjYOq4rpSpVl6dMHVH3qVsT";
