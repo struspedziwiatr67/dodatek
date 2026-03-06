@@ -1052,8 +1052,8 @@ Lvl: **${n.lvl ?? "?"}**`,
   // --- Remote MAP GRAPH loader (GitHub) ---
   // Primary URL: GitHub Pages; Fallback: raw.githubusercontent.com (usually has permissive CORS)
   (function(){
-    const PRIMARY_GRAPH_URL = "https://struspedziwiatr67.github.io/margo/graph.json";
-    const FALLBACK_GRAPH_URL = "https://raw.githubusercontent.com/struspedziwiatr67/margo/main/graph.json";
+    const PRIMARY_GRAPH_URL = "https://struspedziwiatr67.github.io/dodatek/graph.json";
+    const FALLBACK_GRAPH_URL = "https://raw.githubusercontent.com/struspedziwiatr67/dodatek/main/graph.json";
 
     async function fetchJson(url){
       const res = await fetch(url + (url.includes("?") ? "&" : "?") + "v=" + Date.now(), { cache: "no-store" });
