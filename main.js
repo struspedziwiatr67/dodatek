@@ -4982,43 +4982,71 @@ if (typeof window.window.__adi_equipByNameSequence !== 'function') {
     try{ return hero?.nick || hero?.name || 'Nieznany'; }catch(_){ return 'Nieznany'; }
   }
 
+  function adiNormalizeLootImageUrl(raw){
+    try{
+      const s = String(raw || '').trim();
+      if(!s) return null;
+      if(/^blob:/i.test(s)) return s;
+      if(/^https?:\/\//i.test(s)) return s;
+      if(/^\/\//.test(s)) return 'https:' + s;
+      if(/^\//.test(s)) return 'https://micc.garmory-cdn.cloud' + s;
+      if(/\.(png|gif|jpg|jpeg|webp)(\?.*)?$/i.test(s)) return 'https://micc.garmory-cdn.cloud/' + s.replace(/^\/+/, '');
+    }catch(_){ }
+    return null;
+  }
+
   function adiResolveLootImage(item){
     try{
       const cand = [item?.icon, item?.img, item?.image, item?.iconUrl, item?.icon_url, item?.sprite].filter(Boolean);
       for(const raw of cand){
-        const s = String(raw || '').trim();
-        if(!s) continue;
-        if(/^https?:\/\//i.test(s)) return s;
-        if(/^\/\//.test(s)) return 'https:' + s;
-        if(/^\//.test(s)) return 'https://micc.garmory-cdn.cloud' + s;
-        if(/\.(png|gif|jpg|jpeg|webp)$/i.test(s)) return 'https://micc.garmory-cdn.cloud/' + s.replace(/^\/+/, '');
+        const url = adiNormalizeLootImageUrl(raw);
+        if(url) return url;
       }
       const id = item && item.id;
       const q = [
         '#loot' + id + ' img',
         '#item' + id + ' img',
         '[id="loot' + id + '"] img',
-        '[data-id="' + id + '"] img'
+        '[data-id="' + id + '"] img',
+        '.item[data-id="' + id + '"] img',
+        '.item[id*="' + id + '"] img'
       ];
       for(const sel of q){
         const img = document.querySelector(sel);
         const src = img && img.getAttribute ? (img.getAttribute('src') || img.src) : '';
-        if(src) return src;
+        const url = adiNormalizeLootImageUrl(src);
+        if(url) return url;
       }
     }catch(_){ }
     return null;
   }
 
-  function adiBuildLootEmbed(item, rarity){
+  async function adiResolveLootImageAttachment(item){
+    try{
+      const imgUrl = adiResolveLootImage(item);
+      if(!imgUrl || !/^blob:/i.test(imgUrl)) return null;
+      const res = await fetch(imgUrl);
+      if(!res.ok) return null;
+      const blob = await res.blob();
+      const ext = (blob.type && blob.type.split('/')[1]) ? blob.type.split('/')[1].replace(/[^a-z0-9]/gi, '') : 'png';
+      const fileName = `loot-${String(item?.id || 'item')}.${ext || 'png'}`;
+      return { blob, fileName };
+    }catch(_){ }
+    return null;
+  }
+
+  function adiBuildLootEmbed(item, rarity, imageUrl){
     const nm = String(item?.name || item?.n || 'Nowy locik');
     const heroName = adiGetHeroName();
     const price = Number(item?.pr);
     const embed = {
       title: nm,
-      description: `Postać: **${heroName}**\nRzadkość: **${adiLootRarityLabel(rarity)}**${Number.isFinite(price) ? `\nCena: **${price}**` : ''}`,
+      description: `Postać: **${heroName}**
+Rzadkość: **${adiLootRarityLabel(rarity)}**${Number.isFinite(price) ? `
+Cena: **${price}**` : ''}`,
       footer: { text: 'adiwilkTestBot' }
     };
-    const img = adiResolveLootImage(item);
+    const img = imageUrl || adiResolveLootImage(item);
     if(img) embed.thumbnail = { url: img };
     return embed;
   }
@@ -5037,7 +5065,7 @@ if (typeof window.window.__adi_equipByNameSequence !== 'function') {
     }catch(_){ return false; }
   }
 
-  function adiSendLootDiscord(item){
+  async function adiSendLootDiscord(item){
     try{
       const cfg = adiLoadLootCfg();
       const webhook = String(cfg.webhook || '').trim();
@@ -5046,9 +5074,27 @@ if (typeof window.window.__adi_equipByNameSequence !== 'function') {
       if(!adiLootShouldNotify(rarity, cfg)) return;
       if(adiWasNotified(item)) return;
 
+      const imgUrl = adiResolveLootImage(item);
+      const attachment = await adiResolveLootImageAttachment(item);
+
+      if(attachment && attachment.blob){
+        const payload = {
+          content: `@here Nowy locik - ${adiLootRarityLabel(rarity)}`,
+          embeds: [adiBuildLootEmbed(item, rarity, `attachment://${attachment.fileName}`)]
+        };
+        const fd = new FormData();
+        fd.append('payload_json', JSON.stringify(payload));
+        fd.append('files[0]', attachment.blob, attachment.fileName);
+        fetch(webhook, {
+          method: 'POST',
+          body: fd
+        }).catch(err => console.warn('[adi-loot] discord webhook error', err));
+        return;
+      }
+
       const payload = {
         content: `@here Nowy locik - ${adiLootRarityLabel(rarity)}`,
-        embeds: [adiBuildLootEmbed(item, rarity)]
+        embeds: [adiBuildLootEmbed(item, rarity, imgUrl)]
       };
 
       fetch(webhook, {
