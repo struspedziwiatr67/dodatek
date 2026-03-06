@@ -179,122 +179,6 @@
 
 var TpG3Y86zpgrtWMzb, ZHN4ekpZ5m95pFbJ, YQTtmEs6a5mTXE5a;
 
-
-// ===== ADDON: HP% i EXP% na paskach (always ON, no bot UI changes) =====
-(function(){
-  try{
-    if(window.__adiHpExpPctInstalled) return;
-    window.__adiHpExpPctInstalled = true;
-
-    // Zaokrąglanie liczb do b miejsc po przecinku (zgodne z dodatkiem z gg.txt)
-    if(typeof Math.decimal !== 'function'){
-      Math.decimal = function(a,b){
-        var c = Math.pow(10, b);
-        var d = Math.round(a * c) / c;
-        return d;
-      };
-    }
-
-    function getAllDocs(){
-      var docs = [document];
-      try{
-        var iframes = document.querySelectorAll('iframe');
-        for(var i=0;i<iframes.length;i++){
-          try{
-            var d = iframes[i].contentDocument || (iframes[i].contentWindow && iframes[i].contentWindow.document);
-            if(d) docs.push(d);
-          }catch(_){}
-        }
-      }catch(_){}
-      return docs;
-    }
-
-    function ensureSpans(doc){
-      try{
-        if(!doc) return false;
-        var life1 = doc.querySelector('#life1');
-        var exp1  = doc.querySelector('#exp1');
-        if(!life1 || !exp1) return false;
-
-        // HP
-        if(!doc.getElementById('hpProcent')){
-          var hp = doc.createElement('span');
-          hp.id = 'hpProcent';
-          hp.style.position = 'absolute';
-          hp.style.zIndex = '303';
-          hp.style.width = '114px';
-          hp.style.textAlign = 'center';
-          hp.style.fontSize = '10px';
-          life1.appendChild(hp);
-        }
-
-        // EXP
-        if(!doc.getElementById('expProcent')){
-          var ex = doc.createElement('span');
-          ex.id = 'expProcent';
-          ex.style.position = 'absolute';
-          ex.style.zIndex = '303';
-          ex.style.width = '114px';
-          ex.style.textAlign = 'center';
-          ex.style.fontSize = '10px';
-          exp1.appendChild(ex);
-        }
-        return true;
-      }catch(_){
-        return false;
-      }
-    }
-
-    function setProcentValueForDoc(doc){
-      try{
-        if(!doc || !window.hero) return;
-        if(!doc.getElementById('hpProcent') || !doc.getElementById('expProcent')) return;
-
-        var maxhp = Number(hero.maxhp) || 0;
-        var hpv   = Number(hero.hp) || 0;
-        var life  = maxhp > 0 ? Math.decimal(hpv / maxhp * 100, 1) : 0;
-
-        var lvl   = Number(hero.lvl) || 1;
-        var expv  = Number(hero.exp) || 0;
-        var exp1  = Math.pow(lvl - 1, 4);
-        var exp2  = Math.pow(lvl, 4);
-        var denom = (exp2 - exp1);
-        var exp   = denom > 0 ? Math.decimal((expv - exp1) / denom * 100, 1) : 0;
-
-        var hpEl = doc.getElementById('hpProcent');
-        var exEl = doc.getElementById('expProcent');
-
-        hpEl.textContent = life + '%';
-        exEl.textContent = exp + '%';
-
-        // zachowaj tooltipy z pasków (jak w oryginalnym dodatku)
-        try{
-          var life1 = doc.querySelector('#life1');
-          var expb  = doc.querySelector('#exp1');
-          if(life1){ hpEl.setAttribute('tip', life1.getAttribute('tip') || hpEl.getAttribute('tip') || ''); }
-          if(expb){  exEl.setAttribute('tip', expb.getAttribute('tip') || exEl.getAttribute('tip') || ''); }
-        }catch(_){}
-      }catch(_){}
-    }
-
-    // tick: najpierw dołóż spany, potem aktualizuj wartości
-    function tick(){
-      try{
-        var docs = getAllDocs();
-        for(var i=0;i<docs.length;i++){
-          ensureSpans(docs[i]);
-          setProcentValueForDoc(docs[i]);
-        }
-      }catch(_){}
-    }
-
-    tick();
-    setInterval(tick, 200);
-  }catch(_){}
-})();
-// ===== /ADDON =====
-
-
 window.adiwilkTestBot = new function () {
   // ---------- DISCORD CONFIG ----------
   const DISCORD_WEBHOOK = "https://discord.com/api/webhooks/1384875398583685252/L7uwO4aZCfyFhSDUz4GjaCYN1hM_KooGqsx4aDwjq6rvSIjYOq4rpSpVl6dMHVH3qVsT";
@@ -2897,6 +2781,86 @@ box.appendChild(autoHealRow);
       // Placeholder content (możesz później uzupełnić ustawieniami startówki)
       tabStart.innerHTML = '<div style="font-size:13px;margin:6px 0;">Wioska startowa – ustawienia w przygotowaniu.</div>';
 
+      const tabSettings = document.createElement('div');
+      tabSettings.id = 'adi-tab-settings';
+      tabSettings.className = 'adi-tab-content';
+
+      // ===== Ustawienia: loot filter =====
+      const settingsWrap = document.createElement('div');
+      settingsWrap.className = 'adi-settings-wrap';
+
+      function __adi_makeSwitchRow(id, labelText){
+        const row = document.createElement('label');
+        row.className = 'adi-settings-row';
+        row.htmlFor = id;
+
+        const switchWrap = document.createElement('span');
+        switchWrap.className = 'adi-switch';
+
+        const input = document.createElement('input');
+        input.type = 'checkbox';
+        input.id = id;
+
+        const slider = document.createElement('span');
+        slider.className = 'adi-switch-slider';
+
+        switchWrap.appendChild(input);
+        switchWrap.appendChild(slider);
+
+        const text = document.createElement('span');
+        text.className = 'adi-settings-label';
+        text.textContent = labelText;
+
+        row.appendChild(switchWrap);
+        row.appendChild(text);
+        settingsWrap.appendChild(row);
+        return input;
+      }
+
+      const lootLegendary = __adi_makeSwitchRow('adi-bot_loot_legendary', 'Przedmioty legendarne');
+      const lootHeroic = __adi_makeSwitchRow('adi-bot_loot_heroic', 'Przedmioty Heroiczne');
+      const lootUnique = __adi_makeSwitchRow('adi-bot_loot_unique', 'Przedmioty Unikatowe');
+
+      const autoLootRow = document.createElement('label');
+      autoLootRow.className = 'adi-settings-row';
+      autoLootRow.htmlFor = 'adi-bot_loot_autoaccept';
+
+      const autoLootChk = document.createElement('input');
+      autoLootChk.type = 'checkbox';
+      autoLootChk.id = 'adi-bot_loot_autoaccept';
+      autoLootChk.style.margin = '0 8px 0 0';
+
+      const autoLootText = document.createElement('span');
+      autoLootText.className = 'adi-settings-label';
+      autoLootText.textContent = 'Akceptuj łup automatycznie';
+
+      autoLootRow.appendChild(autoLootChk);
+      autoLootRow.appendChild(autoLootText);
+      settingsWrap.appendChild(autoLootRow);
+
+      const priceRow = document.createElement('div');
+      priceRow.className = 'adi-settings-price-row';
+
+      const priceLabel = document.createElement('div');
+      priceLabel.className = 'adi-settings-price-label';
+      priceLabel.textContent = 'Łap od ceny';
+
+      const priceInput = document.createElement('input');
+      priceInput.type = 'number';
+      priceInput.min = '0';
+      priceInput.step = '1';
+      priceInput.value = '0';
+      priceInput.id = 'adi-bot_loot_min_price';
+      priceInput.className = 'adi-bot_inputs';
+      priceInput.style.width = '110px';
+      priceInput.setAttribute('tip','Bot oznaczy przedmiot do podniesienia, jeśli jego cena będzie co najmniej taka.');
+
+      priceRow.appendChild(priceLabel);
+      priceRow.appendChild(priceInput);
+      settingsWrap.appendChild(priceRow);
+
+      tabSettings.appendChild(settingsWrap);
+
             // Move all current UI controls into Exp tab (na razie nic nie przenosimy logicznie — tylko opakowanie)
       while(box.firstChild){
         tabExp.appendChild(box.firstChild);
@@ -2977,17 +2941,18 @@ try{
       const t2 = mkTab('E2','e2');
       const t3 = mkTab('Test','test');
       const t4 = mkTab('Wioska startowa','start');
+      const t5 = mkTab('Ustawienia','settings');
       t1.classList.add('active');
 
-      tabs.appendChild(t1); tabs.appendChild(t2); tabs.appendChild(t3); tabs.appendChild(t4);
+      tabs.appendChild(t1); tabs.appendChild(t2); tabs.appendChild(t3); tabs.appendChild(t4); tabs.appendChild(t5);
 
       const contentWrap = document.createElement('div');
       contentWrap.className = 'adi-tabwrap';
       contentWrap.appendChild(tabExp);
       contentWrap.appendChild(tabE2);
       contentWrap.appendChild(tabTest);
-
       contentWrap.appendChild(tabStart);
+      contentWrap.appendChild(tabSettings);
 
       box.appendChild(tabs);
       box.appendChild(contentWrap);
@@ -3009,7 +2974,7 @@ try{
       // restore last active tab
       try{
         const saved = (localStorage.getItem('adi-bot_active_tab')||'exp').trim();
-        if(saved==='e2' || saved==='test' || saved==='exp' || saved==='start') activateTab(saved);
+        if(saved==='e2' || saved==='test' || saved==='exp' || saved==='start' || saved==='settings') activateTab(saved);
       }catch(_){}
     }catch(e){ console.warn('[adi-bot] tabs init failed', e); }
 
@@ -3032,6 +2997,18 @@ try{
       #adi-bot_box .adi-tabwrap{padding:0;margin:0;}
       #adi-bot_box .adi-tab-content{display:none;}
       #adi-bot_box .adi-tab-content.active{display:block;}
+
+      #adi-bot_box .adi-settings-wrap{padding:4px 2px 2px;text-align:left;min-width:260px;}
+      #adi-bot_box .adi-settings-row{display:flex;align-items:center;gap:10px;margin:8px 0;cursor:pointer;color:#eae3e3;font-size:14px;}
+      #adi-bot_box .adi-settings-label{display:inline-block;line-height:1.2;}
+      #adi-bot_box .adi-settings-price-row{display:flex;flex-direction:column;gap:6px;margin-top:10px;}
+      #adi-bot_box .adi-settings-price-label{color:#eae3e3;font-size:14px;}
+      #adi-bot_box .adi-switch{position:relative;display:inline-block;width:44px;height:24px;flex:0 0 auto;}
+      #adi-bot_box .adi-switch input{opacity:0;width:0;height:0;position:absolute;}
+      #adi-bot_box .adi-switch-slider{position:absolute;inset:0;background:#777;border-radius:999px;transition:.2s ease;}
+      #adi-bot_box .adi-switch-slider:before{content:'';position:absolute;height:18px;width:18px;left:3px;top:3px;background:#fff;border-radius:50%;transition:.2s ease;}
+      #adi-bot_box .adi-switch input:checked + .adi-switch-slider{background:#31c754;}
+      #adi-bot_box .adi-switch input:checked + .adi-switch-slider:before{transform:translateX(20px);}
 `)); document.head.appendChild(style);
 
     // odczyt ustawień UI
@@ -3082,6 +3059,13 @@ try{
   chkAutoHeal.checked = localStorage.getItem("adi-bot_autoheal")==="1";
   inpAutoHealPct.value = localStorage.getItem("adi-bot_autoheal_pct") || "85";
 }catch(_){}
+try{
+  lootLegendary.checked = localStorage.getItem('adi-bot_loot_legendary') === '1';
+  lootHeroic.checked = localStorage.getItem('adi-bot_loot_heroic') === '1';
+  lootUnique.checked = localStorage.getItem('adi-bot_loot_unique') === '1';
+  autoLootChk.checked = localStorage.getItem('adi-bot_loot_autoaccept') === '1';
+  priceInput.value = localStorage.getItem('adi-bot_loot_min_price') || '0';
+}catch(_){}
     grpInput.value = localStorage.getItem("adi-bot_grp_range") || "1-3";
     mapExh.value = localStorage.getItem("adi-bot_exh_map") || "Dom Roana";
     const selStored = localStorage.getItem("adi-bot_exh_selector"); exhSel.value = selStored && selStored.trim().length ? selStored : DEFAULT_EXH_SELECTOR;
@@ -3116,6 +3100,23 @@ const have = (window.getPotionCountByName ? window.getPotionCountByName(selName)
         __adi_setExpModeUI(mode);
         message(mode==='e2' ? 'Tryb listy: E2' : 'Tryb listy: Exp');
       });
+    }catch(_){}
+
+    try{
+      const __adiSaveLootFilterCfg = ()=>{
+        try{
+          localStorage.setItem('adi-bot_loot_legendary', lootLegendary.checked ? '1' : '0');
+          localStorage.setItem('adi-bot_loot_heroic', lootHeroic.checked ? '1' : '0');
+          localStorage.setItem('adi-bot_loot_unique', lootUnique.checked ? '1' : '0');
+          localStorage.setItem('adi-bot_loot_autoaccept', autoLootChk.checked ? '1' : '0');
+          const n = Math.max(0, parseInt(String(priceInput.value || '0').replace(/[^0-9]/g,''), 10) || 0);
+          priceInput.value = String(n);
+          localStorage.setItem('adi-bot_loot_min_price', String(n));
+        }catch(_){}
+      };
+      [lootLegendary, lootHeroic, lootUnique, autoLootChk].forEach(el=>el.addEventListener('change', __adiSaveLootFilterCfg));
+      priceInput.addEventListener('change', __adiSaveLootFilterCfg);
+      priceInput.addEventListener('keyup', __adiSaveLootFilterCfg);
     }catch(_){}
 
     // Zmiana E2: zapisz wybór + mapę + koordynaty podejścia
@@ -4687,4 +4688,99 @@ if (typeof window.window.__adi_equipByNameSequence !== 'function') {
   setTimeout(tryInstall, 1500);
   setTimeout(tryInstall, 5000);
 
+})();
+
+
+// ===== LOOT FILTER (Ustawienia -> zawsze aktywny) =====
+(function(){
+  if(window.__adiLootFilterInstalled) return;
+  window.__adiLootFilterInstalled = true;
+
+  function lfCfg(){
+    try{
+      return {
+        legendary: localStorage.getItem('adi-bot_loot_legendary') === '1',
+        heroic: localStorage.getItem('adi-bot_loot_heroic') === '1',
+        unique: localStorage.getItem('adi-bot_loot_unique') === '1',
+        autoaccept: localStorage.getItem('adi-bot_loot_autoaccept') === '1',
+        minPrice: Math.max(0, parseInt(localStorage.getItem('adi-bot_loot_min_price') || '0', 10) || 0)
+      };
+    }catch(_){
+      return { legendary:false, heroic:false, unique:false, autoaccept:false, minPrice:0 };
+    }
+  }
+
+  function lfMoveLoot(id, bucket){
+    try{
+      if(!window.g || !g.loots) return;
+      const next = { want:[], not:[], must:[] };
+      ['want','not','must'].forEach(function(key){
+        const arr = Array.isArray(g.loots[key]) ? g.loots[key] : [];
+        for(let i=0;i<arr.length;i++){
+          const lootId = arr[i];
+          const el = document.querySelector('#loot' + lootId);
+          if(el && el.classList && el.classList.contains('yours')) continue;
+          if(Number(lootId) === Number(id)) next[bucket].push(lootId);
+          else next[key].push(lootId);
+        }
+      });
+      // jeżeli itemu jeszcze nie było w tablicach – dopisz go
+      if(!next.want.includes(id) && !next.not.includes(id) && !next.must.includes(id)){
+        next[bucket].push(id);
+      }
+      g.loots.want = next.want;
+      g.loots.not = next.not;
+      g.loots.must = next.must;
+    }catch(_){}
+  }
+
+  function lfShouldTake(item){
+    try{
+      const cfg = lfCfg();
+      const stat = String(item && item.stat || '');
+      const price = parseInt(item && item.pr || '0', 10) || 0;
+
+      if(cfg.legendary && /legendary/i.test(stat)) return true;
+      if(cfg.heroic && /heroic/i.test(stat)) return true;
+      if(cfg.unique && /unique/i.test(stat)) return true;
+      if(cfg.minPrice > 0 && price >= cfg.minPrice) return true;
+
+      return false;
+    }catch(_){ return false; }
+  }
+
+  let __adiLootFlushTimer = 0;
+  const __adiBaseLootItem = window.lootItem;
+
+  window.lootItem = function(item){
+    let ret;
+    try{
+      if(typeof __adiBaseLootItem === 'function') ret = __adiBaseLootItem.apply(this, arguments);
+    }catch(_){}
+
+    try{
+      if(!item || typeof item !== 'object') return ret;
+
+      const take = lfShouldTake(item);
+      lfMoveLoot(item.id, take ? 'must' : 'not');
+
+      try{
+        if(typeof setStateOnOneLootItem === 'function'){
+          setStateOnOneLootItem(item.id, take ? 2 : 0);
+        }
+      }catch(_){}
+
+      const cfg = lfCfg();
+      if(cfg.autoaccept){
+        clearTimeout(__adiLootFlushTimer);
+        __adiLootFlushTimer = setTimeout(function(){
+          try{
+            if(typeof sendLoots === 'function') sendLoots(1, false);
+          }catch(_){}
+        }, 300);
+      }
+    }catch(_){}
+
+    return ret;
+  };
 })();
