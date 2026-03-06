@@ -4705,6 +4705,7 @@ if (typeof window.window.__adi_equipByNameSequence !== 'function') {
       legendary: true,
       heroic: true,
       unique: true,
+      common: true,
       autoAccept: false,
       minPrice: 0,
       webhook: '',
@@ -4725,6 +4726,7 @@ if (typeof window.window.__adi_equipByNameSequence !== 'function') {
         legendary: cfg.legendary ?? def.legendary,
         heroic: cfg.heroic ?? def.heroic,
         unique: cfg.unique ?? def.unique,
+        common: cfg.common ?? def.common,
         autoAccept: cfg.autoAccept ?? def.autoAccept,
         minPrice: Number.isFinite(Number(cfg.minPrice)) ? Math.max(0, Number(cfg.minPrice)) : def.minPrice,
         webhook: String(cfg.webhook ?? def.webhook),
@@ -4822,6 +4824,7 @@ if (typeof window.window.__adi_equipByNameSequence !== 'function') {
           ${adiSwitch('adi-loot-filter-legendary', 'Przedmioty legendarne', cfg.legendary)}
           ${adiSwitch('adi-loot-filter-heroic', 'Przedmioty Heroiczne', cfg.heroic)}
           ${adiSwitch('adi-loot-filter-unique', 'Przedmioty Unikatowe', cfg.unique)}
+          ${adiSwitch('adi-loot-filter-common', 'Przedmioty Pospolite', cfg.common)}
           ${adiCheckbox('adi-loot-filter-autoaccept', 'Akceptuj łup automatycznie', cfg.autoAccept)}
           <label class="adi-settings-line" for="adi-loot-filter-minprice">
             <span class="adi-settings-label">Łap od ceny</span>
@@ -4875,6 +4878,7 @@ if (typeof window.window.__adi_equipByNameSequence !== 'function') {
       bindCheck('adi-loot-filter-legendary', 'legendary');
       bindCheck('adi-loot-filter-heroic', 'heroic');
       bindCheck('adi-loot-filter-unique', 'unique');
+      bindCheck('adi-loot-filter-common', 'common');
       bindCheck('adi-loot-filter-autoaccept', 'autoAccept', 'Auto akceptacja łupu: WŁ', 'Auto akceptacja łupu: WYŁ');
       bindCheck('adi-loot-notify-legendary', 'notifyLegendary');
       bindCheck('adi-loot-notify-heroic', 'notifyHeroic');
@@ -4930,12 +4934,13 @@ if (typeof window.window.__adi_equipByNameSequence !== 'function') {
   function adiLootShouldTake(item, cfg){
     if(!cfg.filterEnabled) return null;
     const price = Number(item && item.pr);
-    if(Number.isFinite(price) && price >= Number(cfg.minPrice || 0)) return true;
+    const minPrice = Number(cfg.minPrice || 0);
+    if(Number.isFinite(price) && minPrice > 0 && price >= minPrice) return true;
     const rarity = adiDetectLootRarity(item);
-    if(rarity === 'legendary' && cfg.legendary) return true;
-    if(rarity === 'heroic' && cfg.heroic) return true;
-    if(rarity === 'unique' && cfg.unique) return true;
-    return false;
+    if(rarity === 'legendary') return !!cfg.legendary;
+    if(rarity === 'heroic') return !!cfg.heroic;
+    if(rarity === 'unique') return !!cfg.unique;
+    return !!cfg.common;
   }
 
   function adiLootRemoveAll(arr, val){
