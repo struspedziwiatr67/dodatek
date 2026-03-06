@@ -3060,7 +3060,8 @@ try{
   inpAutoHealPct.value = localStorage.getItem("adi-bot_autoheal_pct") || "85";
 }catch(_){}
 const __ADI_LOOT_CFG_TTL = 365*24*60*60;
-const __ADI_LOOT_CFG_KEY = 'adi-bot_loot_cfg_v2';
+const __ADI_LOOT_CFG_KEY = 'adi-bot_loot_cfg_v3';
+const __ADI_LOOT_CFG_WN_KEY = '__adiLootCfg';
 function __adiLootCfgNormalize(raw){
   let cfg = raw && typeof raw==='object' ? raw : {};
   const minPrice = Math.max(0, parseInt(String(cfg.minPrice ?? cfg.price ?? 0).replace(/[^0-9]/g,''), 10) || 0);
@@ -3069,31 +3070,59 @@ function __adiLootCfgNormalize(raw){
     heroic: cfg.heroic === true || cfg.heroic === '1' || cfg.heroic === 1,
     unique: cfg.unique === true || cfg.unique === '1' || cfg.unique === 1,
     autoaccept: cfg.autoaccept === true || cfg.autoaccept === '1' || cfg.autoaccept === 1,
-    minPrice
+    minPrice,
+    ts: Math.max(0, parseInt(String(cfg.ts || Date.now()), 10) || Date.now())
   };
 }
-function __adiLootCfgReadJson(){
+function __adiLootCfgReadWindowName(){
   try{
-    const raw = localStorage.getItem(__ADI_LOOT_CFG_KEY);
-    if(raw){
-      const parsed = JSON.parse(raw);
-      return __adiLootCfgNormalize(parsed);
-    }
-  }catch(_){ }
-  try{
-    const raw = __adi_getCookie(__ADI_LOOT_CFG_KEY);
-    if(raw){
-      const parsed = JSON.parse(raw);
-      return __adiLootCfgNormalize(parsed);
-    }
+    const host = window.top || window;
+    const raw = host.name || '';
+    if(!raw) return null;
+    const parsed = JSON.parse(raw);
+    if(parsed && parsed[__ADI_LOOT_CFG_WN_KEY]) return __adiLootCfgNormalize(parsed[__ADI_LOOT_CFG_WN_KEY]);
   }catch(_){ }
   return null;
 }
+function __adiLootCfgWriteWindowName(cfg){
+  try{
+    const host = window.top || window;
+    let root = {};
+    try{ root = host.name ? JSON.parse(host.name) : {}; }catch(_){ root = {}; }
+    root[__ADI_LOOT_CFG_WN_KEY] = __adiLootCfgNormalize(cfg);
+    host.name = JSON.stringify(root);
+    return true;
+  }catch(_){ return false; }
+}
+function __adiLootCfgReadJson(){
+  const candidates = [];
+  try{
+    const raw = sessionStorage.getItem(__ADI_LOOT_CFG_KEY);
+    if(raw) candidates.push(__adiLootCfgNormalize(JSON.parse(raw)));
+  }catch(_){ }
+  try{
+    const raw = localStorage.getItem(__ADI_LOOT_CFG_KEY);
+    if(raw) candidates.push(__adiLootCfgNormalize(JSON.parse(raw)));
+  }catch(_){ }
+  try{
+    const raw = __adi_getCookie(__ADI_LOOT_CFG_KEY);
+    if(raw) candidates.push(__adiLootCfgNormalize(JSON.parse(raw)));
+  }catch(_){ }
+  try{
+    const wn = __adiLootCfgReadWindowName();
+    if(wn) candidates.push(wn);
+  }catch(_){ }
+  if(!candidates.length) return null;
+  candidates.sort((a,b)=>(Number(b.ts)||0)-(Number(a.ts)||0));
+  return __adiLootCfgNormalize(candidates[0]);
+}
 function __adiLootCfgWriteJson(cfg){
-  const normalized = __adiLootCfgNormalize(cfg);
+  const normalized = __adiLootCfgNormalize({ ...(cfg||{}), ts: Date.now() });
   const json = JSON.stringify(normalized);
+  try{ sessionStorage.setItem(__ADI_LOOT_CFG_KEY, json); }catch(_){ }
   try{ localStorage.setItem(__ADI_LOOT_CFG_KEY, json); }catch(_){ }
   try{ __adi_setCookie(__ADI_LOOT_CFG_KEY, json, __ADI_LOOT_CFG_TTL); }catch(_){ }
+  try{ __adiLootCfgWriteWindowName(normalized); }catch(_){ }
   try{ window.__adiLootCfgCache = normalized; }catch(_){ }
   return normalized;
 }
@@ -3109,6 +3138,10 @@ function __adiLootCfgGet(key, def=''){
     }
   }catch(_){ }
   try{
+    const v = sessionStorage.getItem(key);
+    if(v!==null && typeof v !== 'undefined') return v;
+  }catch(_){ }
+  try{
     const v = localStorage.getItem(key);
     if(v!==null && typeof v !== 'undefined') return v;
   }catch(_){ }
@@ -3120,6 +3153,7 @@ function __adiLootCfgGet(key, def=''){
 }
 function __adiLootCfgSet(key, val){
   const v = String(val ?? '');
+  try{ sessionStorage.setItem(key, v); }catch(_){ }
   try{ localStorage.setItem(key, v); }catch(_){ }
   try{ __adi_setCookie(key, v, __ADI_LOOT_CFG_TTL); }catch(_){ }
 
