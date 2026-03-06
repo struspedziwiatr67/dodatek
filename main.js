@@ -1052,8 +1052,8 @@ Lvl: **${n.lvl ?? "?"}**`,
   // --- Remote MAP GRAPH loader (GitHub) ---
   // Primary URL: GitHub Pages; Fallback: raw.githubusercontent.com (usually has permissive CORS)
   (function(){
-    const PRIMARY_GRAPH_URL = "https://struspedziwiatr67.github.io/dodatek/graph.json";
-    const FALLBACK_GRAPH_URL = "https://raw.githubusercontent.com/struspedziwiatr67/dodatek/main/graph.json";
+    const PRIMARY_GRAPH_URL = "https://struspedziwiatr67.github.io/margo/graph.json";
+    const FALLBACK_GRAPH_URL = "https://raw.githubusercontent.com/struspedziwiatr67/margo/main/graph.json";
 
     async function fetchJson(url){
       const res = await fetch(url + (url.includes("?") ? "&" : "?") + "v=" + Date.now(), { cache: "no-store" });
@@ -4995,55 +4995,162 @@ if (typeof window.window.__adi_equipByNameSequence !== 'function') {
     return null;
   }
 
-  function adiResolveLootImage(item){
+  function adiStripHtml(s){
+    return String(s || '')
+      .replace(/<br\s*\/?>/gi, '\\n')
+      .replace(/<[^>]*>/g, ' ')
+      .replace(/&nbsp;/gi, ' ')
+      .replace(/&lt;/gi, '<')
+      .replace(/&gt;/gi, '>')
+      .replace(/&amp;/gi, '&')
+      .replace(/\s+/g, ' ')
+      .trim();
+  }
+
+  function adiExtractLootNameFromTip(tip){
     try{
-      const cand = [item?.icon, item?.img, item?.image, item?.iconUrl, item?.icon_url, item?.sprite].filter(Boolean);
-      for(const raw of cand){
-        const s = adiNormalizeLootImageUrl(raw);
-        if(s) return s;
+      const txt = adiStripHtml(tip || '');
+      if(!txt) return '';
+      const cut = txt.split(/Typ\s*:/i)[0].trim();
+      if(cut) return cut;
+    }catch(_){ }
+    return '';
+  }
+
+  function adiFindLootRoot(item){
+    try{
+      const id = String(item?.id ?? '').trim();
+      const sels = [];
+      if(id){
+        sels.push('td#loot' + id + '.loot-wrapper');
+        sels.push('td#loot' + id);
+        sels.push('#loot' + id + '.loot-wrapper');
+        sels.push('#loot' + id);
       }
-      const id = item && item.id;
-      const q = [
-        '#loot' + id + ' img',
-        '#item' + id + ' img',
-        '[id="loot' + id + '"] img',
-        '[data-id="' + id + '"] img',
-        '.item-stat img',
-        '.item img',
-        '#tip img',
-        'img[dest]',
-        'img[src^="blob:"]',
-        'img[src*="margonem"]'
-      ];
-      for(const sel of q){
-        const list = document.querySelectorAll(sel);
-        for(const img of list){
-          const src = img && img.getAttribute ? (img.getAttribute('src') || img.src) : '';
-          const normalized = adiNormalizeLootImageUrl(src);
-          if(!normalized) continue;
+      sels.push('td.loot-wrapper:last-of-type');
+      sels.push('td.loot-wrapper');
+      for(const sel of sels){
+        const all = Array.from(document.querySelectorAll(sel));
+        if(!all.length) continue;
+        const visible = all.filter(el=>{
           try{
-            const rect = img.getBoundingClientRect ? img.getBoundingClientRect() : { width: 32, height: 32 };
-            if(rect && rect.width > 0 && rect.height > 0) return normalized;
-          }catch(_){ return normalized; }
-        }
+            const r = el.getBoundingClientRect();
+            return r.width >= 20 && r.height >= 20;
+          }catch(_){ return false; }
+        });
+        if(visible.length) return visible[visible.length - 1];
+        if(all.length) return all[all.length - 1];
       }
     }catch(_){ }
     return null;
   }
 
-  function adiSleep(ms){ return new Promise(resolve => setTimeout(resolve, ms)); }
-
-  async function adiWaitForLootImage(item, attempts = 15, delay = 200){
-    for(let i = 0; i < attempts; i++){
-      const found = adiResolveLootImage(item);
-      if(found) return found;
-      await adiSleep(delay);
-    }
-    return null;
+  function adiResolveLootName(item, lootRoot){
+    try{
+      const direct = String(item?.name || item?.n || '').trim();
+      if(direct) return direct;
+      const tipKeys = ['tip', 'tooltip', 'desc'];
+      for(const k of tipKeys){
+        const val = item && item[k];
+        const nm = adiExtractLootNameFromTip(val);
+        if(nm) return nm;
+      }
+      const statNm = adiExtractLootNameFromTip(item?.stat);
+      if(statNm) return statNm;
+      const root = lootRoot || adiFindLootRoot(item);
+      if(root){
+        const tipNode = root.querySelector('[tip]');
+        if(tipNode){
+          const nm = adiExtractLootNameFromTip(tipNode.getAttribute('tip'));
+          if(nm) return nm;
+        }
+        const textNodes = [
+          root.querySelector('.item-head'),
+          root.querySelector('.name-item-name'),
+          root.querySelector('.item-name'),
+          root.querySelector('.item-info')
+        ].filter(Boolean);
+        for(const el of textNodes){
+          const txt = String(el.textContent || '').replace(/\s+/g, ' ').trim();
+          if(txt) return txt.split(/Typ\s*:/i)[0].trim();
+        }
+      }
+    }catch(_){ }
+    return 'Nowy locik';
   }
 
-  function adiBuildLootEmbed(item, rarity, imgUrl){
-    const nm = String(item?.name || item?.n || 'Nowy locik');
+  async function adiResolveLootImage(item){
+    try{
+      const cand = [item?.icon, item?.img, item?.image, item?.iconUrl, item?.icon_url, item?.sprite].filter(Boolean);
+      for(const raw of cand){
+        const url = adiNormalizeLootImageUrl(raw);
+        if(url && !/^blob:/i.test(url)) return { url, attachment: null, lootRoot: null };
+      }
+
+      const lootRoot = adiFindLootRoot(item);
+      if(lootRoot){
+        for(let attempt = 0; attempt < 20; attempt++){
+          const nodes = Array.from(lootRoot.querySelectorAll('img, .item img, .item-stat img, img[dest], img[src^="blob:"]'));
+          const best = nodes
+            .map(img=>{
+              const src = img && img.getAttribute ? (img.getAttribute('src') || img.src || '') : '';
+              let w = 0, h = 0;
+              try{ const r = img.getBoundingClientRect(); w = Math.round(r.width); h = Math.round(r.height); }catch(_){ }
+              let score = 0;
+              if(/^blob:/i.test(src)) score += 100;
+              if(img && img.hasAttribute && img.hasAttribute('dest')) score += 25;
+              if(w === 32 && h === 32) score += 40;
+              if(w >= 24 && h >= 24) score += 10;
+              if(w <= 64 && h <= 64) score += 10;
+              return { img, src, w, h, score };
+            })
+            .filter(x=>x.src)
+            .sort((a,b)=>b.score-a.score)[0];
+
+          if(best){
+            const normalized = adiNormalizeLootImageUrl(best.src) || best.src;
+            if(/^blob:/i.test(normalized)){
+              try{
+                const res = await fetch(normalized);
+                if(res.ok){
+                  const blob = await res.blob();
+                  const ext = ((blob.type || 'image/png').split('/')[1] || 'png').replace(/[^a-z0-9]/gi, '') || 'png';
+                  const fileName = `loot-${Date.now()}.${ext}`;
+                  return {
+                    url: `attachment://${fileName}`,
+                    attachment: { blob, fileName },
+                    lootRoot
+                  };
+                }
+              }catch(e){ console.warn('[adi-loot] blob fetch failed', e); }
+            }else if(normalized){
+              return { url: normalized, attachment: null, lootRoot };
+            }
+          }
+          await new Promise(r=>setTimeout(r, 150));
+        }
+        return { url: null, attachment: null, lootRoot };
+      }
+
+      const id = item && item.id;
+      const q = [
+        '#loot' + id + ' img',
+        '#item' + id + ' img',
+        '[id="loot' + id + '"] img',
+        '[data-id="' + id + '"] img'
+      ];
+      for(const sel of q){
+        const img = document.querySelector(sel);
+        const src = img && img.getAttribute ? (img.getAttribute('src') || img.src) : '';
+        const normalized = adiNormalizeLootImageUrl(src);
+        if(normalized) return { url: normalized, attachment: null, lootRoot: null };
+      }
+    }catch(e){ console.warn('[adi-loot] resolve image failed', e); }
+    return { url: null, attachment: null, lootRoot: null };
+  }
+
+  function adiBuildLootEmbed(item, rarity, lootName, imageUrl){
+    const nm = String(lootName || item?.name || item?.n || 'Nowy locik');
     const heroName = adiGetHeroName();
     const price = Number(item?.pr);
     const embed = {
@@ -5053,8 +5160,7 @@ Rzadkość: **${adiLootRarityLabel(rarity)}**${Number.isFinite(price) ? `
 Cena: **${price}**` : ''}`,
       footer: { text: 'adiwilkTestBot' }
     };
-    const img = imgUrl || null;
-    if(img) embed.thumbnail = { url: img };
+    if(imageUrl) embed.thumbnail = { url: imageUrl };
     return embed;
   }
 
@@ -5081,38 +5187,32 @@ Cena: **${price}**` : ''}`,
       if(!adiLootShouldNotify(rarity, cfg)) return;
       if(adiWasNotified(item)) return;
 
-      const imgUrl = await adiWaitForLootImage(item, 15, 200);
-      const payload = {
-        content: `@here Nowy locik - ${adiLootRarityLabel(rarity)}`,
-        embeds: [adiBuildLootEmbed(item, rarity, /^blob:/i.test(String(imgUrl || '')) ? null : imgUrl)]
-      };
+      const resolved = await adiResolveLootImage(item);
+      const lootName = adiResolveLootName(item, resolved && resolved.lootRoot);
+      const embed = adiBuildLootEmbed(item, rarity, lootName, resolved && resolved.url);
 
-      if(/^blob:/i.test(String(imgUrl || ''))){
-        const res = await fetch(imgUrl);
-        if(!res.ok) throw new Error('fetch(blob) status=' + res.status);
-        const blob = await res.blob();
-        const ext = ((blob && blob.type ? blob.type.split('/')?.[1] : '') || 'png').replace(/[^a-z0-9]/gi, '') || 'png';
-        const fileName = `loot-item.${ext}`;
-        payload.embeds[0].thumbnail = { url: `attachment://${fileName}` };
-
+      if(resolved && resolved.attachment && resolved.attachment.blob){
         const fd = new FormData();
-        fd.append('payload_json', JSON.stringify(payload));
-        fd.append('files[0]', blob, fileName);
-
-        const r = await fetch(webhook, {
+        fd.append('payload_json', JSON.stringify({
+          content: `@here Nowy locik - ${adiLootRarityLabel(rarity)}`,
+          embeds: [embed]
+        }));
+        fd.append('files[0]', resolved.attachment.blob, resolved.attachment.fileName);
+        await fetch(webhook, {
           method: 'POST',
           body: fd
         });
-        if(!r.ok) console.warn('[adi-loot] discord webhook error status', r.status, await r.text().catch(()=>''));
         return;
       }
 
-      const r = await fetch(webhook, {
+      await fetch(webhook, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
+        body: JSON.stringify({
+          content: `@here Nowy locik - ${adiLootRarityLabel(rarity)}`,
+          embeds: [embed]
+        })
       });
-      if(!r.ok) console.warn('[adi-loot] discord webhook error status', r.status, await r.text().catch(()=>''));
     }catch(e){ console.warn('[adi-loot] send discord failed', e); }
   }
 
@@ -5128,7 +5228,7 @@ Cena: **${price}**` : ''}`,
         adiSetLootState(item.id, 'not');
         adiScheduleLootFlush(cfg.autoAccept);
       }
-      Promise.resolve().then(()=>adiSendLootDiscord(item)).catch(e => console.warn('[adi-loot] async notify failed', e));
+      Promise.resolve().then(()=>adiSendLootDiscord(item));
     }catch(e){ console.warn('[adi-loot] handle failed', e); }
   }
 
