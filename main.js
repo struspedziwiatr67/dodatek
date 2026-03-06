@@ -4982,9 +4982,10 @@ if (typeof window.window.__adi_equipByNameSequence !== 'function') {
     try{ return hero?.nick || hero?.name || 'Nieznany'; }catch(_){ return 'Nieznany'; }
   }
 
-  function adiFindLootImgEl(item){
+  function adiFindLootEntry(item){
     try{
       const id = String(item?.id ?? '').trim();
+      if(!id) return null;
       const docs = [document];
 
       try{
@@ -4998,23 +4999,21 @@ if (typeof window.window.__adi_equipByNameSequence !== 'function') {
       }catch(_){ }
 
       const selectors = [
-        '#loot' + id + ' img',
-        '#item' + id + ' img',
-        '[id="loot' + id + '"] img',
-        '[data-id="' + id + '"] img',
-        'img#item-' + id,
-        'div.item[data-id="' + id + '"] img',
-        'div.item[data-item-id="' + id + '"] img',
-        '.item[data-id="' + id + '"] .item-img img',
-        '.item[data-id="' + id + '"] .icon-wrap img',
-        '.item[data-id="' + id + '"] img'
+        `.item[data-item-id="item${id}"]`,
+        `[data-item-id="item${id}"]`,
+        `.item-wrapper [data-item-id="item${id}"]`,
+        `#item${id}`,
+        `#loot${id}`,
+        `[id="loot${id}"]`
       ];
 
       for(const doc of docs){
         for(const sel of selectors){
           try{
-            const el = doc.querySelector(sel);
-            if(el) return el;
+            const list = doc.querySelectorAll(sel);
+            for(const el of list){
+              if(el) return el;
+            }
           }catch(_){ }
         }
       }
@@ -5022,8 +5021,39 @@ if (typeof window.window.__adi_equipByNameSequence !== 'function') {
     return null;
   }
 
+  function adiFindLootImgEl(item){
+    try{
+      const entry = adiFindLootEntry(item);
+      if(!entry) return null;
+
+      const tries = [
+        ()=> entry.querySelector('img'),
+        ()=> entry.closest('.item-wrapper, .loot-item, [class*="item-wrapper"]')?.querySelector('img'),
+        ()=> entry.parentElement?.querySelector('img'),
+        ()=> entry.previousElementSibling?.querySelector?.('img') || null,
+        ()=> entry.nextElementSibling?.querySelector?.('img') || null,
+        ()=> entry.closest('tr, td, div')?.querySelector('img[id^="item-"], img') || null
+      ];
+
+      for(const get of tries){
+        try{
+          const img = get();
+          const src = img && img.getAttribute ? (img.getAttribute('src') || img.src) : '';
+          if(src) return img;
+        }catch(_){ }
+      }
+    }catch(_){ }
+    return null;
+  }
+
   function adiResolveLootImage(item){
     try{
+      const imgEl = adiFindLootImgEl(item);
+      if(imgEl){
+        const src = imgEl.getAttribute('src') || imgEl.src || '';
+        if(src) return src;
+      }
+
       const cand = [item?.icon, item?.img, item?.image, item?.iconUrl, item?.icon_url, item?.sprite].filter(Boolean);
       for(const raw of cand){
         const s = String(raw || '').trim();
@@ -5035,41 +5065,39 @@ if (typeof window.window.__adi_equipByNameSequence !== 'function') {
         if(/^\//.test(s)) return 'https://micc.garmory-cdn.cloud' + s;
         if(/\.(png|gif|jpg|jpeg|webp)$/i.test(s)) return 'https://micc.garmory-cdn.cloud/' + s.replace(/^\/+/, '');
       }
-
-      const imgEl = adiFindLootImgEl(item);
-      if(imgEl){
-        const src = imgEl.getAttribute('src') || imgEl.src || '';
-        if(src) return src;
-      }
     }catch(_){ }
     return null;
   }
 
   async function adiResolveLootImageFile(item){
     try{
-      const src = adiResolveLootImage(item);
-      if(!src) return null;
+      for(let attempt = 0; attempt < 12; attempt++){
+        const src = adiResolveLootImage(item);
+        if(src){
+          if(/^https?:\/\//i.test(src)) {
+            return { mode: 'url', url: src };
+          }
 
-      if(/^https?:\/\//i.test(src)) {
-        return { mode: 'url', url: src };
-      }
+          if(/^blob:/i.test(src) || /^data:image\//i.test(src)) {
+            const res = await fetch(src, { credentials: 'include' });
+            if(!res.ok) throw new Error('Nie udało się pobrać blob obrazka status=' + res.status);
+            const blob = await res.blob();
 
-      if(/^blob:/i.test(src) || /^data:image\//i.test(src)) {
-        const res = await fetch(src);
-        if(!res.ok) throw new Error('Nie udało się pobrać blob obrazka');
-        const blob = await res.blob();
+            let ext = 'png';
+            const type = String(blob.type || '').toLowerCase();
+            if(type.includes('gif')) ext = 'gif';
+            else if(type.includes('webp')) ext = 'webp';
+            else if(type.includes('jpeg') || type.includes('jpg')) ext = 'jpg';
 
-        let ext = 'png';
-        const type = String(blob.type || '').toLowerCase();
-        if(type.includes('gif')) ext = 'gif';
-        else if(type.includes('webp')) ext = 'webp';
-        else if(type.includes('jpeg') || type.includes('jpg')) ext = 'jpg';
+            return {
+              mode: 'file',
+              blob,
+              filename: `loot_item_${String(item?.id ?? 'x')}.${ext}`
+            };
+          }
+        }
 
-        return {
-          mode: 'file',
-          blob,
-          filename: `loot_item_${String(item?.id ?? 'x')}.${ext}`
-        };
+        await new Promise(r => setTimeout(r, 200));
       }
     }catch(e){
       console.warn('[adi-loot] resolve image file failed', e);
@@ -5083,7 +5111,9 @@ if (typeof window.window.__adi_equipByNameSequence !== 'function') {
     const price = Number(item?.pr);
     const embed = {
       title: nm,
-      description: `Postać: **${heroName}**\nRzadkość: **${adiLootRarityLabel(rarity)}**${Number.isFinite(price) ? `\nCena: **${price}**` : ''}`,
+      description: `Postać: **${heroName}**
+Rzadkość: **${adiLootRarityLabel(rarity)}**${Number.isFinite(price) ? `
+Cena: **${price}**` : ''}`,
       footer: { text: 'adiwilkTestBot' }
     };
 
