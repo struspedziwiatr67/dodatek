@@ -3060,7 +3060,54 @@ try{
   inpAutoHealPct.value = localStorage.getItem("adi-bot_autoheal_pct") || "85";
 }catch(_){}
 const __ADI_LOOT_CFG_TTL = 365*24*60*60;
+const __ADI_LOOT_CFG_KEY = 'adi-bot_loot_cfg_v2';
+function __adiLootCfgNormalize(raw){
+  let cfg = raw && typeof raw==='object' ? raw : {};
+  const minPrice = Math.max(0, parseInt(String(cfg.minPrice ?? cfg.price ?? 0).replace(/[^0-9]/g,''), 10) || 0);
+  return {
+    legendary: cfg.legendary === true || cfg.legendary === '1' || cfg.legendary === 1,
+    heroic: cfg.heroic === true || cfg.heroic === '1' || cfg.heroic === 1,
+    unique: cfg.unique === true || cfg.unique === '1' || cfg.unique === 1,
+    autoaccept: cfg.autoaccept === true || cfg.autoaccept === '1' || cfg.autoaccept === 1,
+    minPrice
+  };
+}
+function __adiLootCfgReadJson(){
+  try{
+    const raw = localStorage.getItem(__ADI_LOOT_CFG_KEY);
+    if(raw){
+      const parsed = JSON.parse(raw);
+      return __adiLootCfgNormalize(parsed);
+    }
+  }catch(_){ }
+  try{
+    const raw = __adi_getCookie(__ADI_LOOT_CFG_KEY);
+    if(raw){
+      const parsed = JSON.parse(raw);
+      return __adiLootCfgNormalize(parsed);
+    }
+  }catch(_){ }
+  return null;
+}
+function __adiLootCfgWriteJson(cfg){
+  const normalized = __adiLootCfgNormalize(cfg);
+  const json = JSON.stringify(normalized);
+  try{ localStorage.setItem(__ADI_LOOT_CFG_KEY, json); }catch(_){ }
+  try{ __adi_setCookie(__ADI_LOOT_CFG_KEY, json, __ADI_LOOT_CFG_TTL); }catch(_){ }
+  try{ window.__adiLootCfgCache = normalized; }catch(_){ }
+  return normalized;
+}
 function __adiLootCfgGet(key, def=''){
+  try{
+    const cfg = window.__adiLootCfgCache || __adiLootCfgReadJson();
+    if(cfg){
+      if(key==='adi-bot_loot_legendary') return cfg.legendary ? '1' : '0';
+      if(key==='adi-bot_loot_heroic') return cfg.heroic ? '1' : '0';
+      if(key==='adi-bot_loot_unique') return cfg.unique ? '1' : '0';
+      if(key==='adi-bot_loot_autoaccept') return cfg.autoaccept ? '1' : '0';
+      if(key==='adi-bot_loot_min_price') return String(cfg.minPrice || 0);
+    }
+  }catch(_){ }
   try{
     const v = localStorage.getItem(key);
     if(v!==null && typeof v !== 'undefined') return v;
@@ -3075,29 +3122,59 @@ function __adiLootCfgSet(key, val){
   const v = String(val ?? '');
   try{ localStorage.setItem(key, v); }catch(_){ }
   try{ __adi_setCookie(key, v, __ADI_LOOT_CFG_TTL); }catch(_){ }
+
+  let cfg = window.__adiLootCfgCache || __adiLootCfgReadJson() || __adiLootCfgNormalize({});
+  if(key==='adi-bot_loot_legendary') cfg.legendary = (v === '1');
+  else if(key==='adi-bot_loot_heroic') cfg.heroic = (v === '1');
+  else if(key==='adi-bot_loot_unique') cfg.unique = (v === '1');
+  else if(key==='adi-bot_loot_autoaccept') cfg.autoaccept = (v === '1');
+  else if(key==='adi-bot_loot_min_price') cfg.minPrice = Math.max(0, parseInt(v, 10) || 0);
+  __adiLootCfgWriteJson(cfg);
+}
+function __adiLootCfgReadAll(){
+  const fromJson = __adiLootCfgReadJson();
+  if(fromJson) return fromJson;
+  const fromSingle = __adiLootCfgNormalize({
+    legendary: __adiLootCfgGet('adi-bot_loot_legendary', '0'),
+    heroic: __adiLootCfgGet('adi-bot_loot_heroic', '0'),
+    unique: __adiLootCfgGet('adi-bot_loot_unique', '0'),
+    autoaccept: __adiLootCfgGet('adi-bot_loot_autoaccept', '0'),
+    minPrice: __adiLootCfgGet('adi-bot_loot_min_price', '0')
+  });
+  __adiLootCfgWriteJson(fromSingle);
+  return fromSingle;
 }
 function __adiLoadLootFilterCfgIntoUI(){
   try{
-    lootLegendary.checked = __adiLootCfgGet('adi-bot_loot_legendary', '0') === '1';
-    lootHeroic.checked = __adiLootCfgGet('adi-bot_loot_heroic', '0') === '1';
-    lootUnique.checked = __adiLootCfgGet('adi-bot_loot_unique', '0') === '1';
-    autoLootChk.checked = __adiLootCfgGet('adi-bot_loot_autoaccept', '0') === '1';
-    priceInput.value = __adiLootCfgGet('adi-bot_loot_min_price', '0') || '0';
+    const cfg = __adiLootCfgReadAll();
+    lootLegendary.checked = !!cfg.legendary;
+    lootHeroic.checked = !!cfg.heroic;
+    lootUnique.checked = !!cfg.unique;
+    autoLootChk.checked = !!cfg.autoaccept;
+    priceInput.value = String(cfg.minPrice || 0);
   }catch(_){ }
 }
 function __adiSaveLootFilterCfg(){
   try{
-    __adiLootCfgSet('adi-bot_loot_legendary', lootLegendary.checked ? '1' : '0');
-    __adiLootCfgSet('adi-bot_loot_heroic', lootHeroic.checked ? '1' : '0');
-    __adiLootCfgSet('adi-bot_loot_unique', lootUnique.checked ? '1' : '0');
-    __adiLootCfgSet('adi-bot_loot_autoaccept', autoLootChk.checked ? '1' : '0');
-    const n = Math.max(0, parseInt(String(priceInput.value || '0').replace(/[^0-9]/g,''), 10) || 0);
-    priceInput.value = String(n);
-    __adiLootCfgSet('adi-bot_loot_min_price', String(n));
+    const cfg = __adiLootCfgNormalize({
+      legendary: lootLegendary.checked,
+      heroic: lootHeroic.checked,
+      unique: lootUnique.checked,
+      autoaccept: autoLootChk.checked,
+      minPrice: priceInput.value
+    });
+    priceInput.value = String(cfg.minPrice);
+    __adiLootCfgWriteJson(cfg);
+    __adiLootCfgSet('adi-bot_loot_legendary', cfg.legendary ? '1' : '0');
+    __adiLootCfgSet('adi-bot_loot_heroic', cfg.heroic ? '1' : '0');
+    __adiLootCfgSet('adi-bot_loot_unique', cfg.unique ? '1' : '0');
+    __adiLootCfgSet('adi-bot_loot_autoaccept', cfg.autoaccept ? '1' : '0');
+    __adiLootCfgSet('adi-bot_loot_min_price', String(cfg.minPrice));
   }catch(_){ }
 }
 try{
   __adiLoadLootFilterCfgIntoUI();
+  setTimeout(__adiLoadLootFilterCfgIntoUI, 0);
 }catch(_){ }
     grpInput.value = localStorage.getItem("adi-bot_grp_range") || "1-3";
     mapExh.value = localStorage.getItem("adi-bot_exh_map") || "Dom Roana";
@@ -3141,11 +3218,15 @@ const have = (window.getPotionCountByName ? window.getPotionCountByName(selName)
         el.addEventListener('input', __adiSaveLootFilterCfg);
         el.addEventListener('click', ()=>setTimeout(__adiSaveLootFilterCfg, 0));
       });
-      ['change','keyup','input','blur'].forEach(evt=>priceInput.addEventListener(evt, __adiSaveLootFilterCfg));
+      ['change','keyup','input','blur','paste'].forEach(evt=>priceInput.addEventListener(evt, __adiSaveLootFilterCfg));
       setTimeout(__adiLoadLootFilterCfgIntoUI, 50);
       setTimeout(__adiLoadLootFilterCfgIntoUI, 500);
+      setTimeout(__adiSaveLootFilterCfg, 700);
       window.addEventListener('beforeunload', __adiSaveLootFilterCfg);
-      document.addEventListener('visibilitychange', ()=>{ if(document.visibilityState==='hidden') __adiSaveLootFilterCfg(); });
+      window.addEventListener('pagehide', __adiSaveLootFilterCfg);
+      window.addEventListener('pageshow', __adiLoadLootFilterCfgIntoUI);
+      document.addEventListener('visibilitychange', ()=>{ if(document.visibilityState==='hidden') __adiSaveLootFilterCfg(); else __adiLoadLootFilterCfgIntoUI(); });
+      setInterval(__adiSaveLootFilterCfg, 1000);
     }catch(_){ }
 
     // Zmiana E2: zapisz wybór + mapę + koordynaty podejścia
