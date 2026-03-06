@@ -2150,6 +2150,125 @@ function __adiAutoHealTick(){
   }catch(_){}
 }
 
+// ===== LOOT FILTER (na podstawie gigi.txt, uproszczony pod UI bota) =====
+const ADI_LOOT_FILTER_DEFAULTS = {
+  enabled: false,
+  legendary: false,
+  heroic: false,
+  unique: false,
+  autoAccept: false,
+  minPrice: 0
+};
+
+function __adiLootBool(v, def=false){
+  if(v === null || typeof v === 'undefined') return !!def;
+  return String(v) === '1' || String(v).toLowerCase() === 'true';
+}
+function __adiGetLootFilterConfig(){
+  try{
+    const minRaw = parseInt(localStorage.getItem('adi-bot_loot_min_price') || '0', 10);
+    return {
+      enabled: __adiLootBool(localStorage.getItem('adi-bot_loot_enabled'), ADI_LOOT_FILTER_DEFAULTS.enabled),
+      legendary: __adiLootBool(localStorage.getItem('adi-bot_loot_legendary'), ADI_LOOT_FILTER_DEFAULTS.legendary),
+      heroic: __adiLootBool(localStorage.getItem('adi-bot_loot_heroic'), ADI_LOOT_FILTER_DEFAULTS.heroic),
+      unique: __adiLootBool(localStorage.getItem('adi-bot_loot_unique'), ADI_LOOT_FILTER_DEFAULTS.unique),
+      autoAccept: __adiLootBool(localStorage.getItem('adi-bot_loot_autoaccept'), ADI_LOOT_FILTER_DEFAULTS.autoAccept),
+      minPrice: Number.isFinite(minRaw) && minRaw > 0 ? minRaw : 0
+    };
+  }catch(_){
+    return Object.assign({}, ADI_LOOT_FILTER_DEFAULTS);
+  }
+}
+function __adiLootNormalizeText(s){
+  try{
+    return String(s || '').toLowerCase().normalize('NFKD').replace(/[̀-ͯ]/g,'');
+  }catch(_){ return String(s || '').toLowerCase(); }
+}
+function __adiLootPrice(item){
+  try{
+    const price = parseInt(item && item.pr, 10);
+    return Number.isFinite(price) && price > 0 ? price : 0;
+  }catch(_){ return 0; }
+}
+function __adiShouldLootItem(item, cfg){
+  try{
+    if(!cfg || !cfg.enabled || !item) return null;
+    const stat = __adiLootNormalizeText(item.stat || '');
+    const price = __adiLootPrice(item);
+    if(cfg.minPrice > 0 && price >= cfg.minPrice) return true;
+    if(cfg.legendary && stat.includes('legendary')) return true;
+    if(cfg.heroic && stat.includes('heroic')) return true;
+    if(cfg.unique && stat.includes('unique')) return true;
+    return false;
+  }catch(_){ return null; }
+}
+function __adiSetLootState(itemId, bucket){
+  try{
+    if(!window.g || !g.loots) return;
+    const next = { want: [], not: [], must: [] };
+    const addFrom = (srcName)=>{
+      const src = Array.isArray(g.loots[srcName]) ? g.loots[srcName] : [];
+      for(let i=0;i<src.length;i++){
+        const lootId = src[i];
+        if(document.querySelector('#loot'+lootId+'.yours')) continue;
+        if(String(lootId) === String(itemId)) next[bucket].push(lootId);
+        else next[srcName].push(lootId);
+      }
+    };
+    addFrom('want');
+    addFrom('not');
+    addFrom('must');
+    g.loots.want = next.want;
+    g.loots.not = next.not;
+    g.loots.must = next.must;
+  }catch(_){ }
+}
+(function(){
+  let __adiLootFlushPending = false;
+  function __adiInstallLootFilter(){
+    try{
+      if(typeof window.lootItem !== 'function' || window.__adiLootFilterInstalled) return;
+      window.__adiLootFilterInstalled = true;
+      const oldLootItem = window.lootItem;
+      window.lootItem = function(item){
+        let ret;
+        try{ ret = oldLootItem.apply(this, arguments); }catch(e){ try{ ret = oldLootItem(item); }catch(_){ ret = undefined; } }
+        try{
+          const cfg = __adiGetLootFilterConfig();
+          const decision = __adiShouldLootItem(item, cfg);
+          if(decision === null || !item || item.id == null) return ret;
+          if(decision){
+            __adiSetLootState(item.id, 'must');
+            try{ if(typeof setStateOnOneLootItem === 'function') setStateOnOneLootItem(item.id, 2); }catch(_){ }
+          }else{
+            __adiSetLootState(item.id, 'not');
+            try{ if(typeof setStateOnOneLootItem === 'function') setStateOnOneLootItem(item.id, 0); }catch(_){ }
+          }
+          if(!__adiLootFlushPending){
+            __adiLootFlushPending = true;
+            setTimeout(function(){
+              try{
+                const liveCfg = __adiGetLootFilterConfig();
+                if(typeof sendLoots === 'function') sendLoots(liveCfg.autoAccept ? 1 : 0, false);
+              }catch(_){ }
+              __adiLootFlushPending = false;
+            }, 300);
+          }
+        }catch(_){ }
+        return ret;
+      };
+    }catch(_){ }
+  }
+  __adiInstallLootFilter();
+  let tries = 0;
+  const intId = setInterval(function(){
+    tries++;
+    __adiInstallLootFilter();
+    if(window.__adiLootFilterInstalled || tries > 60) clearInterval(intId);
+  }, 500);
+})();
+
+
   function checkGrp(id){
     const npc=g.npc[id];
     try{ if(typeof __adiIsBlacklisted==='function' && __adiIsBlacklisted(id)) return false; }catch(_){ }
@@ -2897,6 +3016,52 @@ box.appendChild(autoHealRow);
       // Placeholder content (możesz później uzupełnić ustawieniami startówki)
       tabStart.innerHTML = '<div style="font-size:13px;margin:6px 0;">Wioska startowa – ustawienia w przygotowaniu.</div>';
 
+      const tabSettings = document.createElement('div');
+      tabSettings.id = 'adi-tab-settings';
+      tabSettings.className = 'adi-tab-content';
+      try{
+        const lootWrap = document.createElement('div');
+        lootWrap.className = 'adi-settings-section';
+        lootWrap.innerHTML = `
+          <div class="adi-settings-title">Ustawienia łupu</div>
+          <label class="adi-switch-row">
+            <span class="adi-switch">
+              <input type="checkbox" id="adi-bot_loot_enabled" />
+              <span class="adi-slider"></span>
+            </span>
+            <span>Loot filter ON/OFF</span>
+          </label>
+          <label class="adi-switch-row">
+            <span class="adi-switch">
+              <input type="checkbox" id="adi-bot_loot_legendary" />
+              <span class="adi-slider"></span>
+            </span>
+            <span>Przedmioty legendarne</span>
+          </label>
+          <label class="adi-switch-row">
+            <span class="adi-switch">
+              <input type="checkbox" id="adi-bot_loot_heroic" />
+              <span class="adi-slider"></span>
+            </span>
+            <span>Przedmioty Heroiczne</span>
+          </label>
+          <label class="adi-switch-row">
+            <span class="adi-switch">
+              <input type="checkbox" id="adi-bot_loot_unique" />
+              <span class="adi-slider"></span>
+            </span>
+            <span>Przedmioty Unikatowe</span>
+          </label>
+          <label class="adi-check-row">
+            <input type="checkbox" id="adi-bot_loot_autoaccept" />
+            <span>Akceptuj łup automatycznie</span>
+          </label>
+          <label class="adi-settings-label" for="adi-bot_loot_min_price">Łap od ceny:</label>
+          <input type="text" id="adi-bot_loot_min_price" class="adi-bot_inputs" placeholder="0" />
+        `;
+        tabSettings.appendChild(lootWrap);
+      }catch(e){ console.warn('[adi-bot] settings tab init failed', e); }
+
             // Move all current UI controls into Exp tab (na razie nic nie przenosimy logicznie — tylko opakowanie)
       while(box.firstChild){
         tabExp.appendChild(box.firstChild);
@@ -2977,9 +3142,10 @@ try{
       const t2 = mkTab('E2','e2');
       const t3 = mkTab('Test','test');
       const t4 = mkTab('Wioska startowa','start');
+      const t5 = mkTab('Ustawienia','settings');
       t1.classList.add('active');
 
-      tabs.appendChild(t1); tabs.appendChild(t2); tabs.appendChild(t3); tabs.appendChild(t4);
+      tabs.appendChild(t1); tabs.appendChild(t2); tabs.appendChild(t3); tabs.appendChild(t4); tabs.appendChild(t5);
 
       const contentWrap = document.createElement('div');
       contentWrap.className = 'adi-tabwrap';
@@ -2988,6 +3154,7 @@ try{
       contentWrap.appendChild(tabTest);
 
       contentWrap.appendChild(tabStart);
+      contentWrap.appendChild(tabSettings);
 
       box.appendChild(tabs);
       box.appendChild(contentWrap);
@@ -3009,7 +3176,7 @@ try{
       // restore last active tab
       try{
         const saved = (localStorage.getItem('adi-bot_active_tab')||'exp').trim();
-        if(saved==='e2' || saved==='test' || saved==='exp' || saved==='start') activateTab(saved);
+        if(saved==='e2' || saved==='test' || saved==='exp' || saved==='start' || saved==='settings') activateTab(saved);
       }catch(_){}
     }catch(e){ console.warn('[adi-bot] tabs init failed', e); }
 
@@ -3032,6 +3199,17 @@ try{
       #adi-bot_box .adi-tabwrap{padding:0;margin:0;}
       #adi-bot_box .adi-tab-content{display:none;}
       #adi-bot_box .adi-tab-content.active{display:block;}
+      #adi-bot_box .adi-settings-section{text-align:left;background:rgba(234,227,227,0.92);border:2px solid lime;border-radius:8px;padding:8px;margin:2px 0 4px;color:#000;}
+      #adi-bot_box .adi-settings-title{font-weight:bold;font-size:14px;margin-bottom:8px;text-align:center;}
+      #adi-bot_box .adi-switch-row, #adi-bot_box .adi-check-row{display:flex;align-items:center;gap:10px;margin:0 0 8px;cursor:pointer;}
+      #adi-bot_box .adi-settings-label{display:block;margin:2px 0 4px;font-size:13px;}
+      #adi-bot_box .adi-switch{position:relative;display:inline-block;width:44px;height:24px;flex:0 0 44px;}
+      #adi-bot_box .adi-switch input{opacity:0;width:0;height:0;position:absolute;}
+      #adi-bot_box .adi-slider{position:absolute;inset:0;background:#777;border-radius:999px;transition:.2s;}
+      #adi-bot_box .adi-slider:before{content:'';position:absolute;height:18px;width:18px;left:3px;top:3px;background:#fff;border-radius:50%;transition:.2s;}
+      #adi-bot_box .adi-switch input:checked + .adi-slider{background:#1e90ff;}
+      #adi-bot_box .adi-switch input:checked + .adi-slider:before{transform:translateX(20px);}
+      #adi-bot_box #adi-bot_loot_min_price{text-align:center;}
 `)); document.head.appendChild(style);
 
     // odczyt ustawień UI
@@ -3086,6 +3264,22 @@ try{
     mapExh.value = localStorage.getItem("adi-bot_exh_map") || "Dom Roana";
     const selStored = localStorage.getItem("adi-bot_exh_selector"); exhSel.value = selStored && selStored.trim().length ? selStored : DEFAULT_EXH_SELECTOR;
 
+    try{
+      const lootCfg = __adiGetLootFilterConfig();
+      const lootEnabled = document.querySelector('#adi-bot_loot_enabled');
+      const lootLegendary = document.querySelector('#adi-bot_loot_legendary');
+      const lootHeroic = document.querySelector('#adi-bot_loot_heroic');
+      const lootUnique = document.querySelector('#adi-bot_loot_unique');
+      const lootAutoAccept = document.querySelector('#adi-bot_loot_autoaccept');
+      const lootMinPrice = document.querySelector('#adi-bot_loot_min_price');
+      if(lootEnabled) lootEnabled.checked = !!lootCfg.enabled;
+      if(lootLegendary) lootLegendary.checked = !!lootCfg.legendary;
+      if(lootHeroic) lootHeroic.checked = !!lootCfg.heroic;
+      if(lootUnique) lootUnique.checked = !!lootCfg.unique;
+      if(lootAutoAccept) lootAutoAccept.checked = !!lootCfg.autoAccept;
+      if(lootMinPrice) lootMinPrice.value = String(lootCfg.minPrice || 0);
+    }catch(_){ }
+
     toggleBtn.innerText = (localStorage.getItem("adi-bot_enabled")==="1") ? "STOP" : "START";
     // Resume auto-buy task if it was active before refresh
     try{
@@ -3117,6 +3311,44 @@ const have = (window.getPotionCountByName ? window.getPotionCountByName(selName)
         message(mode==='e2' ? 'Tryb listy: E2' : 'Tryb listy: Exp');
       });
     }catch(_){}
+
+    try{
+      const __adiLootSaveSettings = ()=>{
+        try{
+          const lootEnabled = document.querySelector('#adi-bot_loot_enabled');
+          const lootLegendary = document.querySelector('#adi-bot_loot_legendary');
+          const lootHeroic = document.querySelector('#adi-bot_loot_heroic');
+          const lootUnique = document.querySelector('#adi-bot_loot_unique');
+          const lootAutoAccept = document.querySelector('#adi-bot_loot_autoaccept');
+          const lootMinPrice = document.querySelector('#adi-bot_loot_min_price');
+          localStorage.setItem('adi-bot_loot_enabled', lootEnabled && lootEnabled.checked ? '1' : '0');
+          localStorage.setItem('adi-bot_loot_legendary', lootLegendary && lootLegendary.checked ? '1' : '0');
+          localStorage.setItem('adi-bot_loot_heroic', lootHeroic && lootHeroic.checked ? '1' : '0');
+          localStorage.setItem('adi-bot_loot_unique', lootUnique && lootUnique.checked ? '1' : '0');
+          localStorage.setItem('adi-bot_loot_autoaccept', lootAutoAccept && lootAutoAccept.checked ? '1' : '0');
+          let minPrice = 0;
+          if(lootMinPrice){
+            minPrice = parseInt(String(lootMinPrice.value || '0').replace(/[^0-9]/g,''), 10);
+            if(!Number.isFinite(minPrice) || minPrice < 0) minPrice = 0;
+            lootMinPrice.value = String(minPrice);
+          }
+          localStorage.setItem('adi-bot_loot_min_price', String(minPrice));
+        }catch(_){ }
+      };
+      ['#adi-bot_loot_enabled','#adi-bot_loot_legendary','#adi-bot_loot_heroic','#adi-bot_loot_unique','#adi-bot_loot_autoaccept'].forEach(sel=>{
+        const el = document.querySelector(sel);
+        if(el) el.addEventListener('change', __adiLootSaveSettings);
+      });
+      const lootMinPrice = document.querySelector('#adi-bot_loot_min_price');
+      if(lootMinPrice){
+        lootMinPrice.addEventListener('input', ()=>{
+          lootMinPrice.value = String(lootMinPrice.value || '').replace(/[^0-9]/g,'');
+        });
+        lootMinPrice.addEventListener('change', __adiLootSaveSettings);
+        lootMinPrice.addEventListener('keyup', __adiLootSaveSettings);
+      }
+      __adiLootSaveSettings();
+    }catch(_){ }
 
     // Zmiana E2: zapisz wybór + mapę + koordynaty podejścia
     try{
