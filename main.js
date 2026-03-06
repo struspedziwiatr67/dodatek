@@ -5127,33 +5127,27 @@ if (typeof window.window.__adi_equipByNameSequence !== 'function') {
 
   function adiGetTotalBagSpace(){
     try{
-      const bagIds = ['bs0','bs1','bs2'];
       let used = 0;
       let total = 0;
-
-      for(const id of bagIds){
-        const el = document.getElementById(id) || document.querySelector(`#${id}`) || document.querySelector(`small[id="${id}"]`);
+      for(const id of ['bs0','bs1','bs2']){
+        const el = document.querySelector(`small#${id}`) || document.getElementById(id);
         if(!el) continue;
-        const t = String(el.textContent || '').replace(/\s+/g,'').trim();
+
+        const t = String(el.textContent || el.innerText || '').trim();
         if(!t) continue;
 
         const m = t.match(/(\d+)\/(\d+)/);
         if(m){
-          used += Number(m[1]||0);
-          total += Number(m[2]||0);
+          used += Number(m[1] || 0);
+          total += Number(m[2] || 0);
         }else{
-          const n = parseInt(t,10);
+          const n = parseInt(t, 10);
           if(!isNaN(n)){
             used += n;
             total += 30;
           }
         }
       }
-
-      if(total<=0) return null;
-      return {used,total,free:Math.max(0,total-used),text:`${used}/${total}`};
-    }catch(_){return null;}
-  }
 
       if(total <= 0) return null;
       return {
@@ -5218,16 +5212,13 @@ if (typeof window.window.__adi_equipByNameSequence !== 'function') {
 
       const imageInfo = await adiResolveLootImageFile(item);
       const embed = adiBuildLootEmbed(item, rarity, imageInfo);
-      const lootMsg = rarity === 'legendary'
-        ? '@here Nowy locik - Legendarny :heart_eyes: :star_struck: :exploding_head: :scream: :money_mouth: '
-        : `@here Nowy locik - ${adiLootRarityLabel(rarity)}`;
 
       if(imageInfo && imageInfo.mode === 'file' && imageInfo.blob){
         const form = new FormData();
         form.append(
           'payload_json',
           JSON.stringify({
-            content: lootMsg,
+            content: rarity === 'legendary' ? '@here Nowy locik - Legendarny :heart_eyes: :star_struck: :exploding_head: :scream: :money_mouth: ' : `@here Nowy locik - ${adiLootRarityLabel(rarity)}`,
             embeds: [embed]
           })
         );
@@ -5242,7 +5233,7 @@ if (typeof window.window.__adi_equipByNameSequence !== 'function') {
       }
 
       const payload = {
-        content: lootMsg,
+        content: rarity === 'legendary' ? '@here Nowy locik - Legendarny :heart_eyes: :star_struck: :exploding_head: :scream: :money_mouth: ' : `@here Nowy locik - ${adiLootRarityLabel(rarity)}`,
         embeds: [embed]
       };
 
