@@ -4904,23 +4904,12 @@ if (typeof window.window.__adi_equipByNameSequence !== 'function') {
   function adiLower(s){ return String(s || '').toLowerCase(); }
 
   function adiDetectLootRarity(item){
-    const parts = [
-      item && item.stat,
-      item && item.cl,
-      item && item.tip,
-      item && item.ctip,
-      item && item.loc,
-      item && item.icon,
-      item && item.name,
-      item && item.itemTypeName
-    ].map(adiLower).filter(Boolean);
-
-    const all = parts.join(' ');
-
-    if(/legend/.test(all) || /legendarn/.test(all) || /legenda/.test(all)) return 'legendary';
-    if(/hero/.test(all) || /heroiczn/.test(all) || /heroik/.test(all)) return 'heroic';
-    if(/unik/.test(all) || /unique/.test(all)) return 'unique';
-
+    const stat = adiLower(item && item.stat);
+    const cls = adiLower(item && item.cl);
+    const all = stat + ' ' + cls;
+    if(all.includes('legendary') || all.includes('legenda')) return 'legendary';
+    if(all.includes('heroic') || all.includes('heroik')) return 'heroic';
+    if(all.includes('unique') || all.includes('unikat')) return 'unique';
     return 'common';
   }
 
@@ -5146,17 +5135,10 @@ if (typeof window.window.__adi_equipByNameSequence !== 'function') {
       gold ? `Złoto: **${gold}**` : null
     ].filter(Boolean).join('\n');
 
-    let color;
-    if(rarity === 'legendary') color = 0xFF0000;
-    else if(rarity === 'heroic') color = 0x0099FF;
-    else if(rarity === 'unique') color = 0xFFD700;
-
     const embed = {
       title: nm,
       description: desc
     };
-
-    if(Number.isInteger(color)) embed.color = color;
 
     if(imageInfo){
       if(imageInfo.mode === 'url' && imageInfo.url){
@@ -5195,12 +5177,17 @@ if (typeof window.window.__adi_equipByNameSequence !== 'function') {
       const imageInfo = await adiResolveLootImageFile(item);
       const embed = adiBuildLootEmbed(item, rarity, imageInfo);
 
+      const rarityLabel = adiLootRarityLabel(rarity);
+      const contentText = (rarityLabel === 'Legendarny')
+        ? '@here Nowy locik - Legendarny 😍 🤩 🤯 😱'
+        : `@here Nowy locik - ${rarityLabel}`;
+
       if(imageInfo && imageInfo.mode === 'file' && imageInfo.blob){
         const form = new FormData();
         form.append(
           'payload_json',
           JSON.stringify({
-            content: `@here Nowy locik - ${adiLootRarityLabel(rarity)}`,
+            content: contentText,
             embeds: [embed]
           })
         );
@@ -5215,7 +5202,7 @@ if (typeof window.window.__adi_equipByNameSequence !== 'function') {
       }
 
       const payload = {
-        content: `@here Nowy locik - ${adiLootRarityLabel(rarity)}`,
+        content: contentText,
         embeds: [embed]
       };
 
