@@ -333,220 +333,6 @@ const HERO_DISCORD_WEBHOOK = "https://discord.com/api/webhooks/14711759854948884
   }
   // ------------------------------------
 
-
-  // ===== LOOT FILTER + DISCORD LOOT =====
-  const ADI_LOOT_FILTER_DEFAULTS = {
-    enabled: false,
-    legendary: true,
-    heroic: true,
-    unique: true,
-    autoAccept: false,
-    minPrice: 0,
-    webhook: '',
-    notifyLegendary: true,
-    notifyHeroic: true,
-    notifyUnique: true,
-    notifyCommon: false
-  };
-  let __adiLootAcceptTimer = 0;
-  const __adiLootDiscordSeen = new Map();
-
-  function __adiLootBool(v, def=false){
-    if(v==null || v==='') return !!def;
-    return String(v)==='1' || String(v).toLowerCase()==='true';
-  }
-  function __adiLootNum(v, def=0){
-    const n = parseInt(String(v==null?'':v).replace(/[^0-9]/g,''),10);
-    return Number.isFinite(n) ? n : def;
-  }
-  function __adiGetLootFilterConfig(){
-    return {
-      enabled: __adiLootBool(localStorage.getItem('adi-bot_loot_enabled'), ADI_LOOT_FILTER_DEFAULTS.enabled),
-      legendary: __adiLootBool(localStorage.getItem('adi-bot_loot_legendary'), ADI_LOOT_FILTER_DEFAULTS.legendary),
-      heroic: __adiLootBool(localStorage.getItem('adi-bot_loot_heroic'), ADI_LOOT_FILTER_DEFAULTS.heroic),
-      unique: __adiLootBool(localStorage.getItem('adi-bot_loot_unique'), ADI_LOOT_FILTER_DEFAULTS.unique),
-      autoAccept: __adiLootBool(localStorage.getItem('adi-bot_loot_autoaccept'), ADI_LOOT_FILTER_DEFAULTS.autoAccept),
-      minPrice: __adiLootNum(localStorage.getItem('adi-bot_loot_min_price'), ADI_LOOT_FILTER_DEFAULTS.minPrice),
-      webhook: String(localStorage.getItem('adi-bot_loot_webhook') || ADI_LOOT_FILTER_DEFAULTS.webhook || '').trim(),
-      notifyLegendary: __adiLootBool(localStorage.getItem('adi-bot_loot_notify_legendary'), ADI_LOOT_FILTER_DEFAULTS.notifyLegendary),
-      notifyHeroic: __adiLootBool(localStorage.getItem('adi-bot_loot_notify_heroic'), ADI_LOOT_FILTER_DEFAULTS.notifyHeroic),
-      notifyUnique: __adiLootBool(localStorage.getItem('adi-bot_loot_notify_unique'), ADI_LOOT_FILTER_DEFAULTS.notifyUnique),
-      notifyCommon: __adiLootBool(localStorage.getItem('adi-bot_loot_notify_common'), ADI_LOOT_FILTER_DEFAULTS.notifyCommon)
-    };
-  }
-  function __adiGetItemStatText(item){
-    try{ return String(item && (item.stat || item.stats || item.st || '') || ''); }catch(_){ return ''; }
-  }
-  function __adiGetLootRarity(item){
-    const stat = __adiGetItemStatText(item).toLowerCase();
-    if(/legendary/.test(stat)) return 'legendary';
-    if(/heroic/.test(stat)) return 'heroic';
-    if(/unique/.test(stat)) return 'unique';
-    return 'common';
-  }
-  function __adiGetLootRarityLabel(rarity){
-    switch(String(rarity||'')){
-      case 'legendary': return 'Legendarny';
-      case 'heroic': return 'Heroiczny';
-      case 'unique': return 'Unikatowy';
-      default: return 'Pospolity';
-    }
-  }
-  function __adiShouldTakeLoot(item, cfg){
-    try{
-      if(!cfg || !cfg.enabled || !item) return false;
-      const rarity = __adiGetLootRarity(item);
-      const price = Number(item.pr || item.price || item.value || 0) || 0;
-      if(Number(cfg.minPrice || 0) > 0 && price >= Number(cfg.minPrice || 0)) return true;
-      if(rarity === 'legendary') return !!cfg.legendary;
-      if(rarity === 'heroic') return !!cfg.heroic;
-      if(rarity === 'unique') return !!cfg.unique;
-      return false;
-    }catch(_){ return false; }
-  }
-  function __adiSetLootBucket(itemId, bucket){
-    try{
-      if(!window.g || !g.loots) return;
-      const next = { want: [], not: [], must: [] };
-      ['want','not','must'].forEach(srcName => {
-        const src = Array.isArray(g.loots[srcName]) ? g.loots[srcName] : [];
-        for(const lootId of src){
-          if(document.querySelector('#loot'+lootId+'.yours')) continue;
-          if(String(lootId) === String(itemId)) next[bucket].push(lootId);
-          else next[srcName].push(lootId);
-        }
-      });
-      g.loots.want = next.want;
-      g.loots.not = next.not;
-      g.loots.must = next.must;
-    }catch(e){ console.warn('[adi-bot][loot] set bucket error', e); }
-  }
-  function __adiAutoAcceptLoot(){
-    try{
-      clearTimeout(__adiLootAcceptTimer);
-      __adiLootAcceptTimer = setTimeout(()=>{
-        try{ if(typeof sendLoots === 'function') sendLoots(1,false); }catch(_){ try{ sendLoots(0,false); }catch(__){} }
-      }, 250);
-    }catch(_){ }
-  }
-  function __adiResolveLootImageInfo(item){
-    const itemId = item && item.id != null ? String(item.id) : '';
-    const selectors = [
-      '#item'+itemId+' img',
-      '#loot'+itemId+' img',
-      '#item'+itemId+' .item img',
-      '#item'+itemId+' .item-icon img',
-      '#loot'+itemId+' .item img',
-      '#loot'+itemId+' .item-icon img'
-    ];
-    for(const sel of selectors){
-      try{
-        const el = document.querySelector(sel);
-        const src = el && (el.currentSrc || el.src || el.getAttribute('src') || el.dataset.src || '');
-        if(src) return { src, from:'dom' };
-      }catch(_){ }
-    }
-    try{
-      const raw = item && (item.icon || item.img || item.image || item.iconUrl || item.gfx || '');
-      if(raw) return { src: String(raw), from:'item' };
-    }catch(_){ }
-    return null;
-  }
-  async function __adiDiscordWebhookRequest(webhook, payload, fileBlob=null, fileName='item.png'){
-    try{
-      if(!webhook) return false;
-      let opts;
-      if(fileBlob){
-        const fd = new FormData();
-        fd.append('payload_json', JSON.stringify(payload));
-        fd.append('files[0]', fileBlob, fileName);
-        opts = { method:'POST', body:fd };
-      }else{
-        opts = { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload) };
-      }
-      const res = await fetch(webhook, opts);
-      if(!res.ok){ console.warn('[adi-bot][loot] Discord webhook HTTP', res.status); return false; }
-      return true;
-    }catch(e){ console.warn('[adi-bot][loot] Discord webhook error', e); return false; }
-  }
-  async function __adiNotifyLootDiscord(item, rarity, cfg){
-    try{
-      if(!cfg || !cfg.webhook || !item) return false;
-      const itemId = String(item.id || '0');
-      const sig = [itemId, String(item.name||item.nazwa||'').trim(), rarity].join('|');
-      const now = Date.now();
-      const prev = __adiLootDiscordSeen.get(sig) || 0;
-      if(now - prev < 15000) return false;
-      __adiLootDiscordSeen.set(sig, now);
-
-      const rarityLabel = __adiGetLootRarityLabel(rarity);
-      const heroName = getHeroName();
-      const itemName = String(item.name || item.nazwa || 'Nieznany przedmiot');
-      const content = `@here Nowy locik - ${rarityLabel}`;
-      const embed = {
-        title: itemName,
-        description: `Postać: **${heroName}**`,
-        fields: [
-          { name: 'Rzadkość', value: rarityLabel, inline: true },
-          { name: 'Mapa', value: String((window.map && map.name) || 'Nieznana'), inline: true }
-        ],
-        footer: { text: `ID itemu: ${itemId}` }
-      };
-
-      let fileBlob = null;
-      let fileName = 'item.png';
-      const imgInfo = __adiResolveLootImageInfo(item);
-      if(imgInfo && imgInfo.src){
-        if(/^blob:/i.test(imgInfo.src)){
-          try{
-            const res = await fetch(imgInfo.src);
-            if(res.ok){
-              fileBlob = await res.blob();
-              const ext = ((fileBlob && fileBlob.type) || 'image/png').split('/')[1] || 'png';
-              fileName = `loot_${itemId}.${ext.replace(/[^a-z0-9]/gi,'') || 'png'}`;
-              embed.thumbnail = { url: `attachment://${fileName}` };
-            }
-          }catch(e){ console.warn('[adi-bot][loot] blob image fetch error', e); }
-        }else if(/^https?:/i.test(imgInfo.src)){
-          embed.thumbnail = { url: imgInfo.src };
-        }
-      }
-      return await __adiDiscordWebhookRequest(cfg.webhook, { content, embeds:[embed] }, fileBlob, fileName);
-    }catch(e){ console.warn('[adi-bot][loot] notify error', e); return false; }
-  }
-  function __adiShouldNotifyLoot(rarity, cfg){
-    if(!cfg || !cfg.webhook) return false;
-    if(rarity === 'legendary') return !!cfg.notifyLegendary;
-    if(rarity === 'heroic') return !!cfg.notifyHeroic;
-    if(rarity === 'unique') return !!cfg.notifyUnique;
-    return !!cfg.notifyCommon;
-  }
-  function __adiInstallLootFilter(){
-    try{
-      if(window.__adiLootFilterInstalled || typeof window.lootItem !== 'function') return false;
-      const oldLootItem = window.lootItem;
-      window.lootItem = function(item){
-        try{ oldLootItem.apply(this, arguments); }catch(e){ try{ oldLootItem(item); }catch(_){} }
-        try{
-          if(!item || item.id == null) return;
-          const cfg = __adiGetLootFilterConfig();
-          const rarity = __adiGetLootRarity(item);
-          const want = __adiShouldTakeLoot(item, cfg);
-          __adiSetLootBucket(item.id, want ? 'must' : 'not');
-          try{ if(typeof setStateOnOneLootItem === 'function') setStateOnOneLootItem(item.id, want ? 2 : 0); }catch(_){ }
-          if(want && cfg.autoAccept) __adiAutoAcceptLoot();
-          if(__adiShouldNotifyLoot(rarity, cfg)) __adiNotifyLootDiscord(item, rarity, cfg);
-        }catch(e){ console.warn('[adi-bot][loot] lootItem hook error', e); }
-      };
-      window.__adiLootFilterInstalled = true;
-      console.log('[adi-bot][loot] loot filter installed');
-      return true;
-    }catch(e){ console.warn('[adi-bot][loot] install error', e); return false; }
-  }
-  setTimeout(__adiInstallLootFilter, 500);
-  setTimeout(__adiInstallLootFilter, 1500);
-  setTimeout(__adiInstallLootFilter, 4000);
-
   // === AUTO LOGOUT after E2 killed (by anyone nearby) ===
   // Trigger: we have seen selected E2 on the target map, then it disappears shortly after (death),
   // even if another player killed it. Extra guards prevent false positives from fog / map changes.
@@ -3111,42 +2897,6 @@ box.appendChild(autoHealRow);
       // Placeholder content (możesz później uzupełnić ustawieniami startówki)
       tabStart.innerHTML = '<div style="font-size:13px;margin:6px 0;">Wioska startowa – ustawienia w przygotowaniu.</div>';
 
-      const tabSettings = document.createElement('div');
-      tabSettings.id = 'adi-tab-settings';
-      tabSettings.className = 'adi-tab-content';
-      tabSettings.innerHTML = `
-        <div class="adi-settings-section adi-settings-section-flat">
-          <div class="adi-settings-title">Loot filter</div>
-          <label class="adi-settings-row adi-settings-switch-row">
-            <span class="adi-ui-switch"><input type="checkbox" id="adi-bot_loot_enabled" /><span class="adi-ui-slider"></span></span>
-            <span class="adi-ui-switch-label">Loot filter</span>
-          </label>
-          <label class="adi-settings-row adi-settings-switch-row">
-            <span class="adi-ui-switch"><input type="checkbox" id="adi-bot_loot_legendary" /><span class="adi-ui-slider"></span></span>
-            <span class="adi-ui-switch-label">Przedmioty legendarne</span>
-          </label>
-          <label class="adi-settings-row adi-settings-switch-row">
-            <span class="adi-ui-switch"><input type="checkbox" id="adi-bot_loot_heroic" /><span class="adi-ui-slider"></span></span>
-            <span class="adi-ui-switch-label">Przedmioty Heroiczne</span>
-          </label>
-          <label class="adi-settings-row adi-settings-switch-row">
-            <span class="adi-ui-switch"><input type="checkbox" id="adi-bot_loot_unique" /><span class="adi-ui-slider"></span></span>
-            <span class="adi-ui-switch-label">Przedmioty Unikatowe</span>
-          </label>
-          <label class="adi-settings-row adi-settings-checkbox-row"><input type="checkbox" id="adi-bot_loot_autoaccept" /> <span>Akceptuj łup automatycznie</span></label>
-          <label class="adi-settings-label" for="adi-bot_loot_min_price">Łap od ceny</label>
-          <input type="text" id="adi-bot_loot_min_price" class="adi-bot_inputs" placeholder="0" />
-        </div>
-        <div class="adi-settings-section adi-settings-section-flat">
-          <label class="adi-settings-label" for="adi-bot_loot_webhook">Webhook Discord</label>
-          <textarea id="adi-bot_loot_webhook" class="adi-bot_inputs adi-settings-textarea" placeholder="Wklej tutaj webhook Discord"></textarea>
-          <div class="adi-settings-title" style="margin-top:8px;">Informuj na discord o nowym locie</div>
-          <label class="adi-settings-row adi-settings-checkbox-row"><input type="checkbox" id="adi-bot_loot_notify_legendary" /> <span>Legendarnym</span></label>
-          <label class="adi-settings-row adi-settings-checkbox-row"><input type="checkbox" id="adi-bot_loot_notify_heroic" /> <span>Heroicznym</span></label>
-          <label class="adi-settings-row adi-settings-checkbox-row"><input type="checkbox" id="adi-bot_loot_notify_unique" /> <span>Unikatowym</span></label>
-          <label class="adi-settings-row adi-settings-checkbox-row"><input type="checkbox" id="adi-bot_loot_notify_common" /> <span>Pospolitym</span></label>
-        </div>`;
-
             // Move all current UI controls into Exp tab (na razie nic nie przenosimy logicznie — tylko opakowanie)
       while(box.firstChild){
         tabExp.appendChild(box.firstChild);
@@ -3227,10 +2977,9 @@ try{
       const t2 = mkTab('E2','e2');
       const t3 = mkTab('Test','test');
       const t4 = mkTab('Wioska startowa','start');
-      const t5 = mkTab('Ustawienia','settings');
       t1.classList.add('active');
 
-      tabs.appendChild(t1); tabs.appendChild(t2); tabs.appendChild(t3); tabs.appendChild(t4); tabs.appendChild(t5);
+      tabs.appendChild(t1); tabs.appendChild(t2); tabs.appendChild(t3); tabs.appendChild(t4);
 
       const contentWrap = document.createElement('div');
       contentWrap.className = 'adi-tabwrap';
@@ -3239,7 +2988,6 @@ try{
       contentWrap.appendChild(tabTest);
 
       contentWrap.appendChild(tabStart);
-      contentWrap.appendChild(tabSettings);
 
       box.appendChild(tabs);
       box.appendChild(contentWrap);
@@ -3261,7 +3009,7 @@ try{
       // restore last active tab
       try{
         const saved = (localStorage.getItem('adi-bot_active_tab')||'exp').trim();
-        if(saved==='e2' || saved==='test' || saved==='exp' || saved==='start' || saved==='settings') activateTab(saved);
+        if(saved==='e2' || saved==='test' || saved==='exp' || saved==='start') activateTab(saved);
       }catch(_){}
     }catch(e){ console.warn('[adi-bot] tabs init failed', e); }
 
@@ -3284,23 +3032,6 @@ try{
       #adi-bot_box .adi-tabwrap{padding:0;margin:0;}
       #adi-bot_box .adi-tab-content{display:none;}
       #adi-bot_box .adi-tab-content.active{display:block;}
-      #adi-bot_box .adi-settings-section{margin:6px 0;padding:2px 0;text-align:left;background:transparent;border:none;}
-      #adi-bot_box .adi-settings-section-flat{background:transparent;border:none;box-shadow:none;}
-      #adi-bot_box .adi-settings-title{font-weight:700;font-size:13px;margin:0 0 6px 0;color:#fff;text-shadow:1px 1px 0 rgba(0,0,0,.8);}
-      #adi-bot_box .adi-settings-row{display:flex;align-items:center;gap:8px;margin:4px 0;font-size:13px;color:#fff;text-shadow:1px 1px 0 rgba(0,0,0,.8);}
-      #adi-bot_box .adi-settings-row input[type=checkbox]{margin:0;accent-color:#37c837;}
-      #adi-bot_box .adi-settings-label{display:block;font-size:13px;margin:6px 0 3px;color:#fff;text-align:left;text-shadow:1px 1px 0 rgba(0,0,0,.8);}
-      #adi-bot_box .adi-settings-textarea{width:260px;min-height:72px;resize:vertical;text-align:left;cursor:text;}
-      #adi-bot_box #adi-bot_loot_min_price{text-align:center;}
-      #adi-bot_box .adi-settings-switch-row{justify-content:flex-start;}
-      #adi-bot_box .adi-settings-checkbox-row{justify-content:flex-start;}
-      #adi-bot_box .adi-ui-switch{position:relative;display:inline-block;width:38px;height:20px;flex:0 0 auto;}
-      #adi-bot_box .adi-ui-switch input{opacity:0;width:0;height:0;position:absolute;}
-      #adi-bot_box .adi-ui-slider{position:absolute;inset:0;border-radius:999px;background:rgba(40,40,40,.95);border:1px solid rgba(0,0,0,.8);box-shadow:inset 0 1px 2px rgba(255,255,255,.12),0 1px 2px rgba(0,0,0,.5);transition:.2s;}
-      #adi-bot_box .adi-ui-slider:before{content:'';position:absolute;left:2px;top:2px;width:14px;height:14px;border-radius:50%;background:linear-gradient(180deg,#f8f8f8,#bdbdbd);box-shadow:0 1px 2px rgba(0,0,0,.5);transition:.2s;}
-      #adi-bot_box .adi-ui-switch input:checked + .adi-ui-slider{background:linear-gradient(180deg,#4ee44e,#1f9c1f);}
-      #adi-bot_box .adi-ui-switch input:checked + .adi-ui-slider:before{transform:translateX(18px);}
-      #adi-bot_box .adi-ui-switch-label{color:#fff;text-shadow:1px 1px 0 rgba(0,0,0,.8);}
 `)); document.head.appendChild(style);
 
     // odczyt ustawień UI
@@ -4956,4 +4687,432 @@ if (typeof window.window.__adi_equipByNameSequence !== 'function') {
   setTimeout(tryInstall, 1500);
   setTimeout(tryInstall, 5000);
 
+})();
+
+/* =======================================================
+   ADI LOOT FILTER + DISCORD LOOT NOTIFY
+   ======================================================= */
+(function(){
+  const ADI_LOOT_CFG_KEY = 'adi-bot_loot_cfg_v1';
+  const ADI_LOOT_NOTIFY_SEEN_KEY = 'adi-bot_loot_notify_seen_v1';
+  const ADI_LOOT_UI_STYLE_ID = 'adi-bot-loot-style';
+  let __adiLootFlushTimer = null;
+  let __adiLootPatched = false;
+
+  function adiLootDefaults(){
+    return {
+      filterEnabled: false,
+      legendary: true,
+      heroic: true,
+      unique: true,
+      autoAccept: false,
+      minPrice: 0,
+      webhook: '',
+      notifyLegendary: true,
+      notifyHeroic: true,
+      notifyUnique: true,
+      notifyCommon: false
+    };
+  }
+
+  function adiLoadLootCfg(){
+    try{
+      const raw = localStorage.getItem(ADI_LOOT_CFG_KEY);
+      const cfg = raw ? JSON.parse(raw) : {};
+      const def = adiLootDefaults();
+      return {
+        filterEnabled: cfg.filterEnabled ?? def.filterEnabled,
+        legendary: cfg.legendary ?? def.legendary,
+        heroic: cfg.heroic ?? def.heroic,
+        unique: cfg.unique ?? def.unique,
+        autoAccept: cfg.autoAccept ?? def.autoAccept,
+        minPrice: Number.isFinite(Number(cfg.minPrice)) ? Math.max(0, Number(cfg.minPrice)) : def.minPrice,
+        webhook: String(cfg.webhook ?? def.webhook),
+        notifyLegendary: cfg.notifyLegendary ?? def.notifyLegendary,
+        notifyHeroic: cfg.notifyHeroic ?? def.notifyHeroic,
+        notifyUnique: cfg.notifyUnique ?? def.notifyUnique,
+        notifyCommon: cfg.notifyCommon ?? def.notifyCommon,
+      };
+    }catch(_){ return adiLootDefaults(); }
+  }
+
+  function adiSaveLootCfg(next){
+    try{ localStorage.setItem(ADI_LOOT_CFG_KEY, JSON.stringify(next || adiLootDefaults())); }catch(_){ }
+  }
+
+  function adiLootMessage(txt){
+    try{ if(typeof message === 'function') message(txt); }catch(_){ }
+  }
+
+  function adiEnsureLootStyle(){
+    try{
+      if(document.getElementById(ADI_LOOT_UI_STYLE_ID)) return;
+      const st = document.createElement('style');
+      st.id = ADI_LOOT_UI_STYLE_ID;
+      st.textContent = `
+        #adi-tab-settings .adi-settings-section{border:1px solid rgba(0,0,0,.45);border-radius:8px;padding:8px;margin:6px 0;background:rgba(234,227,227,.88);color:#000;text-align:left}
+        #adi-tab-settings .adi-settings-title{font-weight:700;font-size:13px;margin-bottom:8px}
+        #adi-tab-settings .adi-settings-line{display:flex;align-items:center;gap:8px;margin:6px 0;flex-wrap:wrap}
+        #adi-tab-settings .adi-settings-label{font-size:13px;line-height:1.2}
+        #adi-tab-settings .adi-settings-sub{font-size:12px;opacity:.85;margin:2px 0 8px}
+        #adi-tab-settings .adi-switch{position:relative;display:inline-block;width:42px;height:22px;flex:0 0 auto}
+        #adi-tab-settings .adi-switch input{opacity:0;width:0;height:0}
+        #adi-tab-settings .adi-slider{position:absolute;cursor:pointer;inset:0;background:#888;border-radius:999px;transition:.2s}
+        #adi-tab-settings .adi-slider:before{content:'';position:absolute;height:16px;width:16px;left:3px;top:3px;background:#fff;border-radius:50%;transition:.2s}
+        #adi-tab-settings .adi-switch input:checked + .adi-slider{background:#28a745}
+        #adi-tab-settings .adi-switch input:checked + .adi-slider:before{transform:translateX(20px)}
+        #adi-tab-settings input[type="text"], #adi-tab-settings input[type="number"]{box-sizing:border-box;width:100%;max-width:100%;margin:0}
+        #adi-tab-settings .adi-webhook-input{font-size:13px}
+        #adi-tab-settings .adi-inline-input{width:120px !important;display:inline-block}
+      `;
+      document.head.appendChild(st);
+    }catch(_){ }
+  }
+
+  function adiSwitch(id, label, checked){
+    return `
+      <label class="adi-settings-line" for="${id}">
+        <span class="adi-switch"><input type="checkbox" id="${id}" ${checked ? 'checked' : ''}><span class="adi-slider"></span></span>
+        <span class="adi-settings-label">${label}</span>
+      </label>
+    `;
+  }
+
+  function adiCheckbox(id, label, checked){
+    return `
+      <label class="adi-settings-line" for="${id}">
+        <input type="checkbox" id="${id}" ${checked ? 'checked' : ''}>
+        <span class="adi-settings-label">${label}</span>
+      </label>
+    `;
+  }
+
+  function adiEnsureSettingsTab(){
+    try{
+      const box = document.getElementById('adi-bot_box');
+      if(!box) return false;
+      const tabs = box.querySelector('.adi-tabs');
+      const wrap = box.querySelector('.adi-tabwrap');
+      if(!tabs || !wrap) return false;
+      adiEnsureLootStyle();
+
+      let settingsTabBtn = Array.from(tabs.querySelectorAll('.adi-tab')).find(x => x.dataset.tab === 'settings');
+      let settingsPanel = document.getElementById('adi-tab-settings');
+      if(!settingsTabBtn){
+        settingsTabBtn = document.createElement('div');
+        settingsTabBtn.className = 'adi-tab';
+        settingsTabBtn.dataset.tab = 'settings';
+        settingsTabBtn.textContent = 'Ustawienia';
+        const startBtn = Array.from(tabs.querySelectorAll('.adi-tab')).find(x => x.dataset.tab === 'start');
+        if(startBtn && startBtn.nextSibling) tabs.insertBefore(settingsTabBtn, startBtn.nextSibling);
+        else tabs.appendChild(settingsTabBtn);
+      }
+      if(!settingsPanel){
+        settingsPanel = document.createElement('div');
+        settingsPanel.id = 'adi-tab-settings';
+        settingsPanel.className = 'adi-tab-content';
+        wrap.appendChild(settingsPanel);
+      }
+
+      const cfg = adiLoadLootCfg();
+      settingsPanel.innerHTML = `
+        <div class="adi-settings-section">
+          <div class="adi-settings-title">Ustawienia łupu</div>
+          ${adiSwitch('adi-loot-filter-enabled', 'Loot filter ON/OFF', cfg.filterEnabled)}
+          ${adiSwitch('adi-loot-filter-legendary', 'Przedmioty legendarne', cfg.legendary)}
+          ${adiSwitch('adi-loot-filter-heroic', 'Przedmioty Heroiczne', cfg.heroic)}
+          ${adiSwitch('adi-loot-filter-unique', 'Przedmioty Unikatowe', cfg.unique)}
+          ${adiCheckbox('adi-loot-filter-autoaccept', 'Akceptuj łup automatycznie', cfg.autoAccept)}
+          <label class="adi-settings-line" for="adi-loot-filter-minprice">
+            <span class="adi-settings-label">Łap od ceny</span>
+            <input type="number" min="0" step="1" id="adi-loot-filter-minprice" class="adi-bot_inputs adi-inline-input" value="${cfg.minPrice}">
+          </label>
+        </div>
+
+        <div class="adi-settings-section">
+          <div class="adi-settings-title">Discord webhook</div>
+          <input type="text" id="adi-loot-discord-webhook" class="adi-bot_inputs adi-webhook-input" placeholder="Wklej webhook Discord" value="${String(cfg.webhook||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}">
+          <div class="adi-settings-sub">Informuj na discord o nowym locie</div>
+          ${adiCheckbox('adi-loot-notify-legendary', 'Legendarnym', cfg.notifyLegendary)}
+          ${adiCheckbox('adi-loot-notify-heroic', 'Heroicznym', cfg.notifyHeroic)}
+          ${adiCheckbox('adi-loot-notify-unique', 'Unikatowym', cfg.notifyUnique)}
+          ${adiCheckbox('adi-loot-notify-common', 'Pospolitym', cfg.notifyCommon)}
+        </div>
+      `;
+
+      const bindCheck = (id, key, textOn, textOff) => {
+        const el = settingsPanel.querySelector('#' + id);
+        if(!el || el.__adiBound) return;
+        el.__adiBound = true;
+        el.addEventListener('change', ()=>{
+          const cur = adiLoadLootCfg();
+          cur[key] = !!el.checked;
+          adiSaveLootCfg(cur);
+          if(textOn || textOff) adiLootMessage(el.checked ? textOn : textOff);
+        });
+      };
+      const bindInput = (id, key, normalize, textFn) => {
+        const el = settingsPanel.querySelector('#' + id);
+        if(!el || el.__adiBound) return;
+        el.__adiBound = true;
+        const save = ()=>{
+          const cur = adiLoadLootCfg();
+          const val = normalize ? normalize(el.value) : el.value;
+          if(typeof val !== 'undefined') el.value = String(val);
+          cur[key] = val;
+          adiSaveLootCfg(cur);
+          if(textFn) adiLootMessage(textFn(val));
+        };
+        el.addEventListener('change', save);
+        if(el.type === 'text') el.addEventListener('keyup', ()=>{
+          const cur = adiLoadLootCfg();
+          cur[key] = el.value;
+          adiSaveLootCfg(cur);
+        });
+      };
+
+      bindCheck('adi-loot-filter-enabled', 'filterEnabled', 'Loot filter: WŁ', 'Loot filter: WYŁ');
+      bindCheck('adi-loot-filter-legendary', 'legendary');
+      bindCheck('adi-loot-filter-heroic', 'heroic');
+      bindCheck('adi-loot-filter-unique', 'unique');
+      bindCheck('adi-loot-filter-autoaccept', 'autoAccept', 'Auto akceptacja łupu: WŁ', 'Auto akceptacja łupu: WYŁ');
+      bindCheck('adi-loot-notify-legendary', 'notifyLegendary');
+      bindCheck('adi-loot-notify-heroic', 'notifyHeroic');
+      bindCheck('adi-loot-notify-unique', 'notifyUnique');
+      bindCheck('adi-loot-notify-common', 'notifyCommon');
+      bindInput('adi-loot-filter-minprice', 'minPrice', (v)=>{
+        let n = parseInt(v || '0', 10);
+        if(!Number.isFinite(n) || n < 0) n = 0;
+        return n;
+      }, (v)=>'Loot filter: cena minimalna ' + v);
+      bindInput('adi-loot-discord-webhook', 'webhook', (v)=>String(v || '').trim());
+
+      try{
+        const saved = (localStorage.getItem('adi-bot_active_tab') || '').trim();
+        if(saved === 'settings'){
+          const allTabs = box.querySelectorAll('.adi-tab');
+          const allPanels = box.querySelectorAll('.adi-tab-content');
+          allTabs.forEach(x=>x.classList.toggle('active', x.dataset.tab === 'settings'));
+          allPanels.forEach(p=>p.classList.toggle('active', p.id === 'adi-tab-settings'));
+        }
+      }catch(_){ }
+
+      return true;
+    }catch(e){ console.warn('[adi-loot-ui] ensure tab failed', e); return false; }
+  }
+
+  function adiLower(s){ return String(s || '').toLowerCase(); }
+
+  function adiDetectLootRarity(item){
+    const stat = adiLower(item && item.stat);
+    const cls = adiLower(item && item.cl);
+    const all = stat + ' ' + cls;
+    if(all.includes('legendary') || all.includes('legenda')) return 'legendary';
+    if(all.includes('heroic') || all.includes('heroik')) return 'heroic';
+    if(all.includes('unique') || all.includes('unikat')) return 'unique';
+    return 'common';
+  }
+
+  function adiLootRarityLabel(r){
+    if(r === 'legendary') return 'Legendarny';
+    if(r === 'heroic') return 'Heroiczny';
+    if(r === 'unique') return 'Unikatowy';
+    return 'Pospolity';
+  }
+
+  function adiLootShouldNotify(rarity, cfg){
+    if(rarity === 'legendary') return !!cfg.notifyLegendary;
+    if(rarity === 'heroic') return !!cfg.notifyHeroic;
+    if(rarity === 'unique') return !!cfg.notifyUnique;
+    return !!cfg.notifyCommon;
+  }
+
+  function adiLootShouldTake(item, cfg){
+    if(!cfg.filterEnabled) return null;
+    const price = Number(item && item.pr);
+    if(Number.isFinite(price) && price >= Number(cfg.minPrice || 0)) return true;
+    const rarity = adiDetectLootRarity(item);
+    if(rarity === 'legendary' && cfg.legendary) return true;
+    if(rarity === 'heroic' && cfg.heroic) return true;
+    if(rarity === 'unique' && cfg.unique) return true;
+    return false;
+  }
+
+  function adiLootRemoveAll(arr, val){
+    if(!Array.isArray(arr)) return [];
+    for(let i = arr.length - 1; i >= 0; i--){ if(String(arr[i]) === String(val)) arr.splice(i, 1); }
+    return arr;
+  }
+
+  function adiSetLootState(itemId, mode){
+    try{
+      if(!window.g || !g.loots || itemId == null) return false;
+      g.loots.want = Array.isArray(g.loots.want) ? g.loots.want : [];
+      g.loots.not  = Array.isArray(g.loots.not)  ? g.loots.not  : [];
+      g.loots.must = Array.isArray(g.loots.must) ? g.loots.must : [];
+
+      adiLootRemoveAll(g.loots.want, itemId);
+      adiLootRemoveAll(g.loots.not, itemId);
+      adiLootRemoveAll(g.loots.must, itemId);
+
+      if(mode === 'must') g.loots.must.push(itemId);
+      else if(mode === 'want') g.loots.want.push(itemId);
+      else g.loots.not.push(itemId);
+
+      try{
+        if(typeof setStateOnOneLootItem === 'function'){
+          setStateOnOneLootItem(itemId, mode === 'must' ? 2 : (mode === 'want' ? 1 : 0));
+        }
+      }catch(_){ }
+      return true;
+    }catch(e){ console.warn('[adi-loot] set state failed', e); return false; }
+  }
+
+  function adiScheduleLootFlush(autoAccept){
+    try{
+      if(__adiLootFlushTimer) clearTimeout(__adiLootFlushTimer);
+      __adiLootFlushTimer = setTimeout(()=>{
+        __adiLootFlushTimer = null;
+        try{ if(typeof sendLoots === 'function') sendLoots(autoAccept ? 1 : 0, false); }catch(_){ }
+      }, 300);
+    }catch(_){ }
+  }
+
+  function adiGetHeroName(){
+    try{ return hero?.nick || hero?.name || 'Nieznany'; }catch(_){ return 'Nieznany'; }
+  }
+
+  function adiResolveLootImage(item){
+    try{
+      const cand = [item?.icon, item?.img, item?.image, item?.iconUrl, item?.icon_url, item?.sprite].filter(Boolean);
+      for(const raw of cand){
+        const s = String(raw || '').trim();
+        if(!s) continue;
+        if(/^https?:\/\//i.test(s)) return s;
+        if(/^\/\//.test(s)) return 'https:' + s;
+        if(/^\//.test(s)) return 'https://micc.garmory-cdn.cloud' + s;
+        if(/\.(png|gif|jpg|jpeg|webp)$/i.test(s)) return 'https://micc.garmory-cdn.cloud/' + s.replace(/^\/+/, '');
+      }
+      const id = item && item.id;
+      const q = [
+        '#loot' + id + ' img',
+        '#item' + id + ' img',
+        '[id="loot' + id + '"] img',
+        '[data-id="' + id + '"] img'
+      ];
+      for(const sel of q){
+        const img = document.querySelector(sel);
+        const src = img && img.getAttribute ? (img.getAttribute('src') || img.src) : '';
+        if(src) return src;
+      }
+    }catch(_){ }
+    return null;
+  }
+
+  function adiBuildLootEmbed(item, rarity){
+    const nm = String(item?.name || item?.n || 'Nowy locik');
+    const heroName = adiGetHeroName();
+    const price = Number(item?.pr);
+    const embed = {
+      title: nm,
+      description: `Postać: **${heroName}**\nRzadkość: **${adiLootRarityLabel(rarity)}**${Number.isFinite(price) ? `\nCena: **${price}**` : ''}`,
+      footer: { text: 'adiwilkTestBot' }
+    };
+    const img = adiResolveLootImage(item);
+    if(img) embed.thumbnail = { url: img };
+    return embed;
+  }
+
+  function adiWasNotified(item){
+    try{
+      const id = String(item?.id ?? '');
+      const stat = String(item?.stat ?? '');
+      const sig = id + '|' + stat;
+      const seen = JSON.parse(localStorage.getItem(ADI_LOOT_NOTIFY_SEEN_KEY) || '[]');
+      if(Array.isArray(seen) && seen.includes(sig)) return true;
+      const next = Array.isArray(seen) ? seen.slice(-99) : [];
+      next.push(sig);
+      localStorage.setItem(ADI_LOOT_NOTIFY_SEEN_KEY, JSON.stringify(next));
+      return false;
+    }catch(_){ return false; }
+  }
+
+  function adiSendLootDiscord(item){
+    try{
+      const cfg = adiLoadLootCfg();
+      const webhook = String(cfg.webhook || '').trim();
+      if(!webhook) return;
+      const rarity = adiDetectLootRarity(item);
+      if(!adiLootShouldNotify(rarity, cfg)) return;
+      if(adiWasNotified(item)) return;
+
+      const payload = {
+        content: `@here Nowy locik - ${adiLootRarityLabel(rarity)}`,
+        embeds: [adiBuildLootEmbed(item, rarity)]
+      };
+
+      fetch(webhook, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      }).catch(err => console.warn('[adi-loot] discord webhook error', err));
+    }catch(e){ console.warn('[adi-loot] send discord failed', e); }
+  }
+
+  function adiHandleLoot(item){
+    try{
+      if(!item) return;
+      const cfg = adiLoadLootCfg();
+      const take = adiLootShouldTake(item, cfg);
+      if(take === true){
+        adiSetLootState(item.id, 'want');
+        adiScheduleLootFlush(cfg.autoAccept);
+      }else if(take === false){
+        adiSetLootState(item.id, 'not');
+        adiScheduleLootFlush(cfg.autoAccept);
+      }
+      adiSendLootDiscord(item);
+    }catch(e){ console.warn('[adi-loot] handle failed', e); }
+  }
+
+  function adiPatchLootItem(){
+    try{
+      if(__adiLootPatched) return true;
+      if(typeof window.lootItem !== 'function') return false;
+      const orig = window.lootItem;
+      if(orig.__adiLootWrapped) { __adiLootPatched = true; return true; }
+      const wrapped = function(item){
+        let ret;
+        try{ ret = orig.apply(this, arguments); }catch(e){ console.warn('[adi-loot] orig lootItem error', e); }
+        try{ adiHandleLoot(item); }catch(e){ console.warn('[adi-loot] wrapped loot error', e); }
+        return ret;
+      };
+      wrapped.__adiLootWrapped = true;
+      wrapped.__adiLootOriginal = orig;
+      window.lootItem = wrapped;
+      __adiLootPatched = true;
+      return true;
+    }catch(e){ console.warn('[adi-loot] patch failed', e); return false; }
+  }
+
+  function adiBootLootPatch(){
+    try{ adiEnsureSettingsTab(); }catch(_){ }
+    try{ adiPatchLootItem(); }catch(_){ }
+  }
+
+  const __adiLootUiTimer = setInterval(()=>{
+    const ok = adiEnsureSettingsTab();
+    if(ok){
+      try{ clearInterval(__adiLootUiTimer); }catch(_){ }
+    }
+  }, 700);
+
+  const __adiLootPatchTimer = setInterval(()=>{
+    if(adiPatchLootItem()){
+      try{ clearInterval(__adiLootPatchTimer); }catch(_){ }
+    }
+  }, 1000);
+
+  if(document.readyState === 'complete' || document.readyState === 'interactive') setTimeout(adiBootLootPatch, 300);
+  else document.addEventListener('DOMContentLoaded', ()=>setTimeout(adiBootLootPatch, 300));
 })();
