@@ -5125,13 +5125,43 @@ if (typeof window.window.__adi_equipByNameSequence !== 'function') {
     }catch(_){ return null; }
   }
 
+  function adiGetTotalBagSpace(){
+    try{
+      const bagIds = ['bs0', 'bs1', 'bs2'];
+      let used = 0;
+      let total = 0;
+
+      for(const id of bagIds){
+        const el = document.getElementById(id) || document.querySelector(`#${id}`) || document.querySelector(`small[id="${id}"]`);
+        const txt = String(el?.textContent || '').replace(/\s+/g, '').trim();
+        if(!txt) continue;
+
+        const m = txt.match(/(\d+)\s*\/\s*(\d+)/);
+        if(!m) continue;
+
+        used += Number(m[1] || 0);
+        total += Number(m[2] || 0);
+      }
+
+      if(total <= 0) return null;
+      return {
+        used,
+        total,
+        free: Math.max(0, total - used),
+        text: `${used}/${total}`
+      };
+    }catch(_){ return null; }
+  }
+
   function adiBuildLootEmbed(item, rarity, imageInfo){
     const nm = String(item?.name || item?.n || 'Nowy locik');
     const heroName = adiGetHeroName();
     const gold = adiGetCurrentGold();
+    const bagSpace = adiGetTotalBagSpace();
     const desc = [
       `Postać: **${heroName}**`,
       `Rzadkość: **${adiLootRarityLabel(rarity)}**`,
+      bagSpace ? `Ilość miejsca w torbie: **${bagSpace.text}**` : null,
       gold ? `Złoto: **${gold}**` : null
     ].filter(Boolean).join('\n');
 
