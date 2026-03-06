@@ -5105,16 +5105,39 @@ if (typeof window.window.__adi_equipByNameSequence !== 'function') {
     return null;
   }
 
+  function adiGetCurrentGold(){
+    try{
+      const el = document.querySelector('#gold');
+      const txt = String(el?.textContent || '').replace(/\s+/g, ' ').trim();
+      if(!txt) return null;
+
+      let m = txt.match(/@\s*([\d\s.,]+)/);
+      if(!m) {
+        const all = [...txt.matchAll(/([\d][\d\s.,]*)/g)].map(x => x[1]).filter(Boolean);
+        if(all.length) m = [null, all[all.length - 1]];
+      }
+      if(!m || !m[1]) return null;
+
+      const digits = String(m[1]).replace(/[^\d]/g, '');
+      if(!digits) return null;
+
+      return Number(digits).toLocaleString('pl-PL');
+    }catch(_){ return null; }
+  }
+
   function adiBuildLootEmbed(item, rarity, imageInfo){
     const nm = String(item?.name || item?.n || 'Nowy locik');
     const heroName = adiGetHeroName();
-    const price = Number(item?.pr);
+    const gold = adiGetCurrentGold();
+    const desc = [
+      `Postać: **${heroName}**`,
+      `Rzadkość: **${adiLootRarityLabel(rarity)}**`,
+      gold ? `Złoto: **${gold}**` : null
+    ].filter(Boolean).join('\n');
+
     const embed = {
       title: nm,
-      description: `Postać: **${heroName}**
-Rzadkość: **${adiLootRarityLabel(rarity)}**${Number.isFinite(price) ? `
-Cena: **${price}**` : ''}`,
-      footer: { text: 'adiwilkTestBot' }
+      description: desc
     };
 
     if(imageInfo){
