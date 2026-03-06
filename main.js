@@ -5027,9 +5027,25 @@ if (typeof window.window.__adi_equipByNameSequence !== 'function') {
     return null;
   }
 
-  async function adiResolveLootImageAttachment(item){
+  function adiWait(ms){
+    return new Promise(resolve => setTimeout(resolve, ms));
+  }
+
+  async function adiResolveLootImageWithRetry(item, tries = 12, delay = 180){
+    let last = null;
+    for(let i = 0; i < tries; i++){
+      try{
+        last = adiResolveLootImage(item);
+        if(last) return last;
+      }catch(_){ }
+      if(i < tries - 1) await adiWait(delay);
+    }
+    return last;
+  }
+
+  async function adiResolveLootImageAttachment(item, forcedImgUrl){
     try{
-      const imgUrl = adiResolveLootImage(item);
+      const imgUrl = forcedImgUrl || await adiResolveLootImageWithRetry(item);
       if(!imgUrl || !/^blob:/i.test(imgUrl)) return null;
       const res = await fetch(imgUrl);
       if(!res.ok) return null;
@@ -5077,8 +5093,8 @@ if (typeof window.window.__adi_equipByNameSequence !== 'function') {
       if(!adiLootShouldNotify(rarity, cfg)) return;
       if(adiWasNotified(item)) return;
 
-      const imgUrl = adiResolveLootImage(item);
-      const attachment = await adiResolveLootImageAttachment(item);
+      const imgUrl = await adiResolveLootImageWithRetry(item, 15, 200);
+      const attachment = await adiResolveLootImageAttachment(item, imgUrl);
 
       if(attachment && attachment.blob && attachment.fileName){
         const payload = {
@@ -5088,10 +5104,11 @@ if (typeof window.window.__adi_equipByNameSequence !== 'function') {
         const fd = new FormData();
         fd.append('payload_json', JSON.stringify(payload));
         fd.append('files[0]', attachment.blob, attachment.fileName);
-        await fetch(webhook, {
+        const res = await fetch(webhook, {
           method: 'POST',
           body: fd
         });
+        if(!res.ok) console.warn('[adi-loot] discord attachment HTTP', res.status);
         return;
       }
 
@@ -5100,11 +5117,12 @@ if (typeof window.window.__adi_equipByNameSequence !== 'function') {
         embeds: [adiBuildLootEmbed(item, rarity, imgUrl)]
       };
 
-      await fetch(webhook, {
+      const res = await fetch(webhook, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       });
+      if(!res.ok) console.warn('[adi-loot] discord json HTTP', res.status);
     }catch(e){ console.warn('[adi-loot] send discord failed', e); }
   }
 
