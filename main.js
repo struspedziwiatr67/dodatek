@@ -5154,7 +5154,7 @@ if (typeof window.window.__adi_equipByNameSequence !== 'function') {
         used,
         total,
         free: Math.max(0, total - used),
-        text: `${used}/${total}`
+        text: `${used}`
       };
     }catch(_){ return null; }
   }
