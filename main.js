@@ -3059,156 +3059,43 @@ try{
   chkAutoHeal.checked = localStorage.getItem("adi-bot_autoheal")==="1";
   inpAutoHealPct.value = localStorage.getItem("adi-bot_autoheal_pct") || "85";
 }catch(_){}
-const __ADI_LOOT_CFG_TTL = 365*24*60*60;
-const __ADI_LOOT_CFG_KEY = 'adi-bot_loot_cfg_v3';
-const __ADI_LOOT_CFG_WN_KEY = '__adiLootCfg';
-function __adiLootCfgNormalize(raw){
-  let cfg = raw && typeof raw==='object' ? raw : {};
-  const minPrice = Math.max(0, parseInt(String(cfg.minPrice ?? cfg.price ?? 0).replace(/[^0-9]/g,''), 10) || 0);
-  return {
-    legendary: cfg.legendary === true || cfg.legendary === '1' || cfg.legendary === 1,
-    heroic: cfg.heroic === true || cfg.heroic === '1' || cfg.heroic === 1,
-    unique: cfg.unique === true || cfg.unique === '1' || cfg.unique === 1,
-    autoaccept: cfg.autoaccept === true || cfg.autoaccept === '1' || cfg.autoaccept === 1,
-    minPrice,
-    ts: Math.max(0, parseInt(String(cfg.ts || Date.now()), 10) || Date.now())
-  };
+function __adiLootGetBool(key){
+  try{ return localStorage.getItem(key)==="1"; }catch(_){ return false; }
 }
-function __adiLootCfgReadWindowName(){
-  try{
-    const host = window.top || window;
-    const raw = host.name || '';
-    if(!raw) return null;
-    const parsed = JSON.parse(raw);
-    if(parsed && parsed[__ADI_LOOT_CFG_WN_KEY]) return __adiLootCfgNormalize(parsed[__ADI_LOOT_CFG_WN_KEY]);
-  }catch(_){ }
-  return null;
-}
-function __adiLootCfgWriteWindowName(cfg){
-  try{
-    const host = window.top || window;
-    let root = {};
-    try{ root = host.name ? JSON.parse(host.name) : {}; }catch(_){ root = {}; }
-    root[__ADI_LOOT_CFG_WN_KEY] = __adiLootCfgNormalize(cfg);
-    host.name = JSON.stringify(root);
-    return true;
-  }catch(_){ return false; }
-}
-function __adiLootCfgReadJson(){
-  const candidates = [];
-  try{
-    const raw = sessionStorage.getItem(__ADI_LOOT_CFG_KEY);
-    if(raw) candidates.push(__adiLootCfgNormalize(JSON.parse(raw)));
-  }catch(_){ }
-  try{
-    const raw = localStorage.getItem(__ADI_LOOT_CFG_KEY);
-    if(raw) candidates.push(__adiLootCfgNormalize(JSON.parse(raw)));
-  }catch(_){ }
-  try{
-    const raw = __adi_getCookie(__ADI_LOOT_CFG_KEY);
-    if(raw) candidates.push(__adiLootCfgNormalize(JSON.parse(raw)));
-  }catch(_){ }
-  try{
-    const wn = __adiLootCfgReadWindowName();
-    if(wn) candidates.push(wn);
-  }catch(_){ }
-  if(!candidates.length) return null;
-  candidates.sort((a,b)=>(Number(b.ts)||0)-(Number(a.ts)||0));
-  return __adiLootCfgNormalize(candidates[0]);
-}
-function __adiLootCfgWriteJson(cfg){
-  const normalized = __adiLootCfgNormalize({ ...(cfg||{}), ts: Date.now() });
-  const json = JSON.stringify(normalized);
-  try{ sessionStorage.setItem(__ADI_LOOT_CFG_KEY, json); }catch(_){ }
-  try{ localStorage.setItem(__ADI_LOOT_CFG_KEY, json); }catch(_){ }
-  try{ __adi_setCookie(__ADI_LOOT_CFG_KEY, json, __ADI_LOOT_CFG_TTL); }catch(_){ }
-  try{ __adiLootCfgWriteWindowName(normalized); }catch(_){ }
-  try{ window.__adiLootCfgCache = normalized; }catch(_){ }
-  return normalized;
-}
-function __adiLootCfgGet(key, def=''){
-  try{
-    const cfg = window.__adiLootCfgCache || __adiLootCfgReadJson();
-    if(cfg){
-      if(key==='adi-bot_loot_legendary') return cfg.legendary ? '1' : '0';
-      if(key==='adi-bot_loot_heroic') return cfg.heroic ? '1' : '0';
-      if(key==='adi-bot_loot_unique') return cfg.unique ? '1' : '0';
-      if(key==='adi-bot_loot_autoaccept') return cfg.autoaccept ? '1' : '0';
-      if(key==='adi-bot_loot_min_price') return String(cfg.minPrice || 0);
-    }
-  }catch(_){ }
-  try{
-    const v = sessionStorage.getItem(key);
-    if(v!==null && typeof v !== 'undefined') return v;
-  }catch(_){ }
-  try{
-    const v = localStorage.getItem(key);
-    if(v!==null && typeof v !== 'undefined') return v;
-  }catch(_){ }
-  try{
-    const v = __adi_getCookie(key);
-    if(v!==null && typeof v !== 'undefined' && v!=='') return v;
-  }catch(_){ }
-  return def;
-}
-function __adiLootCfgSet(key, val){
-  const v = String(val ?? '');
-  try{ sessionStorage.setItem(key, v); }catch(_){ }
-  try{ localStorage.setItem(key, v); }catch(_){ }
-  try{ __adi_setCookie(key, v, __ADI_LOOT_CFG_TTL); }catch(_){ }
-
-  let cfg = window.__adiLootCfgCache || __adiLootCfgReadJson() || __adiLootCfgNormalize({});
-  if(key==='adi-bot_loot_legendary') cfg.legendary = (v === '1');
-  else if(key==='adi-bot_loot_heroic') cfg.heroic = (v === '1');
-  else if(key==='adi-bot_loot_unique') cfg.unique = (v === '1');
-  else if(key==='adi-bot_loot_autoaccept') cfg.autoaccept = (v === '1');
-  else if(key==='adi-bot_loot_min_price') cfg.minPrice = Math.max(0, parseInt(v, 10) || 0);
-  __adiLootCfgWriteJson(cfg);
-}
-function __adiLootCfgReadAll(){
-  const fromJson = __adiLootCfgReadJson();
-  if(fromJson) return fromJson;
-  const fromSingle = __adiLootCfgNormalize({
-    legendary: __adiLootCfgGet('adi-bot_loot_legendary', '0'),
-    heroic: __adiLootCfgGet('adi-bot_loot_heroic', '0'),
-    unique: __adiLootCfgGet('adi-bot_loot_unique', '0'),
-    autoaccept: __adiLootCfgGet('adi-bot_loot_autoaccept', '0'),
-    minPrice: __adiLootCfgGet('adi-bot_loot_min_price', '0')
-  });
-  __adiLootCfgWriteJson(fromSingle);
-  return fromSingle;
+function __adiLootGetNum(key, defVal){
+  try{ const v = parseInt(localStorage.getItem(key) || String(defVal||0), 10); return Math.max(0, Number.isFinite(v)?v:(defVal||0)); }catch(_){ return Math.max(0, defVal||0); }
 }
 function __adiLoadLootFilterCfgIntoUI(){
   try{
-    const cfg = __adiLootCfgReadAll();
-    lootLegendary.checked = !!cfg.legendary;
-    lootHeroic.checked = !!cfg.heroic;
-    lootUnique.checked = !!cfg.unique;
-    autoLootChk.checked = !!cfg.autoaccept;
-    priceInput.value = String(cfg.minPrice || 0);
+    lootLegendary.checked = __adiLootGetBool('adi-bot_loot_legendary');
+    lootHeroic.checked = __adiLootGetBool('adi-bot_loot_heroic');
+    lootUnique.checked = __adiLootGetBool('adi-bot_loot_unique');
+    autoLootChk.checked = __adiLootGetBool('adi-bot_loot_autoaccept');
+    priceInput.value = String(__adiLootGetNum('adi-bot_loot_min_price', 0));
   }catch(_){ }
 }
 function __adiSaveLootFilterCfg(){
   try{
-    const cfg = __adiLootCfgNormalize({
-      legendary: lootLegendary.checked,
-      heroic: lootHeroic.checked,
-      unique: lootUnique.checked,
-      autoaccept: autoLootChk.checked,
-      minPrice: priceInput.value
-    });
-    priceInput.value = String(cfg.minPrice);
-    __adiLootCfgWriteJson(cfg);
-    __adiLootCfgSet('adi-bot_loot_legendary', cfg.legendary ? '1' : '0');
-    __adiLootCfgSet('adi-bot_loot_heroic', cfg.heroic ? '1' : '0');
-    __adiLootCfgSet('adi-bot_loot_unique', cfg.unique ? '1' : '0');
-    __adiLootCfgSet('adi-bot_loot_autoaccept', cfg.autoaccept ? '1' : '0');
-    __adiLootCfgSet('adi-bot_loot_min_price', String(cfg.minPrice));
+    const minPrice = Math.max(0, parseInt(String(priceInput.value || '0').replace(/[^0-9]/g,''), 10) || 0);
+    priceInput.value = String(minPrice);
+    localStorage.setItem('adi-bot_loot_legendary', lootLegendary.checked ? '1' : '0');
+    localStorage.setItem('adi-bot_loot_heroic', lootHeroic.checked ? '1' : '0');
+    localStorage.setItem('adi-bot_loot_unique', lootUnique.checked ? '1' : '0');
+    localStorage.setItem('adi-bot_loot_autoaccept', autoLootChk.checked ? '1' : '0');
+    localStorage.setItem('adi-bot_loot_min_price', String(minPrice));
   }catch(_){ }
+}
+function __adiLootCfgGet(key, def=''){
+  try{
+    const v = localStorage.getItem(key);
+    return (v===null || typeof v==='undefined') ? def : v;
+  }catch(_){ return def; }
+}
+function __adiLootCfgSet(key, val){
+  try{ localStorage.setItem(key, String(val ?? '')); }catch(_){}
 }
 try{
   __adiLoadLootFilterCfgIntoUI();
-  setTimeout(__adiLoadLootFilterCfgIntoUI, 0);
 }catch(_){ }
     grpInput.value = localStorage.getItem("adi-bot_grp_range") || "1-3";
     mapExh.value = localStorage.getItem("adi-bot_exh_map") || "Dom Roana";
@@ -3247,20 +3134,19 @@ const have = (window.getPotionCountByName ? window.getPotionCountByName(selName)
     }catch(_){}
 
     try{
-      [lootLegendary, lootHeroic, lootUnique, autoLootChk].forEach(el=>{
-        el.addEventListener('change', __adiSaveLootFilterCfg);
-        el.addEventListener('input', __adiSaveLootFilterCfg);
-        el.addEventListener('click', ()=>setTimeout(__adiSaveLootFilterCfg, 0));
+      lootLegendary.addEventListener("change", ()=>{ localStorage.setItem("adi-bot_loot_legendary", lootLegendary.checked?"1":"0"); });
+      lootHeroic.addEventListener("change", ()=>{ localStorage.setItem("adi-bot_loot_heroic", lootHeroic.checked?"1":"0"); });
+      lootUnique.addEventListener("change", ()=>{ localStorage.setItem("adi-bot_loot_unique", lootUnique.checked?"1":"0"); });
+      autoLootChk.addEventListener("change", ()=>{ localStorage.setItem("adi-bot_loot_autoaccept", autoLootChk.checked?"1":"0"); });
+      priceInput.addEventListener("change", ()=>{
+        const v = Math.max(0, parseInt(String(priceInput.value||'0').replace(/[^0-9]/g,''), 10) || 0);
+        priceInput.value = String(v);
+        localStorage.setItem("adi-bot_loot_min_price", String(v));
       });
-      ['change','keyup','input','blur','paste'].forEach(evt=>priceInput.addEventListener(evt, __adiSaveLootFilterCfg));
-      setTimeout(__adiLoadLootFilterCfgIntoUI, 50);
-      setTimeout(__adiLoadLootFilterCfgIntoUI, 500);
-      setTimeout(__adiSaveLootFilterCfg, 700);
-      window.addEventListener('beforeunload', __adiSaveLootFilterCfg);
-      window.addEventListener('pagehide', __adiSaveLootFilterCfg);
-      window.addEventListener('pageshow', __adiLoadLootFilterCfgIntoUI);
-      document.addEventListener('visibilitychange', ()=>{ if(document.visibilityState==='hidden') __adiSaveLootFilterCfg(); else __adiLoadLootFilterCfgIntoUI(); });
-      setInterval(__adiSaveLootFilterCfg, 1000);
+      priceInput.addEventListener("keyup", ()=>{
+        const v = Math.max(0, parseInt(String(priceInput.value||'0').replace(/[^0-9]/g,''), 10) || 0);
+        localStorage.setItem("adi-bot_loot_min_price", String(v));
+      });
     }catch(_){ }
 
     // Zmiana E2: zapisz wybór + mapę + koordynaty podejścia
