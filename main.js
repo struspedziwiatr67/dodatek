@@ -4982,34 +4982,102 @@ if (typeof window.window.__adi_equipByNameSequence !== 'function') {
     try{ return hero?.nick || hero?.name || 'Nieznany'; }catch(_){ return 'Nieznany'; }
   }
 
+  function adiFindLootImgEl(item){
+    try{
+      const id = String(item?.id ?? '').trim();
+      const docs = [document];
+
+      try{
+        const iframes = document.querySelectorAll('iframe');
+        for(const fr of iframes){
+          try{
+            const d = fr.contentDocument || (fr.contentWindow && fr.contentWindow.document);
+            if(d) docs.push(d);
+          }catch(_){ }
+        }
+      }catch(_){ }
+
+      const selectors = [
+        '#loot' + id + ' img',
+        '#item' + id + ' img',
+        '[id="loot' + id + '"] img',
+        '[data-id="' + id + '"] img',
+        'img#item-' + id,
+        'div.item[data-id="' + id + '"] img',
+        'div.item[data-item-id="' + id + '"] img',
+        '.item[data-id="' + id + '"] .item-img img',
+        '.item[data-id="' + id + '"] .icon-wrap img',
+        '.item[data-id="' + id + '"] img'
+      ];
+
+      for(const doc of docs){
+        for(const sel of selectors){
+          try{
+            const el = doc.querySelector(sel);
+            if(el) return el;
+          }catch(_){ }
+        }
+      }
+    }catch(_){ }
+    return null;
+  }
+
   function adiResolveLootImage(item){
     try{
       const cand = [item?.icon, item?.img, item?.image, item?.iconUrl, item?.icon_url, item?.sprite].filter(Boolean);
       for(const raw of cand){
         const s = String(raw || '').trim();
         if(!s) continue;
+        if(/^blob:/i.test(s)) return s;
+        if(/^data:image\//i.test(s)) return s;
         if(/^https?:\/\//i.test(s)) return s;
         if(/^\/\//.test(s)) return 'https:' + s;
         if(/^\//.test(s)) return 'https://micc.garmory-cdn.cloud' + s;
         if(/\.(png|gif|jpg|jpeg|webp)$/i.test(s)) return 'https://micc.garmory-cdn.cloud/' + s.replace(/^\/+/, '');
       }
-      const id = item && item.id;
-      const q = [
-        '#loot' + id + ' img',
-        '#item' + id + ' img',
-        '[id="loot' + id + '"] img',
-        '[data-id="' + id + '"] img'
-      ];
-      for(const sel of q){
-        const img = document.querySelector(sel);
-        const src = img && img.getAttribute ? (img.getAttribute('src') || img.src) : '';
+
+      const imgEl = adiFindLootImgEl(item);
+      if(imgEl){
+        const src = imgEl.getAttribute('src') || imgEl.src || '';
         if(src) return src;
       }
     }catch(_){ }
     return null;
   }
 
-  function adiBuildLootEmbed(item, rarity){
+  async function adiResolveLootImageFile(item){
+    try{
+      const src = adiResolveLootImage(item);
+      if(!src) return null;
+
+      if(/^https?:\/\//i.test(src)) {
+        return { mode: 'url', url: src };
+      }
+
+      if(/^blob:/i.test(src) || /^data:image\//i.test(src)) {
+        const res = await fetch(src);
+        if(!res.ok) throw new Error('Nie udało się pobrać blob obrazka');
+        const blob = await res.blob();
+
+        let ext = 'png';
+        const type = String(blob.type || '').toLowerCase();
+        if(type.includes('gif')) ext = 'gif';
+        else if(type.includes('webp')) ext = 'webp';
+        else if(type.includes('jpeg') || type.includes('jpg')) ext = 'jpg';
+
+        return {
+          mode: 'file',
+          blob,
+          filename: `loot_item_${String(item?.id ?? 'x')}.${ext}`
+        };
+      }
+    }catch(e){
+      console.warn('[adi-loot] resolve image file failed', e);
+    }
+    return null;
+  }
+
+  function adiBuildLootEmbed(item, rarity, imageInfo){
     const nm = String(item?.name || item?.n || 'Nowy locik');
     const heroName = adiGetHeroName();
     const price = Number(item?.pr);
@@ -5018,8 +5086,15 @@ if (typeof window.window.__adi_equipByNameSequence !== 'function') {
       description: `Postać: **${heroName}**\nRzadkość: **${adiLootRarityLabel(rarity)}**${Number.isFinite(price) ? `\nCena: **${price}**` : ''}`,
       footer: { text: 'adiwilkTestBot' }
     };
-    const img = adiResolveLootImage(item);
-    if(img) embed.thumbnail = { url: img };
+
+    if(imageInfo){
+      if(imageInfo.mode === 'url' && imageInfo.url){
+        embed.thumbnail = { url: imageInfo.url };
+      }else if(imageInfo.mode === 'file' && imageInfo.filename){
+        embed.image = { url: `attachment://${imageInfo.filename}` };
+      }
+    }
+
     return embed;
   }
 
@@ -5037,7 +5112,7 @@ if (typeof window.window.__adi_equipByNameSequence !== 'function') {
     }catch(_){ return false; }
   }
 
-  function adiSendLootDiscord(item){
+  async function adiSendLootDiscord(item){
     try{
       const cfg = adiLoadLootCfg();
       const webhook = String(cfg.webhook || '').trim();
@@ -5046,9 +5121,31 @@ if (typeof window.window.__adi_equipByNameSequence !== 'function') {
       if(!adiLootShouldNotify(rarity, cfg)) return;
       if(adiWasNotified(item)) return;
 
+      const imageInfo = await adiResolveLootImageFile(item);
+      const embed = adiBuildLootEmbed(item, rarity, imageInfo);
+
+      if(imageInfo && imageInfo.mode === 'file' && imageInfo.blob){
+        const form = new FormData();
+        form.append(
+          'payload_json',
+          JSON.stringify({
+            content: `@here Nowy locik - ${adiLootRarityLabel(rarity)}`,
+            embeds: [embed]
+          })
+        );
+        form.append('files[0]', imageInfo.blob, imageInfo.filename);
+
+        fetch(webhook, {
+          method: 'POST',
+          body: form
+        }).catch(err => console.warn('[adi-loot] discord webhook file error', err));
+
+        return;
+      }
+
       const payload = {
         content: `@here Nowy locik - ${adiLootRarityLabel(rarity)}`,
-        embeds: [adiBuildLootEmbed(item, rarity)]
+        embeds: [embed]
       };
 
       fetch(webhook, {
@@ -5059,7 +5156,7 @@ if (typeof window.window.__adi_equipByNameSequence !== 'function') {
     }catch(e){ console.warn('[adi-loot] send discord failed', e); }
   }
 
-  function adiHandleLoot(item){
+  async function adiHandleLoot(item){
     try{
       if(!item) return;
       const cfg = adiLoadLootCfg();
@@ -5071,7 +5168,7 @@ if (typeof window.window.__adi_equipByNameSequence !== 'function') {
         adiSetLootState(item.id, 'not');
         adiScheduleLootFlush(cfg.autoAccept);
       }
-      adiSendLootDiscord(item);
+      await adiSendLootDiscord(item);
     }catch(e){ console.warn('[adi-loot] handle failed', e); }
   }
 
@@ -5084,7 +5181,9 @@ if (typeof window.window.__adi_equipByNameSequence !== 'function') {
       const wrapped = function(item){
         let ret;
         try{ ret = orig.apply(this, arguments); }catch(e){ console.warn('[adi-loot] orig lootItem error', e); }
-        try{ adiHandleLoot(item); }catch(e){ console.warn('[adi-loot] wrapped loot error', e); }
+        Promise.resolve()
+          .then(()=>adiHandleLoot(item))
+          .catch(e=>console.warn('[adi-loot] wrapped loot error', e));
         return ret;
       };
       wrapped.__adiLootWrapped = true;
