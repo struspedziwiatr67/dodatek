@@ -4989,7 +4989,7 @@ if (typeof window.window.__adi_equipByNameSequence !== 'function') {
       if(/^blob:/i.test(s)) return s;
       if(/^https?:\/\//i.test(s)) return s;
       if(/^\/\//.test(s)) return 'https:' + s;
-      if(/^\//.test(s)) return location.origin + s;
+      if(/^\//.test(s)) return 'https://micc.garmory-cdn.cloud' + s;
       if(/\.(png|gif|jpg|jpeg|webp)(\?.*)?$/i.test(s)) return 'https://micc.garmory-cdn.cloud/' + s.replace(/^\/+/, '');
     }catch(_){ }
     return null;
@@ -4999,8 +4999,8 @@ if (typeof window.window.__adi_equipByNameSequence !== 'function') {
     try{
       const cand = [item?.icon, item?.img, item?.image, item?.iconUrl, item?.icon_url, item?.sprite].filter(Boolean);
       for(const raw of cand){
-        const src = adiNormalizeLootImageUrl(raw);
-        if(src) return src;
+        const s = adiNormalizeLootImageUrl(raw);
+        if(s) return s;
       }
       const id = item && item.id;
       const q = [
@@ -5008,7 +5008,6 @@ if (typeof window.window.__adi_equipByNameSequence !== 'function') {
         '#item' + id + ' img',
         '[id="loot' + id + '"] img',
         '[data-id="' + id + '"] img',
-        '.loot .item-stat img',
         '.item-stat img',
         '.item img',
         '#tip img',
@@ -5017,55 +5016,44 @@ if (typeof window.window.__adi_equipByNameSequence !== 'function') {
         'img[src*="margonem"]'
       ];
       for(const sel of q){
-        const nodes = Array.from(document.querySelectorAll(sel));
-        for(const img of nodes){
-          const src = adiNormalizeLootImageUrl(img && img.getAttribute ? (img.getAttribute('src') || img.src) : '');
-          if(src) return src;
+        const list = document.querySelectorAll(sel);
+        for(const img of list){
+          const src = img && img.getAttribute ? (img.getAttribute('src') || img.src) : '';
+          const normalized = adiNormalizeLootImageUrl(src);
+          if(!normalized) continue;
+          try{
+            const rect = img.getBoundingClientRect ? img.getBoundingClientRect() : { width: 32, height: 32 };
+            if(rect && rect.width > 0 && rect.height > 0) return normalized;
+          }catch(_){ return normalized; }
         }
       }
     }catch(_){ }
     return null;
   }
 
-  function adiWait(ms){
-    return new Promise(resolve => setTimeout(resolve, ms));
-  }
+  function adiSleep(ms){ return new Promise(resolve => setTimeout(resolve, ms)); }
 
-  async function adiResolveLootImageWithRetry(item, tries = 12, delay = 180){
-    let last = null;
-    for(let i = 0; i < tries; i++){
-      try{
-        last = adiResolveLootImage(item);
-        if(last) return last;
-      }catch(_){ }
-      if(i < tries - 1) await adiWait(delay);
+  async function adiWaitForLootImage(item, attempts = 15, delay = 200){
+    for(let i = 0; i < attempts; i++){
+      const found = adiResolveLootImage(item);
+      if(found) return found;
+      await adiSleep(delay);
     }
-    return last;
-  }
-
-  async function adiResolveLootImageAttachment(item, forcedImgUrl){
-    try{
-      const imgUrl = forcedImgUrl || await adiResolveLootImageWithRetry(item);
-      if(!imgUrl || !/^blob:/i.test(imgUrl)) return null;
-      const res = await fetch(imgUrl);
-      if(!res.ok) return null;
-      const blob = await res.blob();
-      const ext = ((blob && blob.type ? String(blob.type).split('/')[1] : '') || 'png').replace(/[^a-z0-9]/gi, '') || 'png';
-      return { blob, fileName: 'loot-item.' + ext };
-    }catch(_){ }
     return null;
   }
 
-  function adiBuildLootEmbed(item, rarity, imageUrl){
+  function adiBuildLootEmbed(item, rarity, imgUrl){
     const nm = String(item?.name || item?.n || 'Nowy locik');
     const heroName = adiGetHeroName();
     const price = Number(item?.pr);
     const embed = {
       title: nm,
-      description: `Postać: **${heroName}**\nRzadkość: **${adiLootRarityLabel(rarity)}**${Number.isFinite(price) ? `\nCena: **${price}**` : ''}`,
+      description: `Postać: **${heroName}**
+Rzadkość: **${adiLootRarityLabel(rarity)}**${Number.isFinite(price) ? `
+Cena: **${price}**` : ''}`,
       footer: { text: 'adiwilkTestBot' }
     };
-    const img = imageUrl || adiResolveLootImage(item);
+    const img = imgUrl || null;
     if(img) embed.thumbnail = { url: img };
     return embed;
   }
@@ -5093,36 +5081,38 @@ if (typeof window.window.__adi_equipByNameSequence !== 'function') {
       if(!adiLootShouldNotify(rarity, cfg)) return;
       if(adiWasNotified(item)) return;
 
-      const imgUrl = await adiResolveLootImageWithRetry(item, 15, 200);
-      const attachment = await adiResolveLootImageAttachment(item, imgUrl);
+      const imgUrl = await adiWaitForLootImage(item, 15, 200);
+      const payload = {
+        content: `@here Nowy locik - ${adiLootRarityLabel(rarity)}`,
+        embeds: [adiBuildLootEmbed(item, rarity, /^blob:/i.test(String(imgUrl || '')) ? null : imgUrl)]
+      };
 
-      if(attachment && attachment.blob && attachment.fileName){
-        const payload = {
-          content: `@here Nowy locik - ${adiLootRarityLabel(rarity)}`,
-          embeds: [adiBuildLootEmbed(item, rarity, `attachment://${attachment.fileName}`)]
-        };
+      if(/^blob:/i.test(String(imgUrl || ''))){
+        const res = await fetch(imgUrl);
+        if(!res.ok) throw new Error('fetch(blob) status=' + res.status);
+        const blob = await res.blob();
+        const ext = ((blob && blob.type ? blob.type.split('/')?.[1] : '') || 'png').replace(/[^a-z0-9]/gi, '') || 'png';
+        const fileName = `loot-item.${ext}`;
+        payload.embeds[0].thumbnail = { url: `attachment://${fileName}` };
+
         const fd = new FormData();
         fd.append('payload_json', JSON.stringify(payload));
-        fd.append('files[0]', attachment.blob, attachment.fileName);
-        const res = await fetch(webhook, {
+        fd.append('files[0]', blob, fileName);
+
+        const r = await fetch(webhook, {
           method: 'POST',
           body: fd
         });
-        if(!res.ok) console.warn('[adi-loot] discord attachment HTTP', res.status);
+        if(!r.ok) console.warn('[adi-loot] discord webhook error status', r.status, await r.text().catch(()=>''));
         return;
       }
 
-      const payload = {
-        content: `@here Nowy locik - ${adiLootRarityLabel(rarity)}`,
-        embeds: [adiBuildLootEmbed(item, rarity, imgUrl)]
-      };
-
-      const res = await fetch(webhook, {
+      const r = await fetch(webhook, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       });
-      if(!res.ok) console.warn('[adi-loot] discord json HTTP', res.status);
+      if(!r.ok) console.warn('[adi-loot] discord webhook error status', r.status, await r.text().catch(()=>''));
     }catch(e){ console.warn('[adi-loot] send discord failed', e); }
   }
 
@@ -5138,7 +5128,7 @@ if (typeof window.window.__adi_equipByNameSequence !== 'function') {
         adiSetLootState(item.id, 'not');
         adiScheduleLootFlush(cfg.autoAccept);
       }
-      adiSendLootDiscord(item);
+      Promise.resolve().then(()=>adiSendLootDiscord(item)).catch(e => console.warn('[adi-loot] async notify failed', e));
     }catch(e){ console.warn('[adi-loot] handle failed', e); }
   }
 
