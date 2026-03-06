@@ -5135,10 +5135,17 @@ if (typeof window.window.__adi_equipByNameSequence !== 'function') {
       gold ? `Złoto: **${gold}**` : null
     ].filter(Boolean).join('\n');
 
+    let color;
+    if(rarity === 'legendary') color = 0xFF0000;
+    else if(rarity === 'heroic') color = 0x0099FF;
+    else if(rarity === 'unique') color = 0xFFD700;
+
     const embed = {
       title: nm,
       description: desc
     };
+
+    if(Number.isInteger(color)) embed.color = color;
 
     if(imageInfo){
       if(imageInfo.mode === 'url' && imageInfo.url){
