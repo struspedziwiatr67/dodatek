@@ -3115,25 +3115,36 @@ box.appendChild(autoHealRow);
       tabSettings.id = 'adi-tab-settings';
       tabSettings.className = 'adi-tab-content';
       tabSettings.innerHTML = `
-        <div class="adi-settings-section">
+        <div class="adi-settings-section adi-settings-section-flat">
           <div class="adi-settings-title">Loot filter</div>
-          <label class="adi-settings-row"><input type="checkbox" id="adi-bot_loot_enabled" /> <span>Loot filter</span></label>
-          <label class="adi-settings-row"><input type="checkbox" id="adi-bot_loot_legendary" /> <span>Przedmioty legendarne</span></label>
-          <label class="adi-settings-row"><input type="checkbox" id="adi-bot_loot_heroic" /> <span>Przedmioty Heroiczne</span></label>
-          <label class="adi-settings-row"><input type="checkbox" id="adi-bot_loot_unique" /> <span>Przedmioty Unikatowe</span></label>
-          <label class="adi-settings-row"><input type="checkbox" id="adi-bot_loot_autoaccept" /> <span>Akceptuj łup automatycznie</span></label>
+          <label class="adi-settings-row adi-settings-switch-row">
+            <span class="adi-ui-switch"><input type="checkbox" id="adi-bot_loot_enabled" /><span class="adi-ui-slider"></span></span>
+            <span class="adi-ui-switch-label">Loot filter</span>
+          </label>
+          <label class="adi-settings-row adi-settings-switch-row">
+            <span class="adi-ui-switch"><input type="checkbox" id="adi-bot_loot_legendary" /><span class="adi-ui-slider"></span></span>
+            <span class="adi-ui-switch-label">Przedmioty legendarne</span>
+          </label>
+          <label class="adi-settings-row adi-settings-switch-row">
+            <span class="adi-ui-switch"><input type="checkbox" id="adi-bot_loot_heroic" /><span class="adi-ui-slider"></span></span>
+            <span class="adi-ui-switch-label">Przedmioty Heroiczne</span>
+          </label>
+          <label class="adi-settings-row adi-settings-switch-row">
+            <span class="adi-ui-switch"><input type="checkbox" id="adi-bot_loot_unique" /><span class="adi-ui-slider"></span></span>
+            <span class="adi-ui-switch-label">Przedmioty Unikatowe</span>
+          </label>
+          <label class="adi-settings-row adi-settings-checkbox-row"><input type="checkbox" id="adi-bot_loot_autoaccept" /> <span>Akceptuj łup automatycznie</span></label>
           <label class="adi-settings-label" for="adi-bot_loot_min_price">Łap od ceny</label>
           <input type="text" id="adi-bot_loot_min_price" class="adi-bot_inputs" placeholder="0" />
         </div>
-        <div class="adi-settings-section">
-          <div class="adi-settings-title">Discord webhook</div>
-          <label class="adi-settings-label" for="adi-bot_loot_webhook">Webhook</label>
+        <div class="adi-settings-section adi-settings-section-flat">
+          <label class="adi-settings-label" for="adi-bot_loot_webhook">Webhook Discord</label>
           <textarea id="adi-bot_loot_webhook" class="adi-bot_inputs adi-settings-textarea" placeholder="Wklej tutaj webhook Discord"></textarea>
           <div class="adi-settings-title" style="margin-top:8px;">Informuj na discord o nowym locie</div>
-          <label class="adi-settings-row"><input type="checkbox" id="adi-bot_loot_notify_legendary" /> <span>Legendarnym</span></label>
-          <label class="adi-settings-row"><input type="checkbox" id="adi-bot_loot_notify_heroic" /> <span>Heroicznym</span></label>
-          <label class="adi-settings-row"><input type="checkbox" id="adi-bot_loot_notify_unique" /> <span>Unikatowym</span></label>
-          <label class="adi-settings-row"><input type="checkbox" id="adi-bot_loot_notify_common" /> <span>Pospolitym</span></label>
+          <label class="adi-settings-row adi-settings-checkbox-row"><input type="checkbox" id="adi-bot_loot_notify_legendary" /> <span>Legendarnym</span></label>
+          <label class="adi-settings-row adi-settings-checkbox-row"><input type="checkbox" id="adi-bot_loot_notify_heroic" /> <span>Heroicznym</span></label>
+          <label class="adi-settings-row adi-settings-checkbox-row"><input type="checkbox" id="adi-bot_loot_notify_unique" /> <span>Unikatowym</span></label>
+          <label class="adi-settings-row adi-settings-checkbox-row"><input type="checkbox" id="adi-bot_loot_notify_common" /> <span>Pospolitym</span></label>
         </div>`;
 
             // Move all current UI controls into Exp tab (na razie nic nie przenosimy logicznie — tylko opakowanie)
@@ -3273,13 +3284,23 @@ try{
       #adi-bot_box .adi-tabwrap{padding:0;margin:0;}
       #adi-bot_box .adi-tab-content{display:none;}
       #adi-bot_box .adi-tab-content.active{display:block;}
-      #adi-bot_box .adi-settings-section{margin:6px 0;padding:6px;border:1px solid rgba(0,0,0,.35);background:rgba(255,255,255,.08);text-align:left;}
-      #adi-bot_box .adi-settings-title{font-weight:700;font-size:13px;margin:0 0 6px 0;color:#111;}
-      #adi-bot_box .adi-settings-row{display:flex;align-items:center;gap:8px;margin:4px 0;font-size:13px;color:#111;}
-      #adi-bot_box .adi-settings-row input[type=checkbox]{margin:0;}
-      #adi-bot_box .adi-settings-label{display:block;font-size:13px;margin:6px 0 3px;color:#111;text-align:left;}
-      #adi-bot_box .adi-settings-textarea{width:260px;min-height:72px;resize:vertical;text-align:left;}
+      #adi-bot_box .adi-settings-section{margin:6px 0;padding:2px 0;text-align:left;background:transparent;border:none;}
+      #adi-bot_box .adi-settings-section-flat{background:transparent;border:none;box-shadow:none;}
+      #adi-bot_box .adi-settings-title{font-weight:700;font-size:13px;margin:0 0 6px 0;color:#fff;text-shadow:1px 1px 0 rgba(0,0,0,.8);}
+      #adi-bot_box .adi-settings-row{display:flex;align-items:center;gap:8px;margin:4px 0;font-size:13px;color:#fff;text-shadow:1px 1px 0 rgba(0,0,0,.8);}
+      #adi-bot_box .adi-settings-row input[type=checkbox]{margin:0;accent-color:#37c837;}
+      #adi-bot_box .adi-settings-label{display:block;font-size:13px;margin:6px 0 3px;color:#fff;text-align:left;text-shadow:1px 1px 0 rgba(0,0,0,.8);}
+      #adi-bot_box .adi-settings-textarea{width:260px;min-height:72px;resize:vertical;text-align:left;cursor:text;}
       #adi-bot_box #adi-bot_loot_min_price{text-align:center;}
+      #adi-bot_box .adi-settings-switch-row{justify-content:flex-start;}
+      #adi-bot_box .adi-settings-checkbox-row{justify-content:flex-start;}
+      #adi-bot_box .adi-ui-switch{position:relative;display:inline-block;width:38px;height:20px;flex:0 0 auto;}
+      #adi-bot_box .adi-ui-switch input{opacity:0;width:0;height:0;position:absolute;}
+      #adi-bot_box .adi-ui-slider{position:absolute;inset:0;border-radius:999px;background:rgba(40,40,40,.95);border:1px solid rgba(0,0,0,.8);box-shadow:inset 0 1px 2px rgba(255,255,255,.12),0 1px 2px rgba(0,0,0,.5);transition:.2s;}
+      #adi-bot_box .adi-ui-slider:before{content:'';position:absolute;left:2px;top:2px;width:14px;height:14px;border-radius:50%;background:linear-gradient(180deg,#f8f8f8,#bdbdbd);box-shadow:0 1px 2px rgba(0,0,0,.5);transition:.2s;}
+      #adi-bot_box .adi-ui-switch input:checked + .adi-ui-slider{background:linear-gradient(180deg,#4ee44e,#1f9c1f);}
+      #adi-bot_box .adi-ui-switch input:checked + .adi-ui-slider:before{transform:translateX(18px);}
+      #adi-bot_box .adi-ui-switch-label{color:#fff;text-shadow:1px 1px 0 rgba(0,0,0,.8);}
 `)); document.head.appendChild(style);
 
     // odczyt ustawień UI
