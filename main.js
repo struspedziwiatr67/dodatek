@@ -4904,12 +4904,23 @@ if (typeof window.window.__adi_equipByNameSequence !== 'function') {
   function adiLower(s){ return String(s || '').toLowerCase(); }
 
   function adiDetectLootRarity(item){
-    const stat = adiLower(item && item.stat);
-    const cls = adiLower(item && item.cl);
-    const all = stat + ' ' + cls;
-    if(all.includes('legendary') || all.includes('legenda')) return 'legendary';
-    if(all.includes('heroic') || all.includes('heroik')) return 'heroic';
-    if(all.includes('unique') || all.includes('unikat')) return 'unique';
+    const parts = [
+      item && item.stat,
+      item && item.cl,
+      item && item.tip,
+      item && item.ctip,
+      item && item.loc,
+      item && item.icon,
+      item && item.name,
+      item && item.itemTypeName
+    ].map(adiLower).filter(Boolean);
+
+    const all = parts.join(' ');
+
+    if(/legend/.test(all) || /legendarn/.test(all) || /legenda/.test(all)) return 'legendary';
+    if(/hero/.test(all) || /heroiczn/.test(all) || /heroik/.test(all)) return 'heroic';
+    if(/unik/.test(all) || /unique/.test(all)) return 'unique';
+
     return 'common';
   }
 
