@@ -457,6 +457,64 @@ const HERO_DISCORD_WEBHOOK = "https://discord.com/api/webhooks/14711759854948884
     }catch(e){}
   }
 
+  // === QUIET HOURS 23:59-06:00 ===
+  function __adi_isNightLogoutEnabled(){
+    try{ return localStorage.getItem('adi-bot_night_logout') === '1'; }catch(_){ return false; }
+  }
+
+  function __adi_getNext0600TsMs(nowMs){
+    try{
+      const d = new Date(nowMs || Date.now());
+      const next = new Date(d);
+      next.setSeconds(0,0);
+      next.setHours(6,0,0,0);
+      if(d.getHours() > 6 || (d.getHours() === 6 && d.getMinutes() > 0) || (d.getHours() === 6 && d.getMinutes() === 0 && d.getSeconds() > 0)){
+        next.setDate(next.getDate() + 1);
+      }
+      return next.getTime();
+    }catch(_){ return Date.now() + 60*60*1000; }
+  }
+
+  function __adi_isWithinNightLogoutWindow(nowMs){
+    try{
+      const d = new Date(nowMs || Date.now());
+      const h = d.getHours();
+      const m = d.getMinutes();
+      return (h > 23 || (h === 23 && m >= 59) || h < 6);
+    }catch(_){ return false; }
+  }
+
+  function __adi_planRelogAt0600(){
+    try{
+      const tsMs = __adi_getNext0600TsMs(Date.now());
+      const tsSec = Math.floor(tsMs / 1000);
+      __adi_setCookie('adi_relog_at_sec', String(tsSec), 24*60*60);
+      __adi_setCookie('adi_relog_for', 'night-logout', 24*60*60);
+      __adi_setCookie('adi_relog_timer_id', 'night-logout', 24*60*60);
+      __adi_delCookie('adi_relog_done');
+      return tsSec;
+    }catch(_){ return 0; }
+  }
+
+  function __adi_shouldBlockLoginNow(){
+    try{
+      return __adi_isNightLogoutEnabled() && __adi_isWithinNightLogoutWindow(Date.now());
+    }catch(_){ return false; }
+  }
+
+  function __adi_forceNightLogoutIfNeeded(){
+    try{
+      if(!__adi_shouldBlockLoginNow()) return false;
+      const k='adi-bot_night_logout_once';
+      const last=parseInt(localStorage.getItem(k)||'0',10)||0;
+      if(Date.now()-last < 15000) return true;
+      localStorage.setItem(k, String(Date.now()));
+      __adi_planRelogAt0600();
+      setTimeout(()=>{ __adi_clickLogout(); }, 250);
+      return true;
+    }catch(_){ return false; }
+  }
+
   function __adi_planRelog10sBeforeMin(){
     try{
       // uses E2 minutnik storage (adi_e2timer_timers_v1)
@@ -527,6 +585,12 @@ const HERO_DISCORD_WEBHOOK = "https://discord.com/api/webhooks/14711759854948884
       try{
         if(!isLoginPage()) return;
 
+        // ciche godziny 23:59-06:00: w tym czasie nie logujemy w ogóle
+        if(__adi_shouldBlockLoginNow()){
+          __adi_planRelogAt0600();
+          return;
+        }
+
         // twardy cooldown (cookie), żeby po odświeżeniu strony też nie spamować logowania
         const cdUntil = parseInt(__adi_getCookie('adi_relog_cd_until')||'0',10) || 0;
         if(Date.now() < cdUntil) return;
@@ -566,6 +630,21 @@ const HERO_DISCORD_WEBHOOK = "https://discord.com/api/webhooks/14711759854948884
     setTimeout(tick, 800);
   })();
   // === /AUTO RELOG ===
+
+  // === NIGHT LOGOUT GUARD (23:59-06:00) ===
+  (function(){
+    const CHECK_MS = 1000;
+    function tick(){
+      try{
+        if(!window.hero || !window.map || !window.g) return;
+        if(g.dead || g.resp || g.reload) return;
+        __adi_forceNightLogoutIfNeeded();
+      }catch(_){ }
+    }
+    setInterval(tick, CHECK_MS);
+    setTimeout(tick, 1200);
+  })();
+  // === /NIGHT LOGOUT GUARD ===
 
   function __adiE2LogoutTick(){
     try{
@@ -3075,6 +3154,7 @@ try{
 
     // default: zachowaj dotychczasowe zachowanie (logowanie po zbiciu E2 włączone)
     if(localStorage.getItem("adi-bot_relog_after_e2")==null){ localStorage.setItem("adi-bot_relog_after_e2","1"); }
+    if(localStorage.getItem("adi-bot_night_logout")==null){ localStorage.setItem("adi-bot_night_logout","0"); }
     try{ chkRelogAfterE2.checked = localStorage.getItem("adi-bot_relog_after_e2")==="1"; }catch(_){ }
 
     const autoSkillsOn = localStorage.getItem("adi-bot_auto_skills")==="1"; try{ chkAutoSkills.checked = autoSkillsOn; }catch(_){ }
@@ -4402,6 +4482,25 @@ if (typeof window.window.__adi_equipByNameSequence !== 'function') {
       </div>
     `;
 
+    const nightWrap = document.createElement("label");
+    nightWrap.style.display = "flex";
+    nightWrap.style.alignItems = "center";
+    nightWrap.style.gap = "6px";
+    nightWrap.style.marginTop = "6px";
+    nightWrap.style.cursor = "pointer";
+    nightWrap.setAttribute("tip", "Od 23:59 do 06:00 bot ma pozostać wylogowany. Jeśli wejdzie do gry w tym czasie, od razu się wyloguje i zaloguje dopiero o 06:00.");
+
+    const nightChk = document.createElement("input");
+    nightChk.type = "checkbox";
+    nightChk.id = "adi-bot_night_logout";
+    nightChk.style.margin = "0";
+
+    const nightTxt = document.createElement("span");
+    nightTxt.textContent = "Logaj 23:59-6:00";
+
+    nightWrap.appendChild(nightChk);
+    nightWrap.appendChild(nightTxt);
+
     const footer = document.createElement("div");
     footer.style.marginTop = "6px";
     footer.style.opacity = "0.85";
@@ -4411,6 +4510,7 @@ if (typeof window.window.__adi_equipByNameSequence !== 'function') {
     root.appendChild(header);
     root.appendChild(body);
     root.appendChild(cfg);
+    root.appendChild(nightWrap);
     root.appendChild(footer);
     tab.appendChild(root);
 
@@ -4422,6 +4522,20 @@ if (typeof window.window.__adi_equipByNameSequence !== 'function') {
     cfg.querySelector("#adi-e2tm-compact").checked = !!settings.compact;
     cfg.querySelector("#adi-e2tm-elitefilter").checked = !!settings.useEliteFilter;
     cfg.querySelector("#adi-e2tm-wtmin").value = String(settings.wtMin);
+    if(localStorage.getItem('adi-bot_night_logout') == null){ localStorage.setItem('adi-bot_night_logout', '0'); }
+    nightChk.checked = localStorage.getItem('adi-bot_night_logout') === '1';
+    nightChk.addEventListener('change', () => {
+      localStorage.setItem('adi-bot_night_logout', nightChk.checked ? '1' : '0');
+      if(nightChk.checked){
+        if(__adi_isWithinNightLogoutWindow(Date.now())){
+          __adi_planRelogAt0600();
+          setTimeout(()=>{ __adi_clickLogout(); }, 250);
+        }
+        try{ message('Logaj 23:59-6:00: WŁ'); }catch(_){ }
+      }else{
+        try{ message('Logaj 23:59-6:00: WYŁ'); }catch(_){ }
+      }
+    });
 
     cfg.querySelector("#adi-e2tm-enabled").addEventListener("change", (e) => {
       const s = loadSettings(); s.enabled = e.target.checked; saveSettings(s);
