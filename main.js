@@ -951,7 +951,7 @@ Lvl: **${n.lvl ?? "?"}**`,
     "Zbiry Eder": { map: "Stary Kupiecki Trakt, Stukot Widmowych Kół, Wertepy Rzezimieszków" },
     "Galaretki + Pająki": { map: "Zapomniany Szlak, Mokra Grota p.1, Mokra Grota p.1 - przełaz, Mokra Grota p.1 - boczny korytarz, Mokra Grota p.2 - korytarz, Mokra Grota p.1 - boczny korytarz, Mokra Grota p.1, Zapomniany Szlak, Grota Bezszelestnych Kroków - sala 1, Grota Bezszelestnych Kroków - sala 2, Grota Bezszelestnych Kroków - sala 3, Grota Bezszelestnych Kroków - sala 1, Zapomniany Szlak" },
     "Pszczoły Ithan": { map: "Porzucone Pasieki, Kopalnia Kapiącego Miodu p.1 - sala 2, Kopalnia Kapiącego Miodu p.2 - sala 2, Kopalnia Kapiącego Miodu p.3, Kopalnia Kapiącego Miodu p.2 - sala 1, Kopalnia Kapiącego Miodu p.2 - sala Owadziej Matki, Kopalnia Kapiącego Miodu p.2 - sala 1, Kopalnia Kapiącego Miodu p.1 - sala 1, Porzucone Pasieki", mobs_id: [71698] },
-    "Gnolle": { map: "Wioska Gnolli, Jaskinia Gnollich Szamanów p.2, Jaskinia Gnollich Szamanów p.3, Jaskinia Gnollich Szamanów p.2, Wioska Gnolli, Czeluść Ognistej Pożogi, Grota Pragnolli p.1, GrotaGrota Pragnolli p.2 Pragnolli p.1 - sala 2, Grota Pragnolli p.2, Grota Pragnolli p.2 - sala 2, Grota Pragnolli p.2, Grota Pragnolli p.3, Czeluść Ognistej Pożogi" },
+    "Gnolle": { map: "Wioska Gnolli, Jaskinia Łowców p.2, Jaskinia Łowców p.1, Ithan, Jaskinia Łowców p.1, Jaskinia Łowców p.2, Wioska Gnolli" },
     "Mnisi LOW": { map: "Świątynia Andarum, Świątynia Andarum - zejście lewe, Świątynia Andarum - podziemia, Świątynia Andarum - zejście prawe, Świątynia Andarum - podziemia, Świątynia Andarum - lokum mnichów" },
     "Mnisi+Zbrojki": { map: "Świątynia Andarum, Świątynia Andarum - zejście lewe, Świątynia Andarum - podziemia, Świątynia Andarum - zejście prawe, Świątynia Andarum - podziemia, Świątynia Andarum - biblioteka, Świątynia Andarum - podziemia, Świątynia Andarum - lokum mnichów, Świątynia Andarum - magazyn p.2, Świątynia Andarum - magazyn p.1" },
     "Erem+Zbrojki": { map: "Świątynia Andarum - magazyn p.1, Świątynia Andarum - magazyn p.2, Erem Czarnego Słońca p.4 - sala 2, Erem Czarnego Słońca p.3 - południe, Erem Czarnego Słońca p.4 - sala 2, Erem Czarnego Słońca p.3, Erem Czarnego Słońca p.2, Erem Czarnego Słońca p.1 - północ, Erem Czarnego Słońca p.2, Erem Czarnego Słońca p.3, Erem Czarnego Słońca p.4 - sala 1, Erem Czarnego Słońca p.5" },
@@ -1303,46 +1303,145 @@ Lvl: **${n.lvl ?? "?"}**`,
 }
 
 // ---- Generic routing to an arbitrary target map (e.g., Torneg for vendor) ----
-function buildGraphRouteTo(targetName){
-  if(!window.ADI_MAP_GRAPH_READY) return null;
-  const current = normMapName(map.name);
-  const target = normMapName(targetName);
-  if(current===target) return [];
-  const path = bfsGraph(current, target);
-  if(!path || path.length<2) return null;
-  const steps=[];
+const ADI_FORCED_ROUTE_DEFS = [
+  {
+    key: 'szczet',
+    entry: 'Fort Eder',
+    route: ['Fort Eder', 'Ciemnica Szubrawców p.1 - sala 1', 'Ciemnica Szubrawców p.1 - sala 2', 'Ciemnica Szubrawców p.1 - sala 3', 'Stary Kupiecki Trakt']
+  },
+  {
+    key: 'vari',
+    entry: 'Ithan',
+    route: ['Ithan', 'Jaskinia Łowców p.1', 'Jaskinia Łowców p.2', 'Wioska Gnolli', 'Namiot Vari Krugera']
+  },
+  {
+    key: 'gnolle',
+    entry: 'Ithan',
+    route: ['Ithan', 'Jaskinia Łowców p.1', 'Jaskinia Łowców p.2', 'Wioska Gnolli']
+  }
+];
+
+function __adiForcedDefs(){
+  return ADI_FORCED_ROUTE_DEFS.map(def => ({
+    key: def.key,
+    entry: normMapName(def.entry || def.route[0]),
+    route: def.route.map(normMapName)
+  }));
+}
+
+function __adiForcedFindByMap(mapName){
+  const cur = normMapName(mapName);
+  for(const def of __adiForcedDefs()){
+    if(def.route.includes(cur)) return def;
+  }
+  return null;
+}
+
+function __adiForcedPathInRoute(def, fromName, toName){
+  if(!def) return null;
+  const from = normMapName(fromName), to = normMapName(toName);
+  const a = def.route.indexOf(from), b = def.route.indexOf(to);
+  if(a < 0 || b < 0 || a === b) return (a === b ? [] : null);
+  const out = [];
+  const step = a < b ? 1 : -1;
+  for(let i=a; i!==b; i+=step){
+    out.push({ from: def.route[i], to: def.route[i+step], via: null, forced: def.key });
+  }
+  return out;
+}
+
+function __adiConvertPathToSteps(path){
+  if(!path || path.length < 2) return [];
+  const steps = [];
   for(let i=0;i<path.length-1;i++){
-    const from=path[i], to=path[i+1];
+    const from = path[i], to = path[i+1];
     const e = graphEdge(from, to);
     steps.push({ from, to, via: e && e.via ? {x:e.via.x, y:e.via.y} : null });
   }
   return steps;
 }
 
+function __adiConcatSteps(){
+  const out = [];
+  for(let i=0;i<arguments.length;i++){
+    const part = arguments[i];
+    if(Array.isArray(part) && part.length) out.push(...part);
+  }
+  return out;
+}
+
+function buildGraphRouteTo(targetName){
+  if(!window.ADI_MAP_GRAPH_READY) return null;
+  const current = normMapName(map.name);
+  const target = normMapName(targetName);
+  if(current===target) return [];
+
+  const curForced = __adiForcedFindByMap(current);
+  const tgtForced = __adiForcedFindByMap(target);
+
+  if(curForced && tgtForced && curForced.key === tgtForced.key){
+    return __adiForcedPathInRoute(curForced, current, target);
+  }
+
+  if(curForced && (!tgtForced || tgtForced.key !== curForced.key)){
+    const leaveSteps = __adiForcedPathInRoute(curForced, current, curForced.entry);
+    if(current !== curForced.entry){
+      const baseFromEntry = bfsGraph(curForced.entry, target);
+      const tail = __adiConvertPathToSteps(baseFromEntry);
+      return tail ? __adiConcatSteps(leaveSteps, tail) : leaveSteps;
+    }
+  }
+
+  if(tgtForced && (!curForced || curForced.key !== tgtForced.key)){
+    const baseToEntry = bfsGraph(current, tgtForced.entry);
+    const head = __adiConvertPathToSteps(baseToEntry);
+    const enterSteps = __adiForcedPathInRoute(tgtForced, tgtForced.entry, target);
+    if(current === tgtForced.entry) return enterSteps;
+    if(head && enterSteps) return __adiConcatSteps(head, enterSteps);
+  }
+
+  const path = bfsGraph(current, target);
+  if(!path || path.length<2) return null;
+  return __adiConvertPathToSteps(path);
+}
+
 function followGraphTo(targetName){
   if(!window.ADI_MAP_GRAPH_READY) return null;
 
-  if(!window.__tempRoute || window.__tempRouteTarget !== normMapName(targetName)){
+  const normTarget = normMapName(targetName);
+  if(!window.__tempRoute || window.__tempRouteTarget !== normTarget){
     const r = buildGraphRouteTo(targetName);
     window.__tempRoute = r;
-    window.__tempRouteTarget = r ? normMapName(targetName) : null;
+    window.__tempRouteTarget = r ? normTarget : null;
   }
 
   if(!window.__tempRoute || window.__tempRoute.length===0) return null;
 
   const curName = normMapName(map.name);
 
-  // consume steps already completed
   while(window.__tempRoute.length && normMapName(window.__tempRoute[0].to)===curName){
     window.__tempRoute.shift();
   }
 
-  const step = window.__tempRoute[0];
-  if(!step) return null;
+  if(!window.__tempRoute.length) return null;
+
+  let step = window.__tempRoute[0];
+  if(normMapName(step.from)!==curName){
+    const r = buildGraphRouteTo(targetName);
+    window.__tempRoute = r;
+    window.__tempRouteTarget = r ? normTarget : null;
+    if(!window.__tempRoute || !window.__tempRoute.length) return null;
+
+    while(window.__tempRoute.length && normMapName(window.__tempRoute[0].to)===curName){
+      window.__tempRoute.shift();
+    }
+    if(!window.__tempRoute.length) return null;
+    step = window.__tempRoute[0];
+    if(normMapName(step.from)!==curName) return null;
+  }
 
   if(step.via) return {x:step.via.x, y:step.via.y};
 
-  // try gateway by town name if no via
   const targetReadable = step.to;
   for(const i in g.townname){
     if(isNameMatch(normMapName(targetReadable), normMapName(g.townname[i].replace(/ +(?= )/g,'')))){
@@ -2345,7 +2444,17 @@ function __adiAutoHealTick(){
 
     const target = txt[Math.max(0, Math.min(txt.length-1, inc))];
 
-    // 1) Try direct gateway (adjacent map).
+    // 1) Najpierw wymuszone trasy specjalne (żeby nie brał "krótszego" ale zablokowanego przejścia).
+    if(window.ADI_MAP_GRAPH_READY){
+      const curForced = __adiForcedFindByMap(curName);
+      const tgtForced = __adiForcedFindByMap(target);
+      if(curForced || tgtForced){
+        const viaForced = followGraphTo(target);
+        if(viaForced) return { x: viaForced.x, y: viaForced.y };
+      }
+    }
+
+    // 2) Try direct gateway (adjacent map).
     let obj;
     for(const i in g.townname){
       if(isNameMatch(normMapName(target), normMapName(g.townname[i].replace(/ +(?= )/g,'')))){
@@ -2356,7 +2465,7 @@ function __adiAutoHealTick(){
     }
     if(obj) return obj;
 
-    // 2) If not adjacent, use graph routing (multi-map) to reach the target map.
+    // 3) If not adjacent, use graph routing (multi-map) to reach the target map.
     if(window.ADI_MAP_GRAPH_READY){
       const via = followGraphTo(target);
       if(via) return { x: via.x, y: via.y };
