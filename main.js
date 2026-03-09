@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Bot na exp (iframe-aware exhaustion + throttling + captcha->Discord + ping-pong trasy + only-selected-maps + elite toggle + group-size filter + heros->Discord + obrazki + fixy map/lvl/wt/grupy + FOW cache)
-// @version      2.17.3-autoskillfix
+// @version      2.17.4-customroutes
 // @description  Bot z przechodzeniem map, anty-spam ataku, captcha->Discord, START/STOP, zbijanie wyczerpania, atak tylko na wybranych mapach, elity toggle, filtr grup, powiadomienia o herosach (bez Namiotu Tropicieli Herosów), normalizacja nazw map, odporne parsowanie lvli, poprawki 'wt', stabilny wybór grup przy mgle (cache max rozmiaru grupy)
 // @match        *://*/
 // @match        *://www.margonem.pl/*
@@ -1121,6 +1121,90 @@ Lvl: **${n.lvl ?? "?"}**`,
       // message(`AUTO expowisko → "${key}" (lvl ${hero && hero.lvl || 0})`);
     }
   }
+  const ADI_SPECIAL_ROUTES = {
+    exp: {
+      "Gnolle": ["Ithan", "Jaskinia Łowców p.1", "Jaskinia Łowców p.2", "Ithan", "Wioska Gnolli"]
+    },
+    e2: {
+      "Szczęt alias Gładki": ["Fort Eder", "Ciemnica Szubrawców p.1 - sala 1", "Ciemnica Szubrawców p.1 - sala 2", "Ciemnica Szubrawców p.1 - sala 3", "Stary Kupiecki Trakt"],
+      "Vari Kruger": ["Ithan", "Jaskinia Łowców p.1", "Jaskinia Łowców p.2", "Ithan", "Wioska Gnolli", "Namiot Vari Krugera"]
+    }
+  };
+
+  function __adi_getSpecialRouteMaps(){
+    try{
+      const mode = (localStorage.getItem('adi-bot_exp_mode') || 'exp').trim();
+      if(mode === 'e2'){
+        const e2Name = __adi_getSelectedE2Name();
+        const route = ADI_SPECIAL_ROUTES.e2[e2Name];
+        return Array.isArray(route) ? route.slice() : null;
+      }
+      const expKey = getSelectedExpKey();
+      const route = ADI_SPECIAL_ROUTES.exp[expKey];
+      return Array.isArray(route) ? route.slice() : null;
+    }catch(_){ return null; }
+  }
+
+  function __adi_routeToNamedMap(target){
+    if(!target) return null;
+
+    let obj;
+    for(const i in g.townname){
+      if(isNameMatch(normMapName(target), normMapName(g.townname[i].replace(/ +(?= )/g,'')))){
+        const c=g.gwIds[i].split('.');
+        if(a_getWay(c[0],c[1])===undefined) continue;
+        obj={x:c[0], y:c[1]}; break;
+      }
+    }
+    if(obj) return obj;
+
+    if(window.ADI_MAP_GRAPH_READY){
+      const via = followGraphTo(target);
+      if(via) return { x: via.x, y: via.y };
+    }
+    return null;
+  }
+
+  function __adi_followNamedRoute(route){
+    if(!Array.isArray(route) || route.length===0) return null;
+
+    const routeSig = route.map(s=>normMapName(s)).join('>');
+    const sigKey = 'adi-bot_route_sig';
+    const savedSig = localStorage.getItem(sigKey) || '';
+    if(savedSig !== routeSig){
+      localStorage.setItem(sigKey, routeSig);
+      localStorage.setItem('alksjd', '0');
+      localStorage.setItem('adi-bot_dir', '1');
+    }
+
+    if(!localStorage.getItem('adi-bot_dir')) localStorage.setItem('adi-bot_dir','1');
+    let inc=parseInt(localStorage.getItem('alksjd'),10); if(!Number.isFinite(inc)) inc=0;
+    let dir=parseInt(localStorage.getItem('adi-bot_dir'),10); if(!Number.isFinite(dir)||dir===0) dir=1;
+
+    const curName = normMapName(map.name);
+    let curIdx = -1;
+    for(let i=0;i<route.length;i++){
+      if(isNameMatch(normMapName(route[i]), curName)){ curIdx=i; break; }
+    }
+
+    if(curIdx >= 0) inc = curIdx;
+    else inc = 0;
+
+    if(route[inc] && isNameMatch(normMapName(route[inc]), curName)){
+      inc += dir;
+      if(inc>=route.length){ inc=Math.max(0, route.length-2); dir=-1; }
+      else if(inc<0){ inc=Math.min(1, route.length-1); dir=1; }
+      localStorage.setItem('alksjd', String(inc));
+      localStorage.setItem('adi-bot_dir', String(dir));
+    }else{
+      localStorage.setItem('alksjd', String(Math.max(0, Math.min(route.length-1, inc))));
+      localStorage.setItem('adi-bot_dir', String(dir));
+    }
+
+    const target = route[Math.max(0, Math.min(route.length-1, inc))];
+    return __adi_routeToNamedMap(target);
+  }
+
   // ===== MAP GRAPH (expowisko routing to the first map) =====
 
   (function(){
@@ -1302,201 +1386,47 @@ Lvl: **${n.lvl ?? "?"}**`,
   return null;
 }
 
-// ===== SPECIAL ROUTE STATE (persist across map reload/F5-like transitions) =====
-function adiSetSpecialRouteState(data){
-  try{ localStorage.setItem('adi-special-route-state', JSON.stringify(data || null)); }catch(_){}
-}
-function adiGetSpecialRouteState(){
-  try{ const raw = localStorage.getItem('adi-special-route-state'); return raw ? JSON.parse(raw) : null; }catch(_){ return null; }
-}
-function adiClearSpecialRouteState(){
-  try{ localStorage.removeItem('adi-special-route-state'); }catch(_){}
-}
-function adiRememberCurrentMap(){
-  try{ localStorage.setItem('adi-last-map-name', String((window.map && map.name) || '')); }catch(_){}
-}
-function adiGetLastMap(){
-  try{ return localStorage.getItem('adi-last-map-name') || ''; }catch(_){ return ''; }
-}
-setInterval(adiRememberCurrentMap, 300);
-
 // ---- Generic routing to an arbitrary target map (e.g., Torneg for vendor) ----
-const ADI_FORCED_ROUTE_DEFS = [
-  {
-    key: 'szczet',
-    entry: 'Fort Eder',
-    route: ['Fort Eder', 'Ciemnica Szubrawców p.1 - sala 1', 'Ciemnica Szubrawców p.1 - sala 2', 'Ciemnica Szubrawców p.1 - sala 3', 'Stary Kupiecki Trakt']
-  },
-  {
-    key: 'vari',
-    entry: 'Ithan',
-    route: ['Ithan', 'Jaskinia Łowców p.1', 'Jaskinia Łowców p.2', 'Ithan', 'Wioska Gnolli', 'Namiot Vari Krugera']
-  },
-  {
-    key: 'gnolle',
-    entry: 'Ithan',
-    route: ['Ithan', 'Jaskinia Łowców p.1', 'Jaskinia Łowców p.2', 'Ithan', 'Wioska Gnolli']
-  }
-];
-
-function __adiForcedDefs(){
-  return ADI_FORCED_ROUTE_DEFS.map(def => ({
-    key: def.key,
-    entry: normMapName(def.entry || def.route[0]),
-    route: def.route.map(normMapName)
-  }));
-}
-
-function __adiForcedFindByMap(mapName){
-  const cur = normMapName(mapName);
-  for(const def of __adiForcedDefs()){
-    if(def.route.includes(cur)) return def;
-  }
-  return null;
-}
-
-function __adiForcedPathInRoute(def, fromName, toName){
-  if(!def) return null;
-
-  const from = normMapName(fromName);
-  const to = normMapName(toName);
-  const route = def.route.map(normMapName);
-  const prevMap = normMapName(adiGetLastMap());
-
-  const fromIndexes = [];
-  const toIndexes = [];
-  for(let i=0;i<route.length;i++){
-    if(route[i] === from) fromIndexes.push(i);
-    if(route[i] === to) toIndexes.push(i);
-  }
-  if(!fromIndexes.length || !toIndexes.length) return null;
-
-  let a = fromIndexes[0];
-  let b = toIndexes[0];
-
-  if(def.key === 'vari' || def.key === 'gnolle'){
-    if(from === normMapName('Ithan')){
-      if(prevMap === normMapName('Jaskinia Łowców p.2') && fromIndexes.length > 1) a = fromIndexes[fromIndexes.length - 1];
-      else a = fromIndexes[0];
-    }else{
-      a = fromIndexes[fromIndexes.length - 1];
-    }
-    if(to === normMapName('Wioska Gnolli')) b = toIndexes[toIndexes.length - 1];
-    else b = toIndexes[0];
-  }
-
-  if(a === b) return [];
-  const out = [];
-  const step = a < b ? 1 : -1;
-  for(let i=a; i!==b; i+=step){
-    out.push({ from: route[i], to: route[i + step], via: null, forced: def.key });
-  }
-  try{ adiSetSpecialRouteState({ key:def.key, from, to, pickedFromIndex:a, pickedToIndex:b, prevMap, ts:Date.now() }); }catch(_){}
-  return out;
-}
-
-function __adiConvertPathToSteps(path){
-  if(!path || path.length < 2) return [];
-  const steps = [];
+function buildGraphRouteTo(targetName){
+  if(!window.ADI_MAP_GRAPH_READY) return null;
+  const current = normMapName(map.name);
+  const target = normMapName(targetName);
+  if(current===target) return [];
+  const path = bfsGraph(current, target);
+  if(!path || path.length<2) return null;
+  const steps=[];
   for(let i=0;i<path.length-1;i++){
-    const from = path[i], to = path[i+1];
+    const from=path[i], to=path[i+1];
     const e = graphEdge(from, to);
     steps.push({ from, to, via: e && e.via ? {x:e.via.x, y:e.via.y} : null });
   }
   return steps;
 }
 
-function __adiConcatSteps(){
-  const out = [];
-  for(let i=0;i<arguments.length;i++){
-    const part = arguments[i];
-    if(Array.isArray(part) && part.length) out.push(...part);
-  }
-  return out;
-}
-
-function buildGraphRouteTo(targetName){
-  if(!window.ADI_MAP_GRAPH_READY) return null;
-
-  const current = normMapName(map.name);
-  const target = normMapName(targetName);
-  if(current===target) return [];
-
-  const curForced = __adiForcedFindByMap(current);
-  const tgtForced = __adiForcedFindByMap(target);
-  const prevMap = normMapName(adiGetLastMap());
-
-  if(curForced && (curForced.key === 'vari' || curForced.key === 'gnolle')){
-    if(current === normMapName('Ithan') && prevMap === normMapName('Jaskinia Łowców p.2')){
-      const forcedTarget = (curForced.key === 'vari') ? normMapName('Namiot Vari Krugera') : normMapName('Wioska Gnolli');
-      const specialSteps = __adiForcedPathInRoute(curForced, current, forcedTarget);
-      if(specialSteps && specialSteps.length) return specialSteps;
-    }
-  }
-
-  if(curForced && tgtForced && curForced.key === tgtForced.key){
-    return __adiForcedPathInRoute(curForced, current, target);
-  }
-
-  if(curForced && (!tgtForced || tgtForced.key !== curForced.key)){
-    const leaveSteps = __adiForcedPathInRoute(curForced, current, curForced.entry);
-    if(current !== curForced.entry){
-      const baseFromEntry = bfsGraph(curForced.entry, target);
-      const tail = __adiConvertPathToSteps(baseFromEntry);
-      return tail ? __adiConcatSteps(leaveSteps, tail) : leaveSteps;
-    }
-  }
-
-  if(tgtForced && (!curForced || tgtForced.key !== curForced.key)){
-    const baseToEntry = bfsGraph(current, tgtForced.entry);
-    const head = __adiConvertPathToSteps(baseToEntry);
-    const enterSteps = __adiForcedPathInRoute(tgtForced, tgtForced.entry, target);
-    if(current === tgtForced.entry) return enterSteps;
-    if(head && enterSteps) return __adiConcatSteps(head, enterSteps);
-  }
-
-  const path = bfsGraph(current, target);
-  if(!path || path.length<2) return null;
-  return __adiConvertPathToSteps(path);
-}
-
 function followGraphTo(targetName){
   if(!window.ADI_MAP_GRAPH_READY) return null;
 
-  const normTarget = normMapName(targetName);
-  if(!window.__tempRoute || window.__tempRouteTarget !== normTarget){
+  if(!window.__tempRoute || window.__tempRouteTarget !== normMapName(targetName)){
     const r = buildGraphRouteTo(targetName);
     window.__tempRoute = r;
-    window.__tempRouteTarget = r ? normTarget : null;
+    window.__tempRouteTarget = r ? normMapName(targetName) : null;
   }
 
   if(!window.__tempRoute || window.__tempRoute.length===0) return null;
 
   const curName = normMapName(map.name);
 
+  // consume steps already completed
   while(window.__tempRoute.length && normMapName(window.__tempRoute[0].to)===curName){
     window.__tempRoute.shift();
   }
 
-  if(!window.__tempRoute.length) return null;
-
-  let step = window.__tempRoute[0];
-  if(normMapName(step.from)!==curName){
-    const r = buildGraphRouteTo(targetName);
-    window.__tempRoute = r;
-    window.__tempRouteTarget = r ? normTarget : null;
-    if(!window.__tempRoute || !window.__tempRoute.length) return null;
-
-    while(window.__tempRoute.length && normMapName(window.__tempRoute[0].to)===curName){
-      window.__tempRoute.shift();
-    }
-    if(!window.__tempRoute.length) return null;
-    step = window.__tempRoute[0];
-    if(normMapName(step.from)!==curName) return null;
-  }
+  const step = window.__tempRoute[0];
+  if(!step) return null;
 
   if(step.via) return {x:step.via.x, y:step.via.y};
 
+  // try gateway by town name if no via
   const targetReadable = step.to;
   for(const i in g.townname){
     if(isNameMatch(normMapName(targetReadable), normMapName(g.townname[i].replace(/ +(?= )/g,'')))){
@@ -2455,16 +2385,29 @@ function __adiAutoHealTick(){
   // ===== przechodzenie listy map w trybie ping-pong =====
 
   this.findBestGw=function(){
+    const __specialRoute = __adi_getSpecialRouteMaps();
+
     // If a temporary target map is set (e.g., going to vendor), route ONLY to it and pause fallback.
     if(window.ADI_TEMP_TARGET_MAP){
       const tgt = normMapName(window.ADI_TEMP_TARGET_MAP);
       const cur = normMapName(map.name);
+
+      if(__specialRoute && normMapName(__specialRoute[__specialRoute.length - 1]) === tgt){
+        const via = __adi_followNamedRoute(__specialRoute);
+        if(via) return via;
+      }
+
       if(cur !== tgt){
         const via = followGraphTo(window.ADI_TEMP_TARGET_MAP);
         if(via) return {x: via.x, y: via.y};
       }
       // already at target -> do not move anywhere until caller clears ADI_TEMP_TARGET_MAP
       return;
+    }
+
+    if(__specialRoute){
+      const via = __adi_followNamedRoute(__specialRoute);
+      if(via) return via;
     }
 
     const mapsInput=document.querySelector('#adi-bot_maps');
@@ -2499,17 +2442,7 @@ function __adiAutoHealTick(){
 
     const target = txt[Math.max(0, Math.min(txt.length-1, inc))];
 
-    // 1) Najpierw wymuszone trasy specjalne (żeby nie brał "krótszego" ale zablokowanego przejścia).
-    if(window.ADI_MAP_GRAPH_READY){
-      const curForced = __adiForcedFindByMap(curName);
-      const tgtForced = __adiForcedFindByMap(target);
-      if(curForced || tgtForced){
-        const viaForced = followGraphTo(target);
-        if(viaForced) return { x: viaForced.x, y: viaForced.y };
-      }
-    }
-
-    // 2) Try direct gateway (adjacent map).
+    // 1) Try direct gateway (adjacent map).
     let obj;
     for(const i in g.townname){
       if(isNameMatch(normMapName(target), normMapName(g.townname[i].replace(/ +(?= )/g,'')))){
@@ -2520,7 +2453,7 @@ function __adiAutoHealTick(){
     }
     if(obj) return obj;
 
-    // 3) If not adjacent, use graph routing (multi-map) to reach the target map.
+    // 2) If not adjacent, use graph routing (multi-map) to reach the target map.
     if(window.ADI_MAP_GRAPH_READY){
       const via = followGraphTo(target);
       if(via) return { x: via.x, y: via.y };
@@ -3203,29 +3136,6 @@ try{
   tabTest.appendChild(skillName);
   tabTest.appendChild(skillBtn);
   tabTest.appendChild(skillStatus);
-
-// RESET TASK BUTTON
-function adi_resetTask(){
-  try{
-    if(window.currentTask) window.currentTask = null;
-    if(window.currentRoute) window.currentRoute = [];
-    if(window.route) window.route = [];
-    if(window.targetMap) window.targetMap = null;
-    if(window.botTarget) window.botTarget = null;
-    console.log("[BOT] Task został zresetowany");
-  }catch(e){ console.log("Reset error",e); }
-}
-
-try{
-  const resetBtn=document.createElement('button');
-  resetBtn.id='adi-bot_reset_task';
-  resetBtn.classList.add('adi-bot_inputs');
-  resetBtn.textContent='Reset taska';
-  resetBtn.setAttribute('tip','Czyści aktualne zadanie i trasę bota');
-  resetBtn.onclick=adi_resetTask;
-  tabTest.appendChild(resetBtn);
-}catch(e){}
-
 }catch(e){ console.warn('[adi-bot] skill test ui failed', e); }
 
 
@@ -3413,8 +3323,6 @@ const have = (window.getPotionCountByName ? window.getPotionCountByName(selName)
 
         // opcjonalnie: jeśli używasz SMART TRAVERSAL, wyczyść jego listę odwiedzonych
         localStorage.removeItem('adi-bot_smart_visited');
-        localStorage.removeItem('adi-last-map-name');
-        localStorage.removeItem('adi-special-route-state');
 
         // restart cyklu ping-pong / kierunku
         localStorage.setItem(`alksjd`, 0);
@@ -3432,8 +3340,6 @@ const have = (window.getPotionCountByName ? window.getPotionCountByName(selName)
 
         // opcjonalnie: jeśli używasz SMART TRAVERSAL, wyczyść jego listę odwiedzonych
         localStorage.removeItem('adi-bot_smart_visited');
-        localStorage.removeItem('adi-last-map-name');
-        localStorage.removeItem('adi-special-route-state');
       }catch(_){}
 
       // reset tras grafowych
