@@ -853,7 +853,11 @@
       }
     },
     {
-      "to": "jaskinia łowcow p.2"
+      "to": "jaskinia łowcow p.2",
+      "via": {
+        "x": 87,
+        "y": 20
+      }
     },
     {
       "to": "wioska gnolli",
@@ -917,7 +921,11 @@
   ],
   "jaskinia łowcow p.1": [
     {
-      "to": "ithan"
+      "to": "ithan",
+      "via": {
+        "x": 15,
+        "y": 18
+      }
     },
     {
       "to": "jaskinia łowcow p.2",
@@ -929,7 +937,11 @@
   ],
   "jaskinia łowcow p.2": [
     {
-      "to": "jaskinia łowcow p.1"
+      "to": "jaskinia łowcow p.1",
+      "via": {
+        "x": 4,
+        "y": 14
+      }
     },
     {
       "to": "ithan",
