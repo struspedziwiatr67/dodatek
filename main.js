@@ -951,7 +951,7 @@ Lvl: **${n.lvl ?? "?"}**`,
     "Zbiry Eder": { map: "Stary Kupiecki Trakt, Stukot Widmowych Kół, Wertepy Rzezimieszków" },
     "Galaretki + Pająki": { map: "Zapomniany Szlak, Mokra Grota p.1, Mokra Grota p.1 - przełaz, Mokra Grota p.1 - boczny korytarz, Mokra Grota p.2 - korytarz, Mokra Grota p.1 - boczny korytarz, Mokra Grota p.1, Zapomniany Szlak, Grota Bezszelestnych Kroków - sala 1, Grota Bezszelestnych Kroków - sala 2, Grota Bezszelestnych Kroków - sala 3, Grota Bezszelestnych Kroków - sala 1, Zapomniany Szlak" },
     "Pszczoły Ithan": { map: "Porzucone Pasieki, Kopalnia Kapiącego Miodu p.1 - sala 2, Kopalnia Kapiącego Miodu p.2 - sala 2, Kopalnia Kapiącego Miodu p.3, Kopalnia Kapiącego Miodu p.2 - sala 1, Kopalnia Kapiącego Miodu p.2 - sala Owadziej Matki, Kopalnia Kapiącego Miodu p.2 - sala 1, Kopalnia Kapiącego Miodu p.1 - sala 1, Porzucone Pasieki", mobs_id: [71698] },
-    "Gnolle": { map: "Ithan, Jaskinia Łowców p.1, Jaskinia Łowców p.2, Ithan, Wioska Gnolli" },
+    "Gnolle": { map: "Wioska Gnolli, Jaskinia Łowców p.2, Jaskinia Łowców p.1, Ithan, Jaskinia Łowców p.1, Jaskinia Łowców p.2, Wioska Gnolli" },
     "Mnisi LOW": { map: "Świątynia Andarum, Świątynia Andarum - zejście lewe, Świątynia Andarum - podziemia, Świątynia Andarum - zejście prawe, Świątynia Andarum - podziemia, Świątynia Andarum - lokum mnichów" },
     "Mnisi+Zbrojki": { map: "Świątynia Andarum, Świątynia Andarum - zejście lewe, Świątynia Andarum - podziemia, Świątynia Andarum - zejście prawe, Świątynia Andarum - podziemia, Świątynia Andarum - biblioteka, Świątynia Andarum - podziemia, Świątynia Andarum - lokum mnichów, Świątynia Andarum - magazyn p.2, Świątynia Andarum - magazyn p.1" },
     "Erem+Zbrojki": { map: "Świątynia Andarum - magazyn p.1, Świątynia Andarum - magazyn p.2, Erem Czarnego Słońca p.4 - sala 2, Erem Czarnego Słońca p.3 - południe, Erem Czarnego Słońca p.4 - sala 2, Erem Czarnego Słońca p.3, Erem Czarnego Słońca p.2, Erem Czarnego Słońca p.1 - północ, Erem Czarnego Słońca p.2, Erem Czarnego Słońca p.3, Erem Czarnego Słońca p.4 - sala 1, Erem Czarnego Słońca p.5" },
@@ -1303,198 +1303,67 @@ Lvl: **${n.lvl ?? "?"}**`,
 }
 
 // ---- Generic routing to an arbitrary target map (e.g., Torneg for vendor) ----
-const ADI_FORCED_ROUTE_DEFS = [
-  {
-    key: 'szczet',
-    entry: 'Fort Eder',
-    route: ['Fort Eder', 'Ciemnica Szubrawców p.1 - sala 1', 'Ciemnica Szubrawców p.1 - sala 2', 'Ciemnica Szubrawców p.1 - sala 3', 'Stary Kupiecki Trakt']
-  },
-  {
-    key: 'vari',
-    entry: 'Ithan',
-    route: ['Ithan', 'Jaskinia Łowców p.1', 'Jaskinia Łowców p.2', 'Ithan', 'Wioska Gnolli', 'Namiot Vari Krugera']
-  },
-  {
-    key: 'gnolle',
-    entry: 'Ithan',
-    route: ['Ithan', 'Jaskinia Łowców p.1', 'Jaskinia Łowców p.2', 'Ithan', 'Wioska Gnolli']
-  }
-];
-
-function __adiForcedDefs(){
-  try{
-    return ADI_FORCED_ROUTE_DEFS.map(def => ({
-      key: def.key,
-      entry: normMapName(def.entry || (def.route && def.route[0]) || ''),
-      route: (def.route || []).map(normMapName)
-    }));
-  }catch(_){ return []; }
+function __adiMakeSingleStep(fromName, toName){
+  const from = normMapName(fromName);
+  const to = normMapName(toName);
+  const e = graphEdge(from, to) || graphEdge(fromName, toName);
+  return [{ from, to, via: e && e.via ? {x:e.via.x, y:e.via.y} : null }];
 }
 
-function __adiForcedFindByMap(mapName){
-  const cur = normMapName(mapName);
-  if(!cur) return null;
-  for(const def of __adiForcedDefs()){
-    if(def.route.includes(cur)) return def;
-  }
-  return null;
-}
+function buildGraphRouteTo(targetName){
+  if(!window.ADI_MAP_GRAPH_READY) return null;
+  const current = normMapName(map.name);
+  const target = normMapName(targetName);
+  if(current===target) return [];
 
-function __adiForcedFindAllIdx(route, name){
-  const out = [];
-  name = normMapName(name);
-  for(let i=0;i<route.length;i++) if(route[i] === name) out.push(i);
-  return out;
-}
-
-function __adiForcedGetPrevMapNorm(){
-  try{ return normMapName(window.__adi_prevMapNorm || ''); }catch(_){ return ''; }
-}
-
-function __adiForcedPickIndices(def, fromName, toName){
-  if(!def) return null;
-  const from = normMapName(fromName), to = normMapName(toName);
-  const fromIdxs = __adiForcedFindAllIdx(def.route, from);
-  const toIdxs = __adiForcedFindAllIdx(def.route, to);
-  if(!fromIdxs.length || !toIdxs.length) return null;
-  if(from === to) return { fromIdx: fromIdxs[0], toIdx: fromIdxs[0] };
-
-  const prev = __adiForcedGetPrevMapNorm();
-  let best = null;
-  for(const a of fromIdxs){
-    for(const b of toIdxs){
-      if(a === b) continue;
-      let score = Math.abs(a - b) * 10;
-      if(prev){
-        if(a > 0 && def.route[a - 1] === prev) score -= 100;
-        if(a < def.route.length - 1 && def.route[a + 1] === prev) score -= 90;
-      }else if(from === def.entry){
-        if(a === 0) score -= 50;
-        else score += 50;
-      }
-      if(best === null || score < best.score || (score === best.score && a < best.fromIdx)){
-        best = { fromIdx: a, toIdx: b, score };
-      }
+  // Specjalny wyjątek dla Gnolli / Vari:
+  // po opuszczeniu "Jaskinia Łowców p.2" następna mapa ma być zawsze "Wioska Gnolli",
+  // a nie powrót do Ithan, bo tam bot potrafi się zawiesić.
+  if(current === normMapName('Jaskinia Łowców p.2')){
+    const wantGnollRoute = (
+      target === normMapName('Wioska Gnolli') ||
+      target === normMapName('Namiot Vari Krugera')
+    );
+    if(wantGnollRoute){
+      return __adiMakeSingleStep('Jaskinia Łowców p.2', 'Wioska Gnolli');
     }
   }
-  return best ? { fromIdx: best.fromIdx, toIdx: best.toIdx } : null;
-}
 
-function __adiConvertPathToSteps(path){
-  if(!path || path.length < 2) return [];
-  const steps = [];
+  const path = bfsGraph(current, target);
+  if(!path || path.length<2) return null;
+  const steps=[];
   for(let i=0;i<path.length-1;i++){
-    const from = path[i], to = path[i+1];
+    const from=path[i], to=path[i+1];
     const e = graphEdge(from, to);
     steps.push({ from, to, via: e && e.via ? {x:e.via.x, y:e.via.y} : null });
   }
   return steps;
 }
 
-function __adiConcatSteps(){
-  const out = [];
-  for(let i=0;i<arguments.length;i++){
-    const part = arguments[i];
-    if(Array.isArray(part) && part.length) out.push(...part);
-  }
-  return out;
-}
-
-function __adiForcedBuildSteps(def, fromIdx, toIdx){
-  if(!def || fromIdx === toIdx) return [];
-  const out = [];
-  const stepDir = fromIdx < toIdx ? 1 : -1;
-  for(let i=fromIdx; i!==toIdx; i+=stepDir){
-    const from = def.route[i], to = def.route[i + stepDir];
-    const e = graphEdge(from, to);
-    out.push({ from, to, via: e && e.via ? {x:e.via.x, y:e.via.y} : null, forced: def.key });
-  }
-  return out;
-}
-
-function __adiForcedRouteWithin(def, fromName, toName){
-  const pick = __adiForcedPickIndices(def, fromName, toName);
-  if(!pick) return null;
-  return __adiForcedBuildSteps(def, pick.fromIdx, pick.toIdx);
-}
-
-function buildGraphRouteTo(targetName){
-  const current = normMapName(map.name);
-  const target = normMapName(targetName);
-  if(current===target) return [];
-
-  const curForced = __adiForcedFindByMap(current);
-  const tgtForced = __adiForcedFindByMap(target);
-
-  if(curForced && tgtForced && curForced.key === tgtForced.key){
-    const inner = __adiForcedRouteWithin(curForced, current, target);
-    if(inner) return inner;
-  }
-
-  if(curForced && (!tgtForced || tgtForced.key !== curForced.key)){
-    const leave = __adiForcedRouteWithin(curForced, current, curForced.entry);
-    if(current !== curForced.entry){
-      if(!window.ADI_MAP_GRAPH_READY) return leave && leave.length ? leave : null;
-      const tailPath = bfsGraph(curForced.entry, target);
-      const tailSteps = __adiConvertPathToSteps(tailPath);
-      return __adiConcatSteps(leave, tailSteps);
-    }
-  }
-
-  if(tgtForced && (!curForced || curForced.key !== tgtForced.key)){
-    const enter = __adiForcedRouteWithin(tgtForced, tgtForced.entry, target);
-    if(current === tgtForced.entry) return enter;
-    if(!window.ADI_MAP_GRAPH_READY) return null;
-    const headPath = bfsGraph(current, tgtForced.entry);
-    const headSteps = __adiConvertPathToSteps(headPath);
-    return __adiConcatSteps(headSteps, enter);
-  }
-
-  if(!window.ADI_MAP_GRAPH_READY) return null;
-  const path = bfsGraph(current, target);
-  if(!path || path.length<2) return null;
-  return __adiConvertPathToSteps(path);
-}
-
 function followGraphTo(targetName){
-  const curName = normMapName(map.name);
-  try{
-    if(window.__adi_lastMapNorm !== curName){
-      window.__adi_prevMapNorm = window.__adi_lastMapNorm || '';
-      window.__adi_lastMapNorm = curName;
-    }
-  }catch(_){ }
+  if(!window.ADI_MAP_GRAPH_READY) return null;
 
-  const normTarget = normMapName(targetName);
-  if(!window.__tempRoute || window.__tempRouteTarget !== normTarget){
+  if(!window.__tempRoute || window.__tempRouteTarget !== normMapName(targetName)){
     const r = buildGraphRouteTo(targetName);
     window.__tempRoute = r;
-    window.__tempRouteTarget = r ? normTarget : null;
+    window.__tempRouteTarget = r ? normMapName(targetName) : null;
   }
 
   if(!window.__tempRoute || window.__tempRoute.length===0) return null;
 
+  const curName = normMapName(map.name);
+
+  // consume steps already completed
   while(window.__tempRoute.length && normMapName(window.__tempRoute[0].to)===curName){
     window.__tempRoute.shift();
   }
-  if(!window.__tempRoute.length) return null;
 
-  let step = window.__tempRoute[0];
-  if(normMapName(step.from)!==curName){
-    const r = buildGraphRouteTo(targetName);
-    window.__tempRoute = r;
-    window.__tempRouteTarget = r ? normTarget : null;
-    if(!window.__tempRoute || !window.__tempRoute.length) return null;
-    while(window.__tempRoute.length && normMapName(window.__tempRoute[0].to)===curName){
-      window.__tempRoute.shift();
-    }
-    if(!window.__tempRoute.length) return null;
-    step = window.__tempRoute[0];
-    if(normMapName(step.from)!==curName) return null;
-  }
+  const step = window.__tempRoute[0];
+  if(!step) return null;
 
   if(step.via) return {x:step.via.x, y:step.via.y};
 
+  // try gateway by town name if no via
   const targetReadable = step.to;
   for(const i in g.townname){
     if(isNameMatch(normMapName(targetReadable), normMapName(g.townname[i].replace(/ +(?= )/g,'')))){
