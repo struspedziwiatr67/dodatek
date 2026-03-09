@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Bot na exp (iframe-aware exhaustion + throttling + captcha->Discord + ping-pong trasy + only-selected-maps + elite toggle + group-size filter + heros->Discord + obrazki + fixy map/lvl/wt/grupy + FOW cache)
-// @version      2.17.3-autoskillfix
+// @version      2.17.4-customroutes
 // @description  Bot z przechodzeniem map, anty-spam ataku, captcha->Discord, START/STOP, zbijanie wyczerpania, atak tylko na wybranych mapach, elity toggle, filtr grup, powiadomienia o herosach (bez Namiotu Tropicieli Herosów), normalizacja nazw map, odporne parsowanie lvli, poprawki 'wt', stabilny wybór grup przy mgle (cache max rozmiaru grupy)
 // @match        *://*/
 // @match        *://www.margonem.pl/*
@@ -951,7 +951,7 @@ Lvl: **${n.lvl ?? "?"}**`,
     "Zbiry Eder": { map: "Stary Kupiecki Trakt, Stukot Widmowych Kół, Wertepy Rzezimieszków" },
     "Galaretki + Pająki": { map: "Zapomniany Szlak, Mokra Grota p.1, Mokra Grota p.1 - przełaz, Mokra Grota p.1 - boczny korytarz, Mokra Grota p.2 - korytarz, Mokra Grota p.1 - boczny korytarz, Mokra Grota p.1, Zapomniany Szlak, Grota Bezszelestnych Kroków - sala 1, Grota Bezszelestnych Kroków - sala 2, Grota Bezszelestnych Kroków - sala 3, Grota Bezszelestnych Kroków - sala 1, Zapomniany Szlak" },
     "Pszczoły Ithan": { map: "Porzucone Pasieki, Kopalnia Kapiącego Miodu p.1 - sala 2, Kopalnia Kapiącego Miodu p.2 - sala 2, Kopalnia Kapiącego Miodu p.3, Kopalnia Kapiącego Miodu p.2 - sala 1, Kopalnia Kapiącego Miodu p.2 - sala Owadziej Matki, Kopalnia Kapiącego Miodu p.2 - sala 1, Kopalnia Kapiącego Miodu p.1 - sala 1, Porzucone Pasieki", mobs_id: [71698] },
-    "Gnolle": { map: "Wioska Gnolli, Jaskinia Gnollich Szamanów p.2, Jaskinia Gnollich Szamanów p.3, Jaskinia Gnollich Szamanów p.2, Wioska Gnolli, Czeluść Ognistej Pożogi, Grota Pragnolli p.1, GrotaGrota Pragnolli p.2 Pragnolli p.1 - sala 2, Grota Pragnolli p.2, Grota Pragnolli p.2 - sala 2, Grota Pragnolli p.2, Grota Pragnolli p.3, Czeluść Ognistej Pożogi" },
+    "Gnolle": { map: "Ithan, Jaskinia Łowców p.1, Jaskinia Łowców p.2, Ithan, Wioska Gnolli" },
     "Mnisi LOW": { map: "Świątynia Andarum, Świątynia Andarum - zejście lewe, Świątynia Andarum - podziemia, Świątynia Andarum - zejście prawe, Świątynia Andarum - podziemia, Świątynia Andarum - lokum mnichów" },
     "Mnisi+Zbrojki": { map: "Świątynia Andarum, Świątynia Andarum - zejście lewe, Świątynia Andarum - podziemia, Świątynia Andarum - zejście prawe, Świątynia Andarum - podziemia, Świątynia Andarum - biblioteka, Świątynia Andarum - podziemia, Świątynia Andarum - lokum mnichów, Świątynia Andarum - magazyn p.2, Świątynia Andarum - magazyn p.1" },
     "Erem+Zbrojki": { map: "Świątynia Andarum - magazyn p.1, Świątynia Andarum - magazyn p.2, Erem Czarnego Słońca p.4 - sala 2, Erem Czarnego Słońca p.3 - południe, Erem Czarnego Słońca p.4 - sala 2, Erem Czarnego Słońca p.3, Erem Czarnego Słońca p.2, Erem Czarnego Słońca p.1 - północ, Erem Czarnego Słońca p.2, Erem Czarnego Słońca p.3, Erem Czarnego Słońca p.4 - sala 1, Erem Czarnego Słońca p.5" },
@@ -1121,6 +1121,90 @@ Lvl: **${n.lvl ?? "?"}**`,
       // message(`AUTO expowisko → "${key}" (lvl ${hero && hero.lvl || 0})`);
     }
   }
+  const ADI_SPECIAL_ROUTES = {
+    exp: {
+      "Gnolle": ["Ithan", "Jaskinia Łowców p.1", "Jaskinia Łowców p.2", "Ithan", "Wioska Gnolli"]
+    },
+    e2: {
+      "Szczęt alias Gładki": ["Fort Eder", "Ciemnica Szubrawców p.1 - sala 1", "Ciemnica Szubrawców p.1 - sala 2", "Ciemnica Szubrawców p.1 - sala 3", "Stary Kupiecki Trakt"],
+      "Vari Kruger": ["Ithan", "Jaskinia Łowców p.1", "Jaskinia Łowców p.2", "Ithan", "Wioska Gnolli", "Namiot Vari Krugera"]
+    }
+  };
+
+  function __adi_getSpecialRouteMaps(){
+    try{
+      const mode = (localStorage.getItem('adi-bot_exp_mode') || 'exp').trim();
+      if(mode === 'e2'){
+        const e2Name = __adi_getSelectedE2Name();
+        const route = ADI_SPECIAL_ROUTES.e2[e2Name];
+        return Array.isArray(route) ? route.slice() : null;
+      }
+      const expKey = getSelectedExpKey();
+      const route = ADI_SPECIAL_ROUTES.exp[expKey];
+      return Array.isArray(route) ? route.slice() : null;
+    }catch(_){ return null; }
+  }
+
+  function __adi_routeToNamedMap(target){
+    if(!target) return null;
+
+    let obj;
+    for(const i in g.townname){
+      if(isNameMatch(normMapName(target), normMapName(g.townname[i].replace(/ +(?= )/g,'')))){
+        const c=g.gwIds[i].split('.');
+        if(a_getWay(c[0],c[1])===undefined) continue;
+        obj={x:c[0], y:c[1]}; break;
+      }
+    }
+    if(obj) return obj;
+
+    if(window.ADI_MAP_GRAPH_READY){
+      const via = followGraphTo(target);
+      if(via) return { x: via.x, y: via.y };
+    }
+    return null;
+  }
+
+  function __adi_followNamedRoute(route){
+    if(!Array.isArray(route) || route.length===0) return null;
+
+    const routeSig = route.map(s=>normMapName(s)).join('>');
+    const sigKey = 'adi-bot_route_sig';
+    const savedSig = localStorage.getItem(sigKey) || '';
+    if(savedSig !== routeSig){
+      localStorage.setItem(sigKey, routeSig);
+      localStorage.setItem('alksjd', '0');
+      localStorage.setItem('adi-bot_dir', '1');
+    }
+
+    if(!localStorage.getItem('adi-bot_dir')) localStorage.setItem('adi-bot_dir','1');
+    let inc=parseInt(localStorage.getItem('alksjd'),10); if(!Number.isFinite(inc)) inc=0;
+    let dir=parseInt(localStorage.getItem('adi-bot_dir'),10); if(!Number.isFinite(dir)||dir===0) dir=1;
+
+    const curName = normMapName(map.name);
+    let curIdx = -1;
+    for(let i=0;i<route.length;i++){
+      if(isNameMatch(normMapName(route[i]), curName)){ curIdx=i; break; }
+    }
+
+    if(curIdx >= 0) inc = curIdx;
+    else inc = 0;
+
+    if(route[inc] && isNameMatch(normMapName(route[inc]), curName)){
+      inc += dir;
+      if(inc>=route.length){ inc=Math.max(0, route.length-2); dir=-1; }
+      else if(inc<0){ inc=Math.min(1, route.length-1); dir=1; }
+      localStorage.setItem('alksjd', String(inc));
+      localStorage.setItem('adi-bot_dir', String(dir));
+    }else{
+      localStorage.setItem('alksjd', String(Math.max(0, Math.min(route.length-1, inc))));
+      localStorage.setItem('adi-bot_dir', String(dir));
+    }
+
+    const target = route[Math.max(0, Math.min(route.length-1, inc))];
+    return __adi_routeToNamedMap(target);
+  }
+
   // ===== MAP GRAPH (expowisko routing to the first map) =====
 
   (function(){
@@ -2301,16 +2385,29 @@ function __adiAutoHealTick(){
   // ===== przechodzenie listy map w trybie ping-pong =====
 
   this.findBestGw=function(){
+    const __specialRoute = __adi_getSpecialRouteMaps();
+
     // If a temporary target map is set (e.g., going to vendor), route ONLY to it and pause fallback.
     if(window.ADI_TEMP_TARGET_MAP){
       const tgt = normMapName(window.ADI_TEMP_TARGET_MAP);
       const cur = normMapName(map.name);
+
+      if(__specialRoute && normMapName(__specialRoute[__specialRoute.length - 1]) === tgt){
+        const via = __adi_followNamedRoute(__specialRoute);
+        if(via) return via;
+      }
+
       if(cur !== tgt){
         const via = followGraphTo(window.ADI_TEMP_TARGET_MAP);
         if(via) return {x: via.x, y: via.y};
       }
       // already at target -> do not move anywhere until caller clears ADI_TEMP_TARGET_MAP
       return;
+    }
+
+    if(__specialRoute){
+      const via = __adi_followNamedRoute(__specialRoute);
+      if(via) return via;
     }
 
     const mapsInput=document.querySelector('#adi-bot_maps');
