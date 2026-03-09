@@ -1322,90 +1322,62 @@ const ADI_FORCED_ROUTE_DEFS = [
 ];
 
 function __adiForcedDefs(){
-  return ADI_FORCED_ROUTE_DEFS.map(def => ({
-    key: def.key,
-    entry: normMapName(def.entry || def.route[0]),
-    route: def.route.map(normMapName)
-  }));
+  try{
+    return ADI_FORCED_ROUTE_DEFS.map(def => ({
+      key: def.key,
+      entry: normMapName(def.entry || (def.route && def.route[0]) || ''),
+      route: (def.route || []).map(normMapName)
+    }));
+  }catch(_){ return []; }
 }
 
 function __adiForcedFindByMap(mapName){
   const cur = normMapName(mapName);
+  if(!cur) return null;
   for(const def of __adiForcedDefs()){
     if(def.route.includes(cur)) return def;
   }
   return null;
 }
 
-function __adiForcedAllIndices(route, name){
-  const want = normMapName(name);
+function __adiForcedFindAllIdx(route, name){
   const out = [];
-  for(let i=0;i<route.length;i++){
-    if(route[i] === want) out.push(i);
-  }
+  name = normMapName(name);
+  for(let i=0;i<route.length;i++) if(route[i] === name) out.push(i);
   return out;
 }
 
-function __adiForcedMakeStep(from, to, defKey){
-  const e = graphEdge(from, to);
-  return {
-    from,
-    to,
-    via: e && e.via ? { x: e.via.x, y: e.via.y } : null,
-    forced: defKey
-  };
+function __adiForcedGetPrevMapNorm(){
+  try{ return normMapName(window.__adi_prevMapNorm || ''); }catch(_){ return ''; }
 }
 
-function __adiForcedPathInRoute(def, fromName, toName, opts){
+function __adiForcedPickIndices(def, fromName, toName){
   if(!def) return null;
-  opts = opts || {};
   const from = normMapName(fromName), to = normMapName(toName);
-  const prev = opts.prevMap ? normMapName(opts.prevMap) : null;
-  const fromIdxs = __adiForcedAllIndices(def.route, from);
-  const toIdxs = __adiForcedAllIndices(def.route, to);
+  const fromIdxs = __adiForcedFindAllIdx(def.route, from);
+  const toIdxs = __adiForcedFindAllIdx(def.route, to);
   if(!fromIdxs.length || !toIdxs.length) return null;
+  if(from === to) return { fromIdx: fromIdxs[0], toIdx: fromIdxs[0] };
 
-  const entryIdx = def.route.indexOf(def.entry);
+  const prev = __adiForcedGetPrevMapNorm();
   let best = null;
-
   for(const a of fromIdxs){
     for(const b of toIdxs){
       if(a === b) continue;
-      const dir = a < b ? 1 : -1;
-      const dist = Math.abs(b - a);
-
-      let score = dist * 100;
-
+      let score = Math.abs(a - b) * 10;
       if(prev){
-        const prevIdx = a - dir;
-        if(prevIdx >= 0 && prevIdx < def.route.length && def.route[prevIdx] === prev){
-          score -= 10000;
-        }
+        if(a > 0 && def.route[a - 1] === prev) score -= 100;
+        if(a < def.route.length - 1 && def.route[a + 1] === prev) score -= 90;
       }else if(from === def.entry){
-        if(a === entryIdx) score -= 5000;
-        else score += 5000;
+        if(a === 0) score -= 50;
+        else score += 50;
       }
-
-      if(to === def.entry){
-        score -= dist * 10;
-      }
-
-      if(best === null || score < best.score){
-        best = { a, b, dir, score };
+      if(best === null || score < best.score || (score === best.score && a < best.fromIdx)){
+        best = { fromIdx: a, toIdx: b, score };
       }
     }
   }
-
-  if(!best){
-    if(fromIdxs.some(i => toIdxs.includes(i))) return [];
-    return null;
-  }
-
-  const out = [];
-  for(let i = best.a; i !== best.b; i += best.dir){
-    out.push(__adiForcedMakeStep(def.route[i], def.route[i + best.dir], def.key));
-  }
-  return out;
+  return best ? { fromIdx: best.fromIdx, toIdx: best.toIdx } : null;
 }
 
 function __adiConvertPathToSteps(path){
@@ -1428,56 +1400,70 @@ function __adiConcatSteps(){
   return out;
 }
 
-function __adiForcedOpts(){
-  return {
-    prevMap: window.__adiForcedPrevMapName || null
-  };
+function __adiForcedBuildSteps(def, fromIdx, toIdx){
+  if(!def || fromIdx === toIdx) return [];
+  const out = [];
+  const stepDir = fromIdx < toIdx ? 1 : -1;
+  for(let i=fromIdx; i!==toIdx; i+=stepDir){
+    const from = def.route[i], to = def.route[i + stepDir];
+    const e = graphEdge(from, to);
+    out.push({ from, to, via: e && e.via ? {x:e.via.x, y:e.via.y} : null, forced: def.key });
+  }
+  return out;
+}
+
+function __adiForcedRouteWithin(def, fromName, toName){
+  const pick = __adiForcedPickIndices(def, fromName, toName);
+  if(!pick) return null;
+  return __adiForcedBuildSteps(def, pick.fromIdx, pick.toIdx);
 }
 
 function buildGraphRouteTo(targetName){
-  if(!window.ADI_MAP_GRAPH_READY) return null;
   const current = normMapName(map.name);
   const target = normMapName(targetName);
   if(current===target) return [];
 
   const curForced = __adiForcedFindByMap(current);
   const tgtForced = __adiForcedFindByMap(target);
-  const forcedOpts = __adiForcedOpts();
 
   if(curForced && tgtForced && curForced.key === tgtForced.key){
-    return __adiForcedPathInRoute(curForced, current, target, forcedOpts);
+    const inner = __adiForcedRouteWithin(curForced, current, target);
+    if(inner) return inner;
   }
 
   if(curForced && (!tgtForced || tgtForced.key !== curForced.key)){
-    const leaveSteps = __adiForcedPathInRoute(curForced, current, curForced.entry, forcedOpts);
+    const leave = __adiForcedRouteWithin(curForced, current, curForced.entry);
     if(current !== curForced.entry){
-      const baseFromEntry = bfsGraph(curForced.entry, target);
-      const tail = __adiConvertPathToSteps(baseFromEntry);
-      return tail ? __adiConcatSteps(leaveSteps, tail) : leaveSteps;
+      if(!window.ADI_MAP_GRAPH_READY) return leave && leave.length ? leave : null;
+      const tailPath = bfsGraph(curForced.entry, target);
+      const tailSteps = __adiConvertPathToSteps(tailPath);
+      return __adiConcatSteps(leave, tailSteps);
     }
   }
 
   if(tgtForced && (!curForced || curForced.key !== tgtForced.key)){
-    const baseToEntry = bfsGraph(current, tgtForced.entry);
-    const head = __adiConvertPathToSteps(baseToEntry);
-    const enterSteps = __adiForcedPathInRoute(tgtForced, tgtForced.entry, target, forcedOpts);
-    if(current === tgtForced.entry) return enterSteps;
-    if(head && enterSteps) return __adiConcatSteps(head, enterSteps);
+    const enter = __adiForcedRouteWithin(tgtForced, tgtForced.entry, target);
+    if(current === tgtForced.entry) return enter;
+    if(!window.ADI_MAP_GRAPH_READY) return null;
+    const headPath = bfsGraph(current, tgtForced.entry);
+    const headSteps = __adiConvertPathToSteps(headPath);
+    return __adiConcatSteps(headSteps, enter);
   }
 
+  if(!window.ADI_MAP_GRAPH_READY) return null;
   const path = bfsGraph(current, target);
   if(!path || path.length<2) return null;
   return __adiConvertPathToSteps(path);
 }
 
 function followGraphTo(targetName){
-  if(!window.ADI_MAP_GRAPH_READY) return null;
-
   const curName = normMapName(map.name);
-  if(window.__adiForcedLastMapName && window.__adiForcedLastMapName !== curName){
-    window.__adiForcedPrevMapName = window.__adiForcedLastMapName;
-  }
-  window.__adiForcedLastMapName = curName;
+  try{
+    if(window.__adi_lastMapNorm !== curName){
+      window.__adi_prevMapNorm = window.__adi_lastMapNorm || '';
+      window.__adi_lastMapNorm = curName;
+    }
+  }catch(_){ }
 
   const normTarget = normMapName(targetName);
   if(!window.__tempRoute || window.__tempRouteTarget !== normTarget){
@@ -1491,7 +1477,6 @@ function followGraphTo(targetName){
   while(window.__tempRoute.length && normMapName(window.__tempRoute[0].to)===curName){
     window.__tempRoute.shift();
   }
-
   if(!window.__tempRoute.length) return null;
 
   let step = window.__tempRoute[0];
@@ -1500,7 +1485,6 @@ function followGraphTo(targetName){
     window.__tempRoute = r;
     window.__tempRouteTarget = r ? normTarget : null;
     if(!window.__tempRoute || !window.__tempRoute.length) return null;
-
     while(window.__tempRoute.length && normMapName(window.__tempRoute[0].to)===curName){
       window.__tempRoute.shift();
     }
@@ -2513,17 +2497,7 @@ function __adiAutoHealTick(){
 
     const target = txt[Math.max(0, Math.min(txt.length-1, inc))];
 
-    // 1) Najpierw wymuszone trasy specjalne (żeby nie brał "krótszego" ale zablokowanego przejścia).
-    if(window.ADI_MAP_GRAPH_READY){
-      const curForced = __adiForcedFindByMap(curName);
-      const tgtForced = __adiForcedFindByMap(target);
-      if(curForced || tgtForced){
-        const viaForced = followGraphTo(target);
-        if(viaForced) return { x: viaForced.x, y: viaForced.y };
-      }
-    }
-
-    // 2) Try direct gateway (adjacent map).
+    // 1) Try direct gateway (adjacent map).
     let obj;
     for(const i in g.townname){
       if(isNameMatch(normMapName(target), normMapName(g.townname[i].replace(/ +(?= )/g,'')))){
@@ -2534,7 +2508,7 @@ function __adiAutoHealTick(){
     }
     if(obj) return obj;
 
-    // 3) If not adjacent, use graph routing (multi-map) to reach the target map.
+    // 2) If not adjacent, use graph routing (multi-map) to reach the target map.
     if(window.ADI_MAP_GRAPH_READY){
       const via = followGraphTo(target);
       if(via) return { x: via.x, y: via.y };
@@ -3217,29 +3191,6 @@ try{
   tabTest.appendChild(skillName);
   tabTest.appendChild(skillBtn);
   tabTest.appendChild(skillStatus);
-
-// RESET TASK BUTTON
-function adi_resetTask(){
-  try{
-    if(window.currentTask) window.currentTask = null;
-    if(window.currentRoute) window.currentRoute = [];
-    if(window.route) window.route = [];
-    if(window.targetMap) window.targetMap = null;
-    if(window.botTarget) window.botTarget = null;
-    console.log("[BOT] Task został zresetowany");
-  }catch(e){ console.log("Reset error",e); }
-}
-
-try{
-  const resetBtn=document.createElement('button');
-  resetBtn.id='adi-bot_reset_task';
-  resetBtn.classList.add('adi-bot_inputs');
-  resetBtn.textContent='Reset taska';
-  resetBtn.setAttribute('tip','Czyści aktualne zadanie i trasę bota');
-  resetBtn.onclick=adi_resetTask;
-  tabTest.appendChild(resetBtn);
-}catch(e){}
-
 }catch(e){ console.warn('[adi-bot] skill test ui failed', e); }
 
 
