@@ -1233,184 +1233,6 @@ Lvl: **${n.lvl ?? "?"}**`,
   let __graphRoute = null;
   let __graphRouteTarget = null;
 
-
-  const ADI_SPECIAL_ROUTES = {
-    exp: {
-      "Gnolle": ["Ithan", "Jaskinia Łowców p.1", "Jaskinia Łowców p.2", "Ithan", "Wioska Gnolli"]
-    },
-    e2: {
-      "Szczęt alias Gładki": ["Fort Eder", "Ciemnica Szubrawców p.1 - sala 1", "Ciemnica Szubrawców p.1 - sala 2", "Ciemnica Szubrawców p.1 - sala 3", "Stary Kupiecki Trakt"],
-      "Vari Kruger": ["Ithan", "Jaskinia Łowców p.1", "Jaskinia Łowców p.2", "Ithan", "Wioska Gnolli", "Namiot Vari Krugera"]
-    }
-  };
-
-  function __adi_getActiveSpecialRoute(targetName){
-    try{
-      const mode = (localStorage.getItem('adi-bot_exp_mode') || 'exp').trim();
-      const targetNorm = normMapName(targetName);
-
-      if(mode === 'e2'){
-        const e2Name = (typeof __adi_getSelectedE2Name === 'function' ? __adi_getSelectedE2Name() : '').trim();
-        const route = ADI_SPECIAL_ROUTES.e2[e2Name];
-        if(route && route.some(n => normMapName(n) === targetNorm)) return route.slice();
-      }
-
-      const expKey = getSelectedExpKey();
-      const route = ADI_SPECIAL_ROUTES.exp[expKey];
-      if(route && route.some(n => normMapName(n) === targetNorm)) return route.slice();
-    }catch(_){ }
-    return null;
-  }
-
-  function __adi_pickSpecialRouteIndices(route, currentName, targetName){
-    try{
-      const cur = normMapName(currentName);
-      const tgt = normMapName(targetName);
-      const idxCur = [];
-      const idxTgt = [];
-      for(let i=0;i<route.length;i++){
-        const nm = normMapName(route[i]);
-        if(nm === cur) idxCur.push(i);
-        if(nm === tgt) idxTgt.push(i);
-      }
-      if(!idxCur.length || !idxTgt.length) return null;
-
-      const firstIdx = 0;
-      const lastIdx = route.length - 1;
-      const targetIsFirst = idxTgt.includes(firstIdx);
-      const targetIsLast = idxTgt.includes(lastIdx);
-
-      if(targetIsLast){
-        for(const ci of idxCur){
-          if(ci <= lastIdx) return { fromIdx: ci, toIdx: lastIdx };
-        }
-      }
-      if(targetIsFirst){
-        for(let k=idxCur.length-1;k>=0;k--){
-          const ci = idxCur[k];
-          if(ci >= firstIdx) return { fromIdx: ci, toIdx: firstIdx };
-        }
-      }
-
-      let best = null;
-      for(const ci of idxCur){
-        for(const ti of idxTgt){
-          if(ci === ti) continue;
-          const dist = Math.abs(ti - ci);
-          if(!best || dist < best.dist) best = { fromIdx: ci, toIdx: ti, dist };
-        }
-      }
-      return best ? { fromIdx: best.fromIdx, toIdx: best.toIdx } : null;
-    }catch(_){ return null; }
-  }
-
-  function buildSpecialRouteTo(targetName){
-    try{
-      const route = __adi_getActiveSpecialRoute(targetName);
-      if(!route || route.length < 2) return null;
-      const pick = __adi_pickSpecialRouteIndices(route, map && map.name, targetName);
-      if(!pick) return null;
-      const steps = [];
-      if(pick.fromIdx < pick.toIdx){
-        for(let i=pick.fromIdx;i<pick.toIdx;i++){
-          steps.push({ from: normMapName(route[i]), to: normMapName(route[i+1]), via: null, forced: true });
-        }
-      }else if(pick.fromIdx > pick.toIdx){
-        for(let i=pick.fromIdx;i>pick.toIdx;i--){
-          steps.push({ from: normMapName(route[i]), to: normMapName(route[i-1]), via: null, forced: true });
-        }
-      }else{
-        return [];
-      }
-      return steps;
-    }catch(_){ return null; }
-  }
-
-  function __adi_getAllSpecialRoutes(){
-    try{
-      const out = [];
-      Object.keys(ADI_SPECIAL_ROUTES.exp || {}).forEach(k => {
-        const r = ADI_SPECIAL_ROUTES.exp[k];
-        if(Array.isArray(r) && r.length >= 2) out.push({ kind:'exp', key:k, route:r.slice() });
-      });
-      Object.keys(ADI_SPECIAL_ROUTES.e2 || {}).forEach(k => {
-        const r = ADI_SPECIAL_ROUTES.e2[k];
-        if(Array.isArray(r) && r.length >= 2) out.push({ kind:'e2', key:k, route:r.slice() });
-      });
-      return out;
-    }catch(_){ return []; }
-  }
-
-  function __adi_findSpecialRoutesContainingMap(mapName){
-    try{
-      const cur = normMapName(mapName);
-      return __adi_getAllSpecialRoutes().filter(obj => obj.route.some(n => normMapName(n) === cur));
-    }catch(_){ return []; }
-  }
-
-  function __adi_buildForcedSteps(route, fromIdx, toIdx){
-    try{
-      const steps = [];
-      if(fromIdx < toIdx){
-        for(let i=fromIdx;i<toIdx;i++) steps.push({ from: normMapName(route[i]), to: normMapName(route[i+1]), via: null, forced: true });
-      }else if(fromIdx > toIdx){
-        for(let i=fromIdx;i>toIdx;i--) steps.push({ from: normMapName(route[i]), to: normMapName(route[i-1]), via: null, forced: true });
-      }
-      return steps;
-    }catch(_){ return null; }
-  }
-
-  function __adi_buildGraphStepsFromTo(fromName, toName){
-    try{
-      const start = normMapName(fromName);
-      const target = normMapName(toName);
-      if(start === target) return [];
-      if(!window.ADI_MAP_GRAPH_READY) return null;
-      const path = bfsGraph(start, target);
-      if(!path || path.length < 2) return null;
-      const steps = [];
-      for(let i=0;i<path.length-1;i++){
-        const from = path[i], to = path[i+1];
-        const e = graphEdge(from, to);
-        steps.push({ from, to, via: e && e.via ? {x:e.via.x, y:e.via.y} : null });
-      }
-      return steps;
-    }catch(_){ return null; }
-  }
-
-  function __adi_buildSpecialExitRoute(currentName, targetName){
-    try{
-      const holders = __adi_findSpecialRoutesContainingMap(currentName);
-      if(!holders.length) return null;
-      const cur = normMapName(currentName);
-      const tgt = normMapName(targetName);
-      let best = null;
-
-      for(const obj of holders){
-        const route = obj.route;
-        const idxCur = route.findIndex(n => normMapName(n) === cur);
-        if(idxCur < 0) continue;
-
-        // jeśli target leży na tej samej trasie, bezpośrednia trasa specjalna jest lepsza
-        if(route.some(n => normMapName(n) === tgt)) continue;
-
-        const endpoints = [0, route.length - 1];
-        for(const endIdx of endpoints){
-          const forced = __adi_buildForcedSteps(route, idxCur, endIdx) || [];
-          const endpointName = normMapName(route[endIdx]);
-          const tail = endpointName === tgt ? [] : (__adi_buildGraphStepsFromTo(endpointName, tgt));
-          if(endpointName !== tgt && tail === null) continue;
-          const merged = forced.concat(tail || []);
-          const score = merged.length;
-          if(!best || score < best.score){
-            best = { score, steps: merged };
-          }
-        }
-      }
-      return best ? best.steps : null;
-    }catch(_){ return null; }
-  }
-
   function getSelectedExpFirstMap(){
     const key = getSelectedExpKey();
     const def = key && expowiska[key];
@@ -1482,26 +1304,28 @@ Lvl: **${n.lvl ?? "?"}**`,
 
 // ---- Generic routing to an arbitrary target map (e.g., Torneg for vendor) ----
 function buildGraphRouteTo(targetName){
+  if(!window.ADI_MAP_GRAPH_READY) return null;
   const current = normMapName(map.name);
   const target = normMapName(targetName);
   if(current===target) return [];
-
-  const forced = buildSpecialRouteTo(targetName);
-  if(forced) return forced;
-
-  const exitForced = __adi_buildSpecialExitRoute(current, target);
-  if(exitForced) return exitForced;
-
-  return __adi_buildGraphStepsFromTo(current, target);
+  const path = bfsGraph(current, target);
+  if(!path || path.length<2) return null;
+  const steps=[];
+  for(let i=0;i<path.length-1;i++){
+    const from=path[i], to=path[i+1];
+    const e = graphEdge(from, to);
+    steps.push({ from, to, via: e && e.via ? {x:e.via.x, y:e.via.y} : null });
+  }
+  return steps;
 }
 
 function followGraphTo(targetName){
-  const want = normMapName(targetName);
+  if(!window.ADI_MAP_GRAPH_READY) return null;
 
-  if(!window.__tempRoute || window.__tempRouteTarget !== want){
+  if(!window.__tempRoute || window.__tempRouteTarget !== normMapName(targetName)){
     const r = buildGraphRouteTo(targetName);
     window.__tempRoute = r;
-    window.__tempRouteTarget = r ? want : null;
+    window.__tempRouteTarget = r ? normMapName(targetName) : null;
   }
 
   if(!window.__tempRoute || window.__tempRoute.length===0) return null;
@@ -1513,25 +1337,8 @@ function followGraphTo(targetName){
     window.__tempRoute.shift();
   }
 
-  if(!window.__tempRoute.length){
-    window.__tempRoute = null;
-    window.__tempRouteTarget = null;
-    return null;
-  }
-
-  let step = window.__tempRoute[0];
+  const step = window.__tempRoute[0];
   if(!step) return null;
-
-  // jeśli stan trasy się rozjechał (teleport, reload, zmiana celu), przebuduj od bieżącej mapy
-  if(normMapName(step.from) !== curName){
-    const rebuilt = buildGraphRouteTo(targetName);
-    window.__tempRoute = rebuilt;
-    window.__tempRouteTarget = rebuilt ? want : null;
-    if(!window.__tempRoute || !window.__tempRoute.length) return null;
-    step = window.__tempRoute[0];
-    if(!step) return null;
-    if(normMapName(step.from) !== curName) return null;
-  }
 
   if(step.via) return {x:step.via.x, y:step.via.y};
 
@@ -1544,11 +1351,6 @@ function followGraphTo(targetName){
       return {x:c[0], y:c[1]};
     }
   }
-
-  // awaryjnie przebuduj jeszcze raz przy braku GW, żeby nie wisieć w miejscu na starym tasku
-  const rebuilt = buildGraphRouteTo(targetName);
-  window.__tempRoute = rebuilt;
-  window.__tempRouteTarget = rebuilt ? want : null;
   return null;
 }
 
@@ -3237,6 +3039,29 @@ try{
   tabTest.appendChild(skillName);
   tabTest.appendChild(skillBtn);
   tabTest.appendChild(skillStatus);
+
+// RESET TASK BUTTON
+function adi_resetTask(){
+  try{
+    if(window.currentTask) window.currentTask = null;
+    if(window.currentRoute) window.currentRoute = [];
+    if(window.route) window.route = [];
+    if(window.targetMap) window.targetMap = null;
+    if(window.botTarget) window.botTarget = null;
+    console.log("[BOT] Task został zresetowany");
+  }catch(e){ console.log("Reset error",e); }
+}
+
+try{
+  const resetBtn=document.createElement('button');
+  resetBtn.id='adi-bot_reset_task';
+  resetBtn.classList.add('adi-bot_inputs');
+  resetBtn.textContent='Reset taska';
+  resetBtn.setAttribute('tip','Czyści aktualne zadanie i trasę bota');
+  resetBtn.onclick=adi_resetTask;
+  tabTest.appendChild(resetBtn);
+}catch(e){}
+
 }catch(e){ console.warn('[adi-bot] skill test ui failed', e); }
 
 
