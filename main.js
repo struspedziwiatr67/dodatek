@@ -1244,6 +1244,34 @@ Lvl: **${n.lvl ?? "?"}**`,
     }
   };
 
+
+  // zapamiętaj poprzednią mapę między refreshami, żeby rozróżnić powtarzające się mapy
+  (function(){
+    try{
+      const prev = localStorage.getItem('adi-prev-map-name') || '';
+      window.__adiPrevMapName = prev;
+      const cur = (window.map && map.name) ? normMapName(map.name) : '';
+      if(cur) localStorage.setItem('adi-prev-map-name', cur);
+    }catch(_){}
+  })();
+
+  function __adi_orderSpecialCurrentIndices(route, idxCur){
+    try{
+      if(!Array.isArray(idxCur) || idxCur.length <= 1) return idxCur || [];
+      const prev = normMapName(window.__adiPrevMapName || localStorage.getItem('adi-prev-map-name') || '');
+      if(!prev) return idxCur.slice();
+
+      const scored = idxCur.map(ci => {
+        const prevScore = (ci > 0 && normMapName(route[ci - 1]) === prev) ? 2 : 0;
+        const nextScore = (ci < route.length - 1 && normMapName(route[ci + 1]) === prev) ? 1 : 0;
+        return { ci, score: prevScore + nextScore };
+      });
+
+      scored.sort((a,b) => b.score - a.score);
+      return scored.map(x => x.ci);
+    }catch(_){ return Array.isArray(idxCur) ? idxCur.slice() : []; }
+  }
+
   function __adi_getActiveSpecialRoute(targetName){
     try{
       const mode = (localStorage.getItem('adi-bot_exp_mode') || 'exp').trim();
@@ -1275,29 +1303,33 @@ Lvl: **${n.lvl ?? "?"}**`,
       }
       if(!idxCur.length || !idxTgt.length) return null;
 
+      const orderedCur = __adi_orderSpecialCurrentIndices(route, idxCur);
+
       const firstIdx = 0;
       const lastIdx = route.length - 1;
       const targetIsFirst = idxTgt.includes(firstIdx);
       const targetIsLast = idxTgt.includes(lastIdx);
 
       if(targetIsLast){
-        for(const ci of idxCur){
+        for(const ci of orderedCur){
           if(ci <= lastIdx) return { fromIdx: ci, toIdx: lastIdx };
         }
       }
       if(targetIsFirst){
-        for(let k=idxCur.length-1;k>=0;k--){
-          const ci = idxCur[k];
+        for(let k=orderedCur.length-1;k>=0;k--){
+          const ci = orderedCur[k];
           if(ci >= firstIdx) return { fromIdx: ci, toIdx: firstIdx };
         }
       }
 
       let best = null;
-      for(const ci of idxCur){
+      for(const ci of orderedCur){
         for(const ti of idxTgt){
           if(ci === ti) continue;
           const dist = Math.abs(ti - ci);
-          if(!best || dist < best.dist) best = { fromIdx: ci, toIdx: ti, dist };
+          const prevMatch = (ci > 0 && normMapName(route[ci - 1]) === normMapName(window.__adiPrevMapName || '')) ? 1 : 0;
+          const score = dist - prevMatch * 0.25;
+          if(!best || score < best.score) best = { fromIdx: ci, toIdx: ti, score };
         }
       }
       return best ? { fromIdx: best.fromIdx, toIdx: best.toIdx } : null;
