@@ -1303,11 +1303,71 @@ Lvl: **${n.lvl ?? "?"}**`,
 }
 
 // ---- Generic routing to an arbitrary target map (e.g., Torneg for vendor) ----
-function __adiMakeSingleStep(fromName, toName){
-  const from = normMapName(fromName);
-  const to = normMapName(toName);
-  const e = graphEdge(from, to) || graphEdge(fromName, toName);
-  return [{ from, to, via: e && e.via ? {x:e.via.x, y:e.via.y} : null }];
+const ADI_FORCED_ROUTE_DEFS = [
+  {
+    key: 'szczet',
+    entry: 'Fort Eder',
+    route: ['Fort Eder', 'Ciemnica Szubrawców p.1 - sala 1', 'Ciemnica Szubrawców p.1 - sala 2', 'Ciemnica Szubrawców p.1 - sala 3', 'Stary Kupiecki Trakt']
+  },
+  {
+    key: 'vari',
+    entry: 'Ithan',
+    route: ['Ithan', 'Jaskinia Łowców p.1', 'Jaskinia Łowców p.2', 'Wioska Gnolli', 'Namiot Vari Krugera']
+  },
+  {
+    key: 'gnolle',
+    entry: 'Ithan',
+    route: ['Ithan', 'Jaskinia Łowców p.1', 'Jaskinia Łowców p.2', 'Wioska Gnolli']
+  }
+];
+
+function __adiForcedDefs(){
+  return ADI_FORCED_ROUTE_DEFS.map(def => ({
+    key: def.key,
+    entry: normMapName(def.entry || def.route[0]),
+    route: def.route.map(normMapName)
+  }));
+}
+
+function __adiForcedFindByMap(mapName){
+  const cur = normMapName(mapName);
+  for(const def of __adiForcedDefs()){
+    if(def.route.includes(cur)) return def;
+  }
+  return null;
+}
+
+function __adiForcedPathInRoute(def, fromName, toName){
+  if(!def) return null;
+  const from = normMapName(fromName), to = normMapName(toName);
+  const a = def.route.indexOf(from), b = def.route.indexOf(to);
+  if(a < 0 || b < 0 || a === b) return (a === b ? [] : null);
+  const out = [];
+  const step = a < b ? 1 : -1;
+  for(let i=a; i!==b; i+=step){
+    out.push({ from: def.route[i], to: def.route[i+step], via: null, forced: def.key });
+  }
+  return out;
+}
+
+function __adiConvertPathToSteps(path){
+  if(!path || path.length < 2) return [];
+  const steps = [];
+  for(let i=0;i<path.length-1;i++){
+    const from = path[i], to = path[i+1];
+    const e = graphEdge(from, to);
+    steps.push({ from, to, via: e && e.via ? {x:e.via.x, y:e.via.y} : null });
+  }
+  return steps;
+}
+
+function __adiConcatSteps(){
+  const out = [];
+  for(let i=0;i<arguments.length;i++){
+    const part = arguments[i];
+    if(Array.isArray(part) && part.length) out.push(...part);
+  }
+  return out;
 }
 
 function buildGraphRouteTo(targetName){
@@ -1316,54 +1376,145 @@ function buildGraphRouteTo(targetName){
   const target = normMapName(targetName);
   if(current===target) return [];
 
-  // Specjalny wyjątek dla Gnolli / Vari:
-  // po opuszczeniu "Jaskinia Łowców p.2" następna mapa ma być zawsze "Wioska Gnolli",
-  // a nie powrót do Ithan, bo tam bot potrafi się zawiesić.
-  if(current === normMapName('Jaskinia Łowców p.2')){
-    const wantGnollRoute = (
-      target === normMapName('Wioska Gnolli') ||
-      target === normMapName('Namiot Vari Krugera')
-    );
-    if(wantGnollRoute){
-      return __adiMakeSingleStep('Jaskinia Łowców p.2', 'Wioska Gnolli');
+  const curForced = __adiForcedFindByMap(current);
+  const tgtForced = __adiForcedFindByMap(target);
+
+  if(curForced && tgtForced && curForced.key === tgtForced.key){
+    return __adiForcedPathInRoute(curForced, current, target);
+  }
+
+  if(curForced && (!tgtForced || tgtForced.key !== curForced.key)){
+    const leaveSteps = __adiForcedPathInRoute(curForced, current, curForced.entry);
+    if(current !== curForced.entry){
+      const baseFromEntry = bfsGraph(curForced.entry, target);
+      const tail = __adiConvertPathToSteps(baseFromEntry);
+      return tail ? __adiConcatSteps(leaveSteps, tail) : leaveSteps;
     }
+  }
+
+  if(tgtForced && (!curForced || curForced.key !== tgtForced.key)){
+    const baseToEntry = bfsGraph(current, tgtForced.entry);
+    const head = __adiConvertPathToSteps(baseToEntry);
+    const enterSteps = __adiForcedPathInRoute(tgtForced, tgtForced.entry, target);
+    if(current === tgtForced.entry) return enterSteps;
+    if(head && enterSteps) return __adiConcatSteps(head, enterSteps);
   }
 
   const path = bfsGraph(current, target);
   if(!path || path.length<2) return null;
-  const steps=[];
-  for(let i=0;i<path.length-1;i++){
-    const from=path[i], to=path[i+1];
-    const e = graphEdge(from, to);
-    steps.push({ from, to, via: e && e.via ? {x:e.via.x, y:e.via.y} : null });
+  return __adiConvertPathToSteps(path);
+}
+
+function __adiRememberRouteMaps(){
+  try{
+    const cur = normMapName((window.map && map.name) || '');
+    const prevKey = 'adi-bot_prev_map';
+    const curKey = 'adi-bot_cur_map';
+    const storedCur = normMapName(localStorage.getItem(curKey) || '');
+    const storedPrev = normMapName(localStorage.getItem(prevKey) || '');
+    if(cur && cur !== storedCur){
+      if(storedCur) localStorage.setItem(prevKey, storedCur);
+      localStorage.setItem(curKey, cur);
+      return { prev: storedCur, cur };
+    }
+    return { prev: storedPrev, cur };
+  }catch(_){
+    return { prev: '', cur: normMapName((window.map && map.name) || '') };
   }
-  return steps;
+}
+
+function __adiResolveGwByName(targetReadable){
+  try{
+    for(const i in g.townname){
+      if(isNameMatch(normMapName(targetReadable), normMapName(g.townname[i].replace(/ +(?= )/g,'')))){
+        const c=g.gwIds[i].split('.');
+        if(a_getWay(c[0],c[1])===undefined) continue;
+        return {x:c[0], y:c[1]};
+      }
+    }
+  }catch(_){}
+  return null;
+}
+
+function __adiVariGnolleNextHop(finalTargetName){
+  const route = [
+    normMapName('Ithan'),
+    normMapName('Jaskinia Łowców p.1'),
+    normMapName('Jaskinia Łowców p.2'),
+    normMapName('Wioska Gnolli'),
+    normMapName('Namiot Vari Krugera')
+  ];
+
+  const cur = normMapName((window.map && map.name) || '');
+  const tgt = normMapName(finalTargetName || '');
+  if(!cur || !tgt) return null;
+  if(!route.includes(cur) || !route.includes(tgt) || cur === tgt) return null;
+
+  const mem = __adiRememberRouteMaps();
+  const prev = mem.prev;
+
+  // Kluczowy hardcode: po wyjściu z Jaskinia Łowców p.2 następny krok ma być na Wioska Gnolli,
+  // a nie z powrotem/losowo przez Ithan.
+  if(cur === route[0] && prev === route[2] && (tgt === route[3] || tgt === route[4])){
+    return 'Wioska Gnolli';
+  }
+
+  const curIdx = route.indexOf(cur);
+  const tgtIdx = route.indexOf(tgt);
+  if(curIdx < 0 || tgtIdx < 0 || curIdx === tgtIdx) return null;
+
+  return [
+    'Ithan',
+    'Jaskinia Łowców p.1',
+    'Jaskinia Łowców p.2',
+    'Wioska Gnolli',
+    'Namiot Vari Krugera'
+  ][curIdx + (curIdx < tgtIdx ? 1 : -1)];
+}
+
+function __adiVariGnolleGateway(finalTargetName){
+  const nextHop = __adiVariGnolleNextHop(finalTargetName);
+  if(!nextHop) return null;
+  return __adiResolveGwByName(nextHop);
 }
 
 function followGraphTo(targetName){
   if(!window.ADI_MAP_GRAPH_READY) return null;
 
-  if(!window.__tempRoute || window.__tempRouteTarget !== normMapName(targetName)){
+  const normTarget = normMapName(targetName);
+  if(!window.__tempRoute || window.__tempRouteTarget !== normTarget){
     const r = buildGraphRouteTo(targetName);
     window.__tempRoute = r;
-    window.__tempRouteTarget = r ? normMapName(targetName) : null;
+    window.__tempRouteTarget = r ? normTarget : null;
   }
 
   if(!window.__tempRoute || window.__tempRoute.length===0) return null;
 
   const curName = normMapName(map.name);
 
-  // consume steps already completed
   while(window.__tempRoute.length && normMapName(window.__tempRoute[0].to)===curName){
     window.__tempRoute.shift();
   }
 
-  const step = window.__tempRoute[0];
-  if(!step) return null;
+  if(!window.__tempRoute.length) return null;
+
+  let step = window.__tempRoute[0];
+  if(normMapName(step.from)!==curName){
+    const r = buildGraphRouteTo(targetName);
+    window.__tempRoute = r;
+    window.__tempRouteTarget = r ? normTarget : null;
+    if(!window.__tempRoute || !window.__tempRoute.length) return null;
+
+    while(window.__tempRoute.length && normMapName(window.__tempRoute[0].to)===curName){
+      window.__tempRoute.shift();
+    }
+    if(!window.__tempRoute.length) return null;
+    step = window.__tempRoute[0];
+    if(normMapName(step.from)!==curName) return null;
+  }
 
   if(step.via) return {x:step.via.x, y:step.via.y};
 
-  // try gateway by town name if no via
   const targetReadable = step.to;
   for(const i in g.townname){
     if(isNameMatch(normMapName(targetReadable), normMapName(g.townname[i].replace(/ +(?= )/g,'')))){
@@ -2366,7 +2517,17 @@ function __adiAutoHealTick(){
 
     const target = txt[Math.max(0, Math.min(txt.length-1, inc))];
 
-    // 1) Try direct gateway (adjacent map).
+    // 1) Najpierw wymuszone trasy specjalne (żeby nie brał "krótszego" ale zablokowanego przejścia).
+    if(window.ADI_MAP_GRAPH_READY){
+      const curForced = __adiForcedFindByMap(curName);
+      const tgtForced = __adiForcedFindByMap(target);
+      if(curForced || tgtForced){
+        const viaForced = followGraphTo(target);
+        if(viaForced) return { x: viaForced.x, y: viaForced.y };
+      }
+    }
+
+    // 2) Try direct gateway (adjacent map).
     let obj;
     for(const i in g.townname){
       if(isNameMatch(normMapName(target), normMapName(g.townname[i].replace(/ +(?= )/g,'')))){
@@ -2377,7 +2538,7 @@ function __adiAutoHealTick(){
     }
     if(obj) return obj;
 
-    // 2) If not adjacent, use graph routing (multi-map) to reach the target map.
+    // 3) If not adjacent, use graph routing (multi-map) to reach the target map.
     if(window.ADI_MAP_GRAPH_READY){
       const via = followGraphTo(target);
       if(via) return { x: via.x, y: via.y };
@@ -3060,6 +3221,29 @@ try{
   tabTest.appendChild(skillName);
   tabTest.appendChild(skillBtn);
   tabTest.appendChild(skillStatus);
+
+// RESET TASK BUTTON
+function adi_resetTask(){
+  try{
+    if(window.currentTask) window.currentTask = null;
+    if(window.currentRoute) window.currentRoute = [];
+    if(window.route) window.route = [];
+    if(window.targetMap) window.targetMap = null;
+    if(window.botTarget) window.botTarget = null;
+    console.log("[BOT] Task został zresetowany");
+  }catch(e){ console.log("Reset error",e); }
+}
+
+try{
+  const resetBtn=document.createElement('button');
+  resetBtn.id='adi-bot_reset_task';
+  resetBtn.classList.add('adi-bot_inputs');
+  resetBtn.textContent='Reset taska';
+  resetBtn.setAttribute('tip','Czyści aktualne zadanie i trasę bota');
+  resetBtn.onclick=adi_resetTask;
+  tabTest.appendChild(resetBtn);
+}catch(e){}
+
 }catch(e){ console.warn('[adi-bot] skill test ui failed', e); }
 
 
