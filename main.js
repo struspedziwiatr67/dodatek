@@ -1494,12 +1494,23 @@ function setTempTarget(val){
   function heuristic(a,b){ return Math.abs(a.x-b.x)+Math.abs(a.y-b.y); }
   function a_getWay(x,y){ return new AStar(map.col,map.x,map.y,{x:hero.x,y:hero.y},{x:x,y:y},g.npccol).anotherFindPath(); }
   function a_goTo(x,y){ let r=a_getWay(x,y); if(Array.isArray(r)) window.road=r; }
+  function __adi_goOneStepTowards(x,y){
+    try{
+      let r=a_getWay(x,y);
+      if(!Array.isArray(r) || !r.length) return false;
+      const step=r[r.length-1];
+      if(!step || typeof step.x==='undefined' || typeof step.y==='undefined') return false;
+      window.road=[step];
+      return true;
+    }catch(_){ return false; }
+  }
 
   if(!localStorage.getItem("adi-bot_lastmaps")) localStorage.setItem("adi-bot_lastmaps", JSON.stringify([]));
 
   let self=this, blokada=false, blokada2=false, $m_id;
   let herolx,heroly,increment=0;
   let bolcka=false, start=false;
+  let __adiLastStasisMoveAt=0;
   g.loadQueue.push({ fun:()=>{ start=true; } });
 
   let globalArray=[]; function addToGlobal(id){ let n=g.npc[id]; if(n.grp){ for(let i in g.npc){ if(g.npc[i].grp==n.grp && !globalArray.includes(g.npc[i].id)) globalArray.push(g.npc[i].id); } } else if(!globalArray.includes(id)) globalArray.push(id); }
@@ -1729,6 +1740,75 @@ function setTempTarget(val){
 
 
       updateNpcLastSeen();
+
+      // ===== ANTI-STASIS: gdy postać wejdzie w nieaktywność, wykonaj 1 krok używając logiki ruchu bota =====
+      try{
+        const isStasis = !!(!g.battle && hero && hero.stasis && !g.dead);
+        if(isStasis && Date.now() - __adiLastStasisMoveAt >= 1000){
+          let moved=false;
+
+          // 1) jeśli gonimy moba, spróbuj zrobić 1 krok w jego stronę
+          if(!moved && $m_id){
+            const mob = g.npc && g.npc[$m_id];
+            if(mob) moved = __adi_goOneStepTowards(mob.x, mob.y);
+            if(!moved){
+              const snap = __npcLastSeen.get($m_id);
+              const curMap = (window.map && map.name) ? String(map.name) : '';
+              if(snap && snap.mapName === curMap) moved = __adi_goOneStepTowards(snap.x, snap.y);
+            }
+          }
+
+          // 2) tryb wyczerpania / taski / trasa po mapach — użyj istniejącego wyboru celu ruchu
+          if(!moved){
+            let stepTarget = null;
+            try{
+              const exhEnabled = localStorage.getItem('adi-bot_exh_enabled') === '1';
+              const exhTargetMap = (localStorage.getItem('adi-bot_exh_map') || 'Dom Roana').trim();
+              const exhMinNow = getExhaustionMinutes(true);
+              if(exhEnabled && typeof exhMinNow === 'number' && exhMinNow > 0 && map.name !== exhTargetMap){
+                stepTarget = self.findBestGw();
+              }
+            }catch(_){ }
+
+            try{
+              const eqTask = JSON.parse(localStorage.getItem('adi-bot_equip_task') || 'null');
+              if(!stepTarget && eqTask && eqTask.kind === 'equip' && eqTask.map && normMapName(map.name) !== normMapName(eqTask.map)){
+                stepTarget = self.findBestGw();
+              }
+            }catch(_){ }
+
+            try{
+              const bt = JSON.parse(localStorage.getItem('adi-bot_buy_task') || 'null');
+              const v = bt && bt.vendor ? bt.vendor : null;
+              if(!stepTarget && bt && bt.active && v && v.map && normMapName(map.name) !== normMapName(v.map)){
+                stepTarget = self.findBestGw();
+              }
+            }catch(_){ }
+
+            try{
+              const e2Mode = (localStorage.getItem('adi-bot_exp_mode') || 'exp') === 'e2';
+              const raw = localStorage.getItem('adi-bot_e2_target');
+              const tgt = raw ? JSON.parse(raw) : null;
+              if(!stepTarget && e2Mode && tgt && tgt.map != null && tgt.x != null && tgt.y != null){
+                if(normMapName(map.name) !== normMapName(tgt.map)) stepTarget = self.findBestGw();
+                else if(!window.__adiE2AnchorDone) moved = __adi_goOneStepTowards(Number(tgt.x), Number(tgt.y));
+              }
+            }catch(_){ }
+
+            if(!moved && !stepTarget && document.querySelector('#adi-bot_maps') && document.querySelector('#adi-bot_maps').value.length > 0){
+              stepTarget = self.findBestGw();
+            }
+
+            if(!moved && stepTarget && typeof stepTarget.x !== 'undefined' && typeof stepTarget.y !== 'undefined'){
+              moved = __adi_goOneStepTowards(stepTarget.x, stepTarget.y);
+            }
+          }
+
+          if(moved){
+            __adiLastStasisMoveAt = Date.now();
+          }
+        }
+      }catch(_){ }
 
 // ===== PRIORITY: equipment task overrides exping =====
       try{
