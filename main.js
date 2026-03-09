@@ -1312,12 +1312,12 @@ const ADI_FORCED_ROUTE_DEFS = [
   {
     key: 'vari',
     entry: 'Ithan',
-    route: ['Ithan', 'Jaskinia Łowców p.1', 'Jaskinia Łowców p.2', 'Wioska Gnolli', 'Namiot Vari Krugera']
+    route: ['Ithan', 'Jaskinia Łowców p.1', 'Jaskinia Łowców p.2', 'Ithan', 'Wioska Gnolli', 'Namiot Vari Krugera']
   },
   {
     key: 'gnolle',
     entry: 'Ithan',
-    route: ['Ithan', 'Jaskinia Łowców p.1', 'Jaskinia Łowców p.2', 'Wioska Gnolli']
+    route: ['Ithan', 'Jaskinia Łowców p.1', 'Jaskinia Łowców p.2', 'Ithan', 'Wioska Gnolli']
   }
 ];
 
@@ -1340,12 +1340,48 @@ function __adiForcedFindByMap(mapName){
 function __adiForcedPathInRoute(def, fromName, toName){
   if(!def) return null;
   const from = normMapName(fromName), to = normMapName(toName);
-  const a = def.route.indexOf(from), b = def.route.indexOf(to);
-  if(a < 0 || b < 0 || a === b) return (a === b ? [] : null);
+  const route = Array.isArray(def.route) ? def.route : [];
+
+  const fromIdxs = [];
+  const toIdxs = [];
+  for(let i=0;i<route.length;i++){
+    if(route[i] === from) fromIdxs.push(i);
+    if(route[i] === to) toIdxs.push(i);
+  }
+
+  if(!fromIdxs.length || !toIdxs.length) return null;
+
+  // When starting from the route entry (e.g. Ithan for Vari/Gnolle), always use
+  // the FIRST occurrence so the bot goes through the whole forced chain instead of
+  // taking the shorter repeated-node shortcut.
+  let bestA = null;
+  let bestB = null;
+  let bestDist = Infinity;
+
+  for(const a of fromIdxs){
+    for(const b of toIdxs){
+      if(a === b) continue;
+      const dist = Math.abs(b - a);
+      const preferThis = (
+        bestA === null ||
+        (from === def.entry && a === fromIdxs[0] && bestA !== fromIdxs[0]) ||
+        (dist < bestDist) ||
+        (dist === bestDist && a < bestA)
+      );
+      if(preferThis){
+        bestA = a;
+        bestB = b;
+        bestDist = dist;
+      }
+    }
+  }
+
+  if(bestA === null || bestB === null) return [];
+
   const out = [];
-  const step = a < b ? 1 : -1;
-  for(let i=a; i!==b; i+=step){
-    out.push({ from: def.route[i], to: def.route[i+step], via: null, forced: def.key });
+  const step = bestA < bestB ? 1 : -1;
+  for(let i=bestA; i!==bestB; i+=step){
+    out.push({ from: route[i], to: route[i+step], via: null, forced: def.key });
   }
   return out;
 }
