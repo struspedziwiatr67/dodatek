@@ -1326,6 +1326,91 @@ Lvl: **${n.lvl ?? "?"}**`,
     }catch(_){ return null; }
   }
 
+  function __adi_getAllSpecialRoutes(){
+    try{
+      const out = [];
+      Object.keys(ADI_SPECIAL_ROUTES.exp || {}).forEach(k => {
+        const r = ADI_SPECIAL_ROUTES.exp[k];
+        if(Array.isArray(r) && r.length >= 2) out.push({ kind:'exp', key:k, route:r.slice() });
+      });
+      Object.keys(ADI_SPECIAL_ROUTES.e2 || {}).forEach(k => {
+        const r = ADI_SPECIAL_ROUTES.e2[k];
+        if(Array.isArray(r) && r.length >= 2) out.push({ kind:'e2', key:k, route:r.slice() });
+      });
+      return out;
+    }catch(_){ return []; }
+  }
+
+  function __adi_findSpecialRoutesContainingMap(mapName){
+    try{
+      const cur = normMapName(mapName);
+      return __adi_getAllSpecialRoutes().filter(obj => obj.route.some(n => normMapName(n) === cur));
+    }catch(_){ return []; }
+  }
+
+  function __adi_buildForcedSteps(route, fromIdx, toIdx){
+    try{
+      const steps = [];
+      if(fromIdx < toIdx){
+        for(let i=fromIdx;i<toIdx;i++) steps.push({ from: normMapName(route[i]), to: normMapName(route[i+1]), via: null, forced: true });
+      }else if(fromIdx > toIdx){
+        for(let i=fromIdx;i>toIdx;i--) steps.push({ from: normMapName(route[i]), to: normMapName(route[i-1]), via: null, forced: true });
+      }
+      return steps;
+    }catch(_){ return null; }
+  }
+
+  function __adi_buildGraphStepsFromTo(fromName, toName){
+    try{
+      const start = normMapName(fromName);
+      const target = normMapName(toName);
+      if(start === target) return [];
+      if(!window.ADI_MAP_GRAPH_READY) return null;
+      const path = bfsGraph(start, target);
+      if(!path || path.length < 2) return null;
+      const steps = [];
+      for(let i=0;i<path.length-1;i++){
+        const from = path[i], to = path[i+1];
+        const e = graphEdge(from, to);
+        steps.push({ from, to, via: e && e.via ? {x:e.via.x, y:e.via.y} : null });
+      }
+      return steps;
+    }catch(_){ return null; }
+  }
+
+  function __adi_buildSpecialExitRoute(currentName, targetName){
+    try{
+      const holders = __adi_findSpecialRoutesContainingMap(currentName);
+      if(!holders.length) return null;
+      const cur = normMapName(currentName);
+      const tgt = normMapName(targetName);
+      let best = null;
+
+      for(const obj of holders){
+        const route = obj.route;
+        const idxCur = route.findIndex(n => normMapName(n) === cur);
+        if(idxCur < 0) continue;
+
+        // jeśli target leży na tej samej trasie, bezpośrednia trasa specjalna jest lepsza
+        if(route.some(n => normMapName(n) === tgt)) continue;
+
+        const endpoints = [0, route.length - 1];
+        for(const endIdx of endpoints){
+          const forced = __adi_buildForcedSteps(route, idxCur, endIdx) || [];
+          const endpointName = normMapName(route[endIdx]);
+          const tail = endpointName === tgt ? [] : (__adi_buildGraphStepsFromTo(endpointName, tgt));
+          if(endpointName !== tgt && tail === null) continue;
+          const merged = forced.concat(tail || []);
+          const score = merged.length;
+          if(!best || score < best.score){
+            best = { score, steps: merged };
+          }
+        }
+      }
+      return best ? best.steps : null;
+    }catch(_){ return null; }
+  }
+
   function getSelectedExpFirstMap(){
     const key = getSelectedExpKey();
     const def = key && expowiska[key];
@@ -1402,27 +1487,21 @@ function buildGraphRouteTo(targetName){
   if(current===target) return [];
 
   const forced = buildSpecialRouteTo(targetName);
-  if(forced && forced.length) return forced;
+  if(forced) return forced;
 
-  if(!window.ADI_MAP_GRAPH_READY) return null;
-  const path = bfsGraph(current, target);
-  if(!path || path.length<2) return null;
-  const steps=[];
-  for(let i=0;i<path.length-1;i++){
-    const from=path[i], to=path[i+1];
-    const e = graphEdge(from, to);
-    steps.push({ from, to, via: e && e.via ? {x:e.via.x, y:e.via.y} : null });
-  }
-  return steps;
+  const exitForced = __adi_buildSpecialExitRoute(current, target);
+  if(exitForced) return exitForced;
+
+  return __adi_buildGraphStepsFromTo(current, target);
 }
 
 function followGraphTo(targetName){
-  if(!window.ADI_MAP_GRAPH_READY) return null;
+  const want = normMapName(targetName);
 
-  if(!window.__tempRoute || window.__tempRouteTarget !== normMapName(targetName)){
+  if(!window.__tempRoute || window.__tempRouteTarget !== want){
     const r = buildGraphRouteTo(targetName);
     window.__tempRoute = r;
-    window.__tempRouteTarget = r ? normMapName(targetName) : null;
+    window.__tempRouteTarget = r ? want : null;
   }
 
   if(!window.__tempRoute || window.__tempRoute.length===0) return null;
@@ -1434,8 +1513,25 @@ function followGraphTo(targetName){
     window.__tempRoute.shift();
   }
 
-  const step = window.__tempRoute[0];
+  if(!window.__tempRoute.length){
+    window.__tempRoute = null;
+    window.__tempRouteTarget = null;
+    return null;
+  }
+
+  let step = window.__tempRoute[0];
   if(!step) return null;
+
+  // jeśli stan trasy się rozjechał (teleport, reload, zmiana celu), przebuduj od bieżącej mapy
+  if(normMapName(step.from) !== curName){
+    const rebuilt = buildGraphRouteTo(targetName);
+    window.__tempRoute = rebuilt;
+    window.__tempRouteTarget = rebuilt ? want : null;
+    if(!window.__tempRoute || !window.__tempRoute.length) return null;
+    step = window.__tempRoute[0];
+    if(!step) return null;
+    if(normMapName(step.from) !== curName) return null;
+  }
 
   if(step.via) return {x:step.via.x, y:step.via.y};
 
@@ -1448,6 +1544,11 @@ function followGraphTo(targetName){
       return {x:c[0], y:c[1]};
     }
   }
+
+  // awaryjnie przebuduj jeszcze raz przy braku GW, żeby nie wisieć w miejscu na starym tasku
+  const rebuilt = buildGraphRouteTo(targetName);
+  window.__tempRoute = rebuilt;
+  window.__tempRouteTarget = rebuilt ? want : null;
   return null;
 }
 
