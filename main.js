@@ -1325,63 +1325,76 @@ function __adiForcedDefs(){
   return ADI_FORCED_ROUTE_DEFS.map(def => ({
     key: def.key,
     entry: normMapName(def.entry || def.route[0]),
-    route: def.route.map(normMapName)
+    route: def.route.map(normMapName),
+    rawRoute: def.route.slice()
   }));
 }
 
-function __adiForcedFindByMap(mapName){
+function __adiForcedFindByMap(mapName, preferredKey){
   const cur = normMapName(mapName);
-  for(const def of __adiForcedDefs()){
-    if(def.route.includes(cur)) return def;
+  const defs = __adiForcedDefs().filter(def => def.route.includes(cur));
+  if(!defs.length) return null;
+  if(preferredKey){
+    const hit = defs.find(def => def.key === preferredKey);
+    if(hit) return hit;
   }
-  return null;
+  return defs[0];
+}
+
+function __adiForcedFindByTarget(targetName){
+  const want = normMapName(targetName);
+  const defs = __adiForcedDefs().filter(def => def.route.includes(want));
+  if(!defs.length) return null;
+  defs.sort((a,b)=>{
+    const ai = a.route.lastIndexOf(want);
+    const bi = b.route.lastIndexOf(want);
+    return bi - ai;
+  });
+  return defs[0];
+}
+
+function __adiForcedPickIndex(route, name, preferLast){
+  if(!Array.isArray(route) || !route.length) return -1;
+  const want = normMapName(name);
+  if(preferLast){
+    for(let i=route.length-1;i>=0;i--) if(route[i]===want) return i;
+    return -1;
+  }
+  for(let i=0;i<route.length;i++) if(route[i]===want) return i;
+  return -1;
 }
 
 function __adiForcedPathInRoute(def, fromName, toName){
   if(!def) return null;
-  const from = normMapName(fromName), to = normMapName(toName);
   const route = Array.isArray(def.route) ? def.route : [];
+  const from = normMapName(fromName), to = normMapName(toName);
+  const a = __adiForcedPickIndex(route, from, false);
+  if(a < 0) return null;
 
-  const fromIdxs = [];
-  const toIdxs = [];
-  for(let i=0;i<route.length;i++){
-    if(route[i] === from) fromIdxs.push(i);
-    if(route[i] === to) toIdxs.push(i);
+  let candidates = [];
+  for(let i=0;i<route.length;i++) if(route[i]===to && i!==a) candidates.push(i);
+  if(!candidates.length) return (from === to ? [] : null);
+
+  let b = candidates[0];
+  if(candidates.length > 1){
+    const forward = candidates.filter(i => i > a);
+    const backward = candidates.filter(i => i < a);
+    if(forward.length) b = Math.min(...forward);
+    else if(backward.length) b = Math.max(...backward);
   }
-
-  if(!fromIdxs.length || !toIdxs.length) return null;
-
-  // When starting from the route entry (e.g. Ithan for Vari/Gnolle), always use
-  // the FIRST occurrence so the bot goes through the whole forced chain instead of
-  // taking the shorter repeated-node shortcut.
-  let bestA = null;
-  let bestB = null;
-  let bestDist = Infinity;
-
-  for(const a of fromIdxs){
-    for(const b of toIdxs){
-      if(a === b) continue;
-      const dist = Math.abs(b - a);
-      const preferThis = (
-        bestA === null ||
-        (from === def.entry && a === fromIdxs[0] && bestA !== fromIdxs[0]) ||
-        (dist < bestDist) ||
-        (dist === bestDist && a < bestA)
-      );
-      if(preferThis){
-        bestA = a;
-        bestB = b;
-        bestDist = dist;
-      }
-    }
-  }
-
-  if(bestA === null || bestB === null) return [];
 
   const out = [];
-  const step = bestA < bestB ? 1 : -1;
-  for(let i=bestA; i!==bestB; i+=step){
-    out.push({ from: route[i], to: route[i+step], via: null, forced: def.key });
+  const step = a < b ? 1 : -1;
+  for(let i=a; i!==b; i+=step){
+    const fromReadable = (def.rawRoute && def.rawRoute[i]) || route[i];
+    const toReadable = (def.rawRoute && def.rawRoute[i+step]) || route[i+step];
+    const e = graphEdge(fromReadable, toReadable);
+    out.push({
+      from: route[i],
+      to: route[i+step],
+      via: e && e.via ? {x:e.via.x, y:e.via.y} : null,
+      forced: def.key
+    });
   }
   return out;
 }
@@ -1412,8 +1425,8 @@ function buildGraphRouteTo(targetName){
   const target = normMapName(targetName);
   if(current===target) return [];
 
-  const curForced = __adiForcedFindByMap(current);
-  const tgtForced = __adiForcedFindByMap(target);
+  const tgtForced = __adiForcedFindByTarget(targetName);
+  const curForced = __adiForcedFindByMap(current, tgtForced && tgtForced.key);
 
   if(curForced && tgtForced && curForced.key === tgtForced.key){
     return __adiForcedPathInRoute(curForced, current, target);
@@ -2438,14 +2451,35 @@ function __adiAutoHealTick(){
   this.findBestGw=function(){
     // If a temporary target map is set (e.g., going to vendor), route ONLY to it and pause fallback.
     if(window.ADI_TEMP_TARGET_MAP){
-      const tgt = normMapName(window.ADI_TEMP_TARGET_MAP);
-      const cur = normMapName(map.name);
-      if(cur !== tgt){
-        const via = followGraphTo(window.ADI_TEMP_TARGET_MAP);
-        if(via) return {x: via.x, y: via.y};
+      let keepTempTarget = true;
+      try{
+        const buyTask = (typeof loadBuyTask === 'function') ? loadBuyTask() : null;
+        const equipTask = (typeof loadEquipTask === 'function') ? loadEquipTask() : null;
+        const modeNow = (localStorage.getItem('adi-bot_exp_mode') || 'exp');
+        const e2Raw = localStorage.getItem('adi-bot_e2_target');
+        const e2Target = e2Raw ? JSON.parse(e2Raw) : null;
+        const tempNorm = normMapName(window.ADI_TEMP_TARGET_MAP);
+        const isTaskTemp = !!(
+          (buyTask && buyTask.active && buyTask.vendor && normMapName(buyTask.vendor.map) === tempNorm) ||
+          (equipTask && equipTask.active && normMapName(equipTask.map) === tempNorm) ||
+          (modeNow === 'e2' && e2Target && normMapName(e2Target.map) === tempNorm)
+        );
+        keepTempTarget = isTaskTemp;
+      }catch(_){ }
+      if(!keepTempTarget){
+        try{ setTempTarget(null); }catch(_){ window.ADI_TEMP_TARGET_MAP = null; }
+        window.__tempRoute = null;
+        window.__tempRouteTarget = null;
+      }else{
+        const tgt = normMapName(window.ADI_TEMP_TARGET_MAP);
+        const cur = normMapName(map.name);
+        if(cur !== tgt){
+          const via = followGraphTo(window.ADI_TEMP_TARGET_MAP);
+          if(via) return {x: via.x, y: via.y};
+        }
+        // already at target -> do not move anywhere until caller clears ADI_TEMP_TARGET_MAP
+        return;
       }
-      // already at target -> do not move anywhere until caller clears ADI_TEMP_TARGET_MAP
-      return;
     }
 
     const mapsInput=document.querySelector('#adi-bot_maps');
