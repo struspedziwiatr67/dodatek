@@ -5617,3 +5617,51 @@ if (typeof window.window.__adi_equipByNameSequence !== 'function') {
   if(document.readyState === 'complete' || document.readyState === 'interactive') setTimeout(adiBootLootPatch, 300);
   else document.addEventListener('DOMContentLoaded', ()=>setTimeout(adiBootLootPatch, 300));
 })();
+
+
+// ==== PATCH: CAPTCHA & SAFE POTION CHECK ====
+function __adi_isCaptchaVisible(){
+  try{
+    if(document.querySelector('#pre-captcha')) return true;
+    if(document.querySelector('.captcha__buttons')) return true;
+    if(document.querySelector('.captcha__confirm')) return true;
+
+    const txt = (document.body && document.body.innerText || '').toLowerCase();
+    if(txt.includes('zaznacz wszystkie odpowiedzi z gwiazdką')) return true;
+    if(txt.includes('miłego dnia')) return true;
+  }catch(e){}
+  return false;
+}
+
+function __adi_isGameStateBlocked(){
+  try{
+    if(__adi_isCaptchaVisible()) return true;
+    if(window.g?.battle) return true;
+    if(window.g?.dead) return true;
+    if(window.g?.resp) return true;
+    if(window.g?.reload) return true;
+  }catch(e){}
+  return false;
+}
+
+let __adiPotionCache = {ts:0, value:{}};
+
+function __adi_getPotionCountSafe(name, getter){
+  try{
+    const v = getter(name);
+    if(typeof v === 'number'){
+      __adiPotionCache.ts = Date.now();
+      __adiPotionCache.value[name] = v;
+      return v;
+    }
+  }catch(e){}
+
+  const cached = __adiPotionCache.value[name];
+  if(typeof cached === 'number' && Date.now() - __adiPotionCache.ts < 60000){
+    return cached;
+  }
+
+  return null;
+}
+// ==== END PATCH ====
+
