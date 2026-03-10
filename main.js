@@ -3026,8 +3026,9 @@ try{ window.__adi_normTxt = __adi_normTxt; window.getPotionCountByName = getPoti
   setInterval(()=>{
     try{
       if(__autoBuyGuard) return;
-      if(window.g?.battle || window.g?.dead) return;
       if(localStorage.getItem('adi-bot_potion_autobuy')!=='1') return;
+      if(window.__adi_isGameStateBlocked && window.__adi_isGameStateBlocked()) return;
+      if(window.g?.battle || window.g?.dead) return;
       // nie rozpoczynaj, jeśli jest już aktywne zadanie zakupowe
       try{ const t = (function(){ try{return JSON.parse(localStorage.getItem('adi-bot_buy_task')||'{}');}catch(_){return null;} })(); if(t && t.active) return; }catch(_){}
       // nie rozpoczynaj, jeśli już lecimy gdzieś tymczasowo (np. inny task)
@@ -3042,7 +3043,8 @@ try{ window.__adi_normTxt = __adi_normTxt; window.getPotionCountByName = getPoti
       const name = getSelectedPotion();
       if(!name) return;
 
-      const have = getPotionCountByName(name);
+      const have = (window.__adi_getPotionCountSafe ? window.__adi_getPotionCountSafe(name, getPotionCountByName) : getPotionCountByName(name));
+      if(have === null) return; // stan gry chwilowo niedostępny (np. captcha) -> nic nie rób
       if(have > 0) return; // mamy chociaż 1 -> nic nie rób
 
       __autoBuyGuard = true;
@@ -3359,7 +3361,7 @@ try{
       if(t && t.active){
         // Jeśli po odświeżeniu mamy już mikstury, usuń wiszący task, żeby bot nie biegał do handlarza bez sensu.
         const selName = (document.querySelector('#adi-bot_potion_name')?.value || localStorage.getItem('adi-bot_potion_name_sel') || '').toString();
-const have = (window.getPotionCountByName ? window.getPotionCountByName(selName) : 0);
+const have = (window.__adi_getPotionCountSafe && window.getPotionCountByName ? window.__adi_getPotionCountSafe(selName, window.getPotionCountByName) : (window.getPotionCountByName ? window.getPotionCountByName(selName) : 0));
 
         if(have > 0){
           apSetInfo('Po odświeżeniu: był aktywny task kupowania, ale mikstury są w ekwipunku — czyszczę task.', true);
@@ -5648,6 +5650,14 @@ let __adiPotionCache = {ts:0, value:{}};
 
 function __adi_getPotionCountSafe(name, getter){
   try{
+    if(__adi_isGameStateBlocked()){
+      const cachedBlocked = __adiPotionCache.value[name];
+      if(typeof cachedBlocked === 'number' && Date.now() - __adiPotionCache.ts < 60000){
+        return cachedBlocked;
+      }
+      return null;
+    }
+
     const v = getter(name);
     if(typeof v === 'number'){
       __adiPotionCache.ts = Date.now();
@@ -5663,5 +5673,10 @@ function __adi_getPotionCountSafe(name, getter){
 
   return null;
 }
+try{
+  window.__adi_isCaptchaVisible = __adi_isCaptchaVisible;
+  window.__adi_isGameStateBlocked = __adi_isGameStateBlocked;
+  window.__adi_getPotionCountSafe = __adi_getPotionCountSafe;
+}catch(_){ }
 // ==== END PATCH ====
 
