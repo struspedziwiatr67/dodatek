@@ -1647,6 +1647,42 @@ function setTempTarget(val){
 
 
   // ===== CAPTCHA LOGGER + persistent toggle =====
+  let __adiCaptchaActiveUntil = 0;
+
+  function __adiIsCaptchaVisibleInDoc(doc){
+    try{
+      if(!doc) return false;
+      const root = doc.querySelector('#captcha');
+      if(!root) return false;
+
+      const st = (root.getAttribute('style') || '') + ' ' + (((doc.defaultView||window).getComputedStyle && (doc.defaultView||window).getComputedStyle(root)?.cssText) || '');
+      if(/display\s*:\s*none/i.test(st) || /visibility\s*:\s*hidden/i.test(st)) return false;
+
+      const txt = String(root.textContent || '');
+      if(/zagadka|captcha|rozwi\u0105\u017c|rozwi\u0105z/i.test(txt)) return true;
+
+      const q = root.querySelector('.captcha, .captcha__title, .captcha__question, .captcha__content');
+      return !!q;
+    }catch(_){ return false; }
+  }
+
+  function __adiIsCaptchaActive(){
+    try{
+      if(Date.now() < __adiCaptchaActiveUntil) return true;
+      if(__adiIsCaptchaVisibleInDoc(document)) return true;
+      const iframes = document.querySelectorAll('iframe');
+      for(const fr of iframes){
+        try{
+          const d = fr.contentDocument || (fr.contentWindow && fr.contentWindow.document);
+          if(__adiIsCaptchaVisibleInDoc(d)) return true;
+        }catch(_){ }
+      }
+    }catch(_){ }
+    return false;
+  }
+
+  try{ window.__adiIsCaptchaActive = __adiIsCaptchaActive; }catch(_){ }
+
   const selfRef=this;
   if(!selfRef.basePI) selfRef.basePI=parseInput;
   selfRef.botPI=function(a){
@@ -1664,6 +1700,7 @@ function setTempTarget(val){
       }
       if(!info && a && a.alert && /(captcha|podaj wynik|zagadk)/i.test(a.alert)) info={type:"alert", text:a.alert};
       if(info){
+        __adiCaptchaActiveUntil = Date.now() + (info.type==="countdown" ? Math.max(0, Number(info.seconds)||0) * 1000 + 15000 : 180000);
         const sig=info.type==="countdown" ? `countdown:${info.seconds}` : `${info.type}:${info.text||""}`;
         if(sig!==__lastCaptchaSignature){
           __lastCaptchaSignature=sig;
@@ -1671,6 +1708,8 @@ function setTempTarget(val){
           if(info.type==="countdown"){ message(`[BOT] CAPTCHA za ${info.seconds}s`); sendDiscord(`[${nick}] Za ${info.seconds}s pojawi się CAPTCHA. Kliknij "Rozwiąż teraz".`); }
           else { message(`[BOT] CAPTCHA aktywna`); sendDiscord(`[${nick}] CAPTCHA AKTYWNA${info.text?`: ${info.text}`:""}`); }
         }
+      } else if(__adiCaptchaActiveUntil && !__adiIsCaptchaActive()){
+        __adiCaptchaActiveUntil = 0;
       }
     }catch(e){}
 
@@ -2940,6 +2979,7 @@ try{ window.__adi_normTxt = __adi_normTxt; window.getPotionCountByName = getPoti
       if(__autoBuyGuard) return;
       if(window.g?.battle || window.g?.dead) return;
       if(localStorage.getItem('adi-bot_potion_autobuy')!=='1') return;
+      if(typeof window.__adiIsCaptchaActive==='function' && window.__adiIsCaptchaActive()) return;
       // nie rozpoczynaj, jeśli jest już aktywne zadanie zakupowe
       try{ const t = (function(){ try{return JSON.parse(localStorage.getItem('adi-bot_buy_task')||'{}');}catch(_){return null;} })(); if(t && t.active) return; }catch(_){}
       // nie rozpoczynaj, jeśli już lecimy gdzieś tymczasowo (np. inny task)
