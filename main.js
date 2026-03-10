@@ -1494,23 +1494,12 @@ function setTempTarget(val){
   function heuristic(a,b){ return Math.abs(a.x-b.x)+Math.abs(a.y-b.y); }
   function a_getWay(x,y){ return new AStar(map.col,map.x,map.y,{x:hero.x,y:hero.y},{x:x,y:y},g.npccol).anotherFindPath(); }
   function a_goTo(x,y){ let r=a_getWay(x,y); if(Array.isArray(r)) window.road=r; }
-  function __adi_goOneStepTowards(x,y){
-    try{
-      let r=a_getWay(x,y);
-      if(!Array.isArray(r) || !r.length) return false;
-      const step=r[r.length-1];
-      if(!step || typeof step.x==='undefined' || typeof step.y==='undefined') return false;
-      window.road=[step];
-      return true;
-    }catch(_){ return false; }
-  }
 
   if(!localStorage.getItem("adi-bot_lastmaps")) localStorage.setItem("adi-bot_lastmaps", JSON.stringify([]));
 
   let self=this, blokada=false, blokada2=false, $m_id;
   let herolx,heroly,increment=0;
   let bolcka=false, start=false;
-  let __adiLastStasisMoveAt=0;
   g.loadQueue.push({ fun:()=>{ start=true; } });
 
   let globalArray=[]; function addToGlobal(id){ let n=g.npc[id]; if(n.grp){ for(let i in g.npc){ if(g.npc[i].grp==n.grp && !globalArray.includes(g.npc[i].id)) globalArray.push(g.npc[i].id); } } else if(!globalArray.includes(id)) globalArray.push(id); }
@@ -1679,16 +1668,8 @@ function setTempTarget(val){
         if(sig!==__lastCaptchaSignature){
           __lastCaptchaSignature=sig;
           const nick=getHeroName();
-          const __captchaCfg = (typeof adiLoadLootCfg === 'function') ? adiLoadLootCfg() : null;
-          const __captchaDiscordEnabled = !!(__captchaCfg && __captchaCfg.captchaNotifyDiscord);
-          if(info.type==="countdown"){
-            message(`[BOT] CAPTCHA za ${info.seconds}s`);
-            if(__captchaDiscordEnabled) sendDiscord(`[${nick}] Za ${info.seconds}s pojawi się CAPTCHA. Kliknij "Rozwiąż teraz".`);
-          }
-          else {
-            message(`[BOT] CAPTCHA aktywna`);
-            if(__captchaDiscordEnabled) sendDiscord(`[${nick}] CAPTCHA AKTYWNA${info.text?`: ${info.text}`:""}`);
-          }
+          if(info.type==="countdown"){ message(`[BOT] CAPTCHA za ${info.seconds}s`); sendDiscord(`[${nick}] Za ${info.seconds}s pojawi się CAPTCHA. Kliknij "Rozwiąż teraz".`); }
+          else { message(`[BOT] CAPTCHA aktywna`); sendDiscord(`[${nick}] CAPTCHA AKTYWNA${info.text?`: ${info.text}`:""}`); }
         }
       }
     }catch(e){}
@@ -1748,75 +1729,6 @@ function setTempTarget(val){
 
 
       updateNpcLastSeen();
-
-      // ===== ANTI-STASIS: gdy postać wejdzie w nieaktywność, wykonaj 1 krok używając logiki ruchu bota =====
-      try{
-        const isStasis = !!(!g.battle && hero && hero.stasis && !g.dead);
-        if(isStasis && Date.now() - __adiLastStasisMoveAt >= 1000){
-          let moved=false;
-
-          // 1) jeśli gonimy moba, spróbuj zrobić 1 krok w jego stronę
-          if(!moved && $m_id){
-            const mob = g.npc && g.npc[$m_id];
-            if(mob) moved = __adi_goOneStepTowards(mob.x, mob.y);
-            if(!moved){
-              const snap = __npcLastSeen.get($m_id);
-              const curMap = (window.map && map.name) ? String(map.name) : '';
-              if(snap && snap.mapName === curMap) moved = __adi_goOneStepTowards(snap.x, snap.y);
-            }
-          }
-
-          // 2) tryb wyczerpania / taski / trasa po mapach — użyj istniejącego wyboru celu ruchu
-          if(!moved){
-            let stepTarget = null;
-            try{
-              const exhEnabled = localStorage.getItem('adi-bot_exh_enabled') === '1';
-              const exhTargetMap = (localStorage.getItem('adi-bot_exh_map') || 'Dom Roana').trim();
-              const exhMinNow = getExhaustionMinutes(true);
-              if(exhEnabled && typeof exhMinNow === 'number' && exhMinNow > 0 && map.name !== exhTargetMap){
-                stepTarget = self.findBestGw();
-              }
-            }catch(_){ }
-
-            try{
-              const eqTask = JSON.parse(localStorage.getItem('adi-bot_equip_task') || 'null');
-              if(!stepTarget && eqTask && eqTask.kind === 'equip' && eqTask.map && normMapName(map.name) !== normMapName(eqTask.map)){
-                stepTarget = self.findBestGw();
-              }
-            }catch(_){ }
-
-            try{
-              const bt = JSON.parse(localStorage.getItem('adi-bot_buy_task') || 'null');
-              const v = bt && bt.vendor ? bt.vendor : null;
-              if(!stepTarget && bt && bt.active && v && v.map && normMapName(map.name) !== normMapName(v.map)){
-                stepTarget = self.findBestGw();
-              }
-            }catch(_){ }
-
-            try{
-              const e2Mode = (localStorage.getItem('adi-bot_exp_mode') || 'exp') === 'e2';
-              const raw = localStorage.getItem('adi-bot_e2_target');
-              const tgt = raw ? JSON.parse(raw) : null;
-              if(!stepTarget && e2Mode && tgt && tgt.map != null && tgt.x != null && tgt.y != null){
-                if(normMapName(map.name) !== normMapName(tgt.map)) stepTarget = self.findBestGw();
-                else if(!window.__adiE2AnchorDone) moved = __adi_goOneStepTowards(Number(tgt.x), Number(tgt.y));
-              }
-            }catch(_){ }
-
-            if(!moved && !stepTarget && document.querySelector('#adi-bot_maps') && document.querySelector('#adi-bot_maps').value.length > 0){
-              stepTarget = self.findBestGw();
-            }
-
-            if(!moved && stepTarget && typeof stepTarget.x !== 'undefined' && typeof stepTarget.y !== 'undefined'){
-              moved = __adi_goOneStepTowards(stepTarget.x, stepTarget.y);
-            }
-          }
-
-          if(moved){
-            __adiLastStasisMoveAt = Date.now();
-          }
-        }
-      }catch(_){ }
 
 // ===== PRIORITY: equipment task overrides exping =====
       try{
@@ -3026,9 +2938,8 @@ try{ window.__adi_normTxt = __adi_normTxt; window.getPotionCountByName = getPoti
   setInterval(()=>{
     try{
       if(__autoBuyGuard) return;
-      if(localStorage.getItem('adi-bot_potion_autobuy')!=='1') return;
-      if(window.__adi_isGameStateBlocked && window.__adi_isGameStateBlocked()) return;
       if(window.g?.battle || window.g?.dead) return;
+      if(localStorage.getItem('adi-bot_potion_autobuy')!=='1') return;
       // nie rozpoczynaj, jeśli jest już aktywne zadanie zakupowe
       try{ const t = (function(){ try{return JSON.parse(localStorage.getItem('adi-bot_buy_task')||'{}');}catch(_){return null;} })(); if(t && t.active) return; }catch(_){}
       // nie rozpoczynaj, jeśli już lecimy gdzieś tymczasowo (np. inny task)
@@ -3043,8 +2954,7 @@ try{ window.__adi_normTxt = __adi_normTxt; window.getPotionCountByName = getPoti
       const name = getSelectedPotion();
       if(!name) return;
 
-      const have = (window.__adi_getPotionCountSafe ? window.__adi_getPotionCountSafe(name, getPotionCountByName) : getPotionCountByName(name));
-      if(have === null) return; // stan gry chwilowo niedostępny (np. captcha) -> nic nie rób
+      const have = getPotionCountByName(name);
       if(have > 0) return; // mamy chociaż 1 -> nic nie rób
 
       __autoBuyGuard = true;
@@ -3361,7 +3271,7 @@ try{
       if(t && t.active){
         // Jeśli po odświeżeniu mamy już mikstury, usuń wiszący task, żeby bot nie biegał do handlarza bez sensu.
         const selName = (document.querySelector('#adi-bot_potion_name')?.value || localStorage.getItem('adi-bot_potion_name_sel') || '').toString();
-const have = (window.__adi_getPotionCountSafe && window.getPotionCountByName ? window.__adi_getPotionCountSafe(selName, window.getPotionCountByName) : (window.getPotionCountByName ? window.getPotionCountByName(selName) : 0));
+const have = (window.getPotionCountByName ? window.getPotionCountByName(selName) : 0);
 
         if(have > 0){
           apSetInfo('Po odświeżeniu: był aktywny task kupowania, ale mikstury są w ekwipunku — czyszczę task.', true);
@@ -5014,8 +4924,7 @@ if (typeof window.window.__adi_equipByNameSequence !== 'function') {
       notifyLegendary: true,
       notifyHeroic: true,
       notifyUnique: true,
-      notifyCommon: false,
-      captchaNotifyDiscord: false
+      notifyCommon: false
     };
   }
 
@@ -5037,7 +4946,6 @@ if (typeof window.window.__adi_equipByNameSequence !== 'function') {
         notifyHeroic: cfg.notifyHeroic ?? def.notifyHeroic,
         notifyUnique: cfg.notifyUnique ?? def.notifyUnique,
         notifyCommon: cfg.notifyCommon ?? def.notifyCommon,
-        captchaNotifyDiscord: cfg.captchaNotifyDiscord ?? def.captchaNotifyDiscord,
       };
     }catch(_){ return adiLootDefaults(); }
   }
@@ -5145,11 +5053,6 @@ if (typeof window.window.__adi_equipByNameSequence !== 'function') {
           ${adiCheckbox('adi-loot-notify-unique', 'Unikatowym', cfg.notifyUnique)}
           ${adiCheckbox('adi-loot-notify-common', 'Pospolitym', cfg.notifyCommon)}
         </div>
-
-        <div class="adi-settings-section">
-          <div class="adi-settings-title">Captcha</div>
-          ${adiCheckbox('adi-captcha-notify-discord', 'Informuj o captcha na dc', cfg.captchaNotifyDiscord)}
-        </div>
       `;
 
       const bindCheck = (id, key, textOn, textOff) => {
@@ -5193,7 +5096,6 @@ if (typeof window.window.__adi_equipByNameSequence !== 'function') {
       bindCheck('adi-loot-notify-heroic', 'notifyHeroic');
       bindCheck('adi-loot-notify-unique', 'notifyUnique');
       bindCheck('adi-loot-notify-common', 'notifyCommon');
-      bindCheck('adi-captcha-notify-discord', 'captchaNotifyDiscord', 'Powiadomienia captcha na DC: WŁ', 'Powiadomienia captcha na DC: WYŁ');
       bindInput('adi-loot-filter-minprice', 'minPrice', (v)=>{
         let n = parseInt(v || '0', 10);
         if(!Number.isFinite(n) || n < 0) n = 0;
@@ -5619,64 +5521,3 @@ if (typeof window.window.__adi_equipByNameSequence !== 'function') {
   if(document.readyState === 'complete' || document.readyState === 'interactive') setTimeout(adiBootLootPatch, 300);
   else document.addEventListener('DOMContentLoaded', ()=>setTimeout(adiBootLootPatch, 300));
 })();
-
-
-// ==== PATCH: CAPTCHA & SAFE POTION CHECK ====
-function __adi_isCaptchaVisible(){
-  try{
-    if(document.querySelector('#pre-captcha')) return true;
-    if(document.querySelector('.captcha__buttons')) return true;
-    if(document.querySelector('.captcha__confirm')) return true;
-
-    const txt = (document.body && document.body.innerText || '').toLowerCase();
-    if(txt.includes('zaznacz wszystkie odpowiedzi z gwiazdką')) return true;
-    if(txt.includes('miłego dnia')) return true;
-  }catch(e){}
-  return false;
-}
-
-function __adi_isGameStateBlocked(){
-  try{
-    if(__adi_isCaptchaVisible()) return true;
-    if(window.g?.battle) return true;
-    if(window.g?.dead) return true;
-    if(window.g?.resp) return true;
-    if(window.g?.reload) return true;
-  }catch(e){}
-  return false;
-}
-
-let __adiPotionCache = {ts:0, value:{}};
-
-function __adi_getPotionCountSafe(name, getter){
-  try{
-    if(__adi_isGameStateBlocked()){
-      const cachedBlocked = __adiPotionCache.value[name];
-      if(typeof cachedBlocked === 'number' && Date.now() - __adiPotionCache.ts < 60000){
-        return cachedBlocked;
-      }
-      return null;
-    }
-
-    const v = getter(name);
-    if(typeof v === 'number'){
-      __adiPotionCache.ts = Date.now();
-      __adiPotionCache.value[name] = v;
-      return v;
-    }
-  }catch(e){}
-
-  const cached = __adiPotionCache.value[name];
-  if(typeof cached === 'number' && Date.now() - __adiPotionCache.ts < 60000){
-    return cached;
-  }
-
-  return null;
-}
-try{
-  window.__adi_isCaptchaVisible = __adi_isCaptchaVisible;
-  window.__adi_isGameStateBlocked = __adi_isGameStateBlocked;
-  window.__adi_getPotionCountSafe = __adi_getPotionCountSafe;
-}catch(_){ }
-// ==== END PATCH ====
-
