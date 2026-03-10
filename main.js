@@ -1679,8 +1679,16 @@ function setTempTarget(val){
         if(sig!==__lastCaptchaSignature){
           __lastCaptchaSignature=sig;
           const nick=getHeroName();
-          if(info.type==="countdown"){ message(`[BOT] CAPTCHA za ${info.seconds}s`); sendDiscord(`[${nick}] Za ${info.seconds}s pojawi się CAPTCHA. Kliknij "Rozwiąż teraz".`); }
-          else { message(`[BOT] CAPTCHA aktywna`); sendDiscord(`[${nick}] CAPTCHA AKTYWNA${info.text?`: ${info.text}`:""}`); }
+          const __captchaCfg = (typeof adiLoadLootCfg === 'function') ? adiLoadLootCfg() : null;
+          const __captchaDiscordEnabled = !!(__captchaCfg && __captchaCfg.captchaNotifyDiscord);
+          if(info.type==="countdown"){
+            message(`[BOT] CAPTCHA za ${info.seconds}s`);
+            if(__captchaDiscordEnabled) sendDiscord(`[${nick}] Za ${info.seconds}s pojawi się CAPTCHA. Kliknij "Rozwiąż teraz".`);
+          }
+          else {
+            message(`[BOT] CAPTCHA aktywna`);
+            if(__captchaDiscordEnabled) sendDiscord(`[${nick}] CAPTCHA AKTYWNA${info.text?`: ${info.text}`:""}`);
+          }
         }
       }
     }catch(e){}
@@ -5004,7 +5012,8 @@ if (typeof window.window.__adi_equipByNameSequence !== 'function') {
       notifyLegendary: true,
       notifyHeroic: true,
       notifyUnique: true,
-      notifyCommon: false
+      notifyCommon: false,
+      captchaNotifyDiscord: false
     };
   }
 
@@ -5026,6 +5035,7 @@ if (typeof window.window.__adi_equipByNameSequence !== 'function') {
         notifyHeroic: cfg.notifyHeroic ?? def.notifyHeroic,
         notifyUnique: cfg.notifyUnique ?? def.notifyUnique,
         notifyCommon: cfg.notifyCommon ?? def.notifyCommon,
+        captchaNotifyDiscord: cfg.captchaNotifyDiscord ?? def.captchaNotifyDiscord,
       };
     }catch(_){ return adiLootDefaults(); }
   }
@@ -5133,6 +5143,11 @@ if (typeof window.window.__adi_equipByNameSequence !== 'function') {
           ${adiCheckbox('adi-loot-notify-unique', 'Unikatowym', cfg.notifyUnique)}
           ${adiCheckbox('adi-loot-notify-common', 'Pospolitym', cfg.notifyCommon)}
         </div>
+
+        <div class="adi-settings-section">
+          <div class="adi-settings-title">Captcha</div>
+          ${adiCheckbox('adi-captcha-notify-discord', 'Informuj o captcha na dc', cfg.captchaNotifyDiscord)}
+        </div>
       `;
 
       const bindCheck = (id, key, textOn, textOff) => {
@@ -5176,6 +5191,7 @@ if (typeof window.window.__adi_equipByNameSequence !== 'function') {
       bindCheck('adi-loot-notify-heroic', 'notifyHeroic');
       bindCheck('adi-loot-notify-unique', 'notifyUnique');
       bindCheck('adi-loot-notify-common', 'notifyCommon');
+      bindCheck('adi-captcha-notify-discord', 'captchaNotifyDiscord', 'Powiadomienia captcha na DC: WŁ', 'Powiadomienia captcha na DC: WYŁ');
       bindInput('adi-loot-filter-minprice', 'minPrice', (v)=>{
         let n = parseInt(v || '0', 10);
         if(!Number.isFinite(n) || n < 0) n = 0;
