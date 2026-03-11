@@ -5018,31 +5018,19 @@ if (typeof window.window.__adi_equipByNameSequence !== 'function') {
     try{
       const box = document.getElementById('adi-bot_box');
       if(!box) return false;
-      const tabs = box.querySelector('.adi-tabs');
-      const wrap = box.querySelector('.adi-tabwrap');
-      if(!tabs || !wrap) return false;
+      const settingsPanel = document.getElementById('adi-tab-settings');
+      if(!settingsPanel) return false;
       adiEnsureLootStyle();
 
-      let settingsTabBtn = Array.from(tabs.querySelectorAll('.adi-tab')).find(x => x.dataset.tab === 'settings');
-      let settingsPanel = document.getElementById('adi-tab-settings');
-      if(!settingsTabBtn){
-        settingsTabBtn = document.createElement('div');
-        settingsTabBtn.className = 'adi-tab';
-        settingsTabBtn.dataset.tab = 'settings';
-        settingsTabBtn.textContent = 'Ustawienia';
-        const startBtn = Array.from(tabs.querySelectorAll('.adi-tab')).find(x => x.dataset.tab === 'start');
-        if(startBtn && startBtn.nextSibling) tabs.insertBefore(settingsTabBtn, startBtn.nextSibling);
-        else tabs.appendChild(settingsTabBtn);
-      }
-      if(!settingsPanel){
-        settingsPanel = document.createElement('div');
-        settingsPanel.id = 'adi-tab-settings';
-        settingsPanel.className = 'adi-tab-content';
-        wrap.appendChild(settingsPanel);
+      let host = settingsPanel.querySelector('#adi-extra-settings-host');
+      if(!host){
+        host = document.createElement('div');
+        host.id = 'adi-extra-settings-host';
+        settingsPanel.appendChild(host);
       }
 
       const cfg = adiLoadLootCfg();
-      settingsPanel.innerHTML = `
+      host.innerHTML = `
         <div class="adi-settings-section">
           <div class="adi-settings-title">Ustawienia łupu</div>
           ${adiSwitch('adi-loot-filter-enabled', 'Loot filter ON/OFF', cfg.filterEnabled)}
@@ -5074,7 +5062,7 @@ if (typeof window.window.__adi_equipByNameSequence !== 'function') {
       `;
 
       const bindCheck = (id, key, textOn, textOff) => {
-        const el = settingsPanel.querySelector('#' + id);
+        const el = host.querySelector('#' + id);
         if(!el || el.__adiBound) return;
         el.__adiBound = true;
         el.addEventListener('change', ()=>{
@@ -5085,7 +5073,7 @@ if (typeof window.window.__adi_equipByNameSequence !== 'function') {
         });
       };
       const bindInput = (id, key, normalize, textFn) => {
-        const el = settingsPanel.querySelector('#' + id);
+        const el = host.querySelector('#' + id);
         if(!el || el.__adiBound) return;
         el.__adiBound = true;
         const save = ()=>{
@@ -5114,7 +5102,7 @@ if (typeof window.window.__adi_equipByNameSequence !== 'function') {
       bindCheck('adi-loot-notify-heroic', 'notifyHeroic');
       bindCheck('adi-loot-notify-unique', 'notifyUnique');
       bindCheck('adi-loot-notify-common', 'notifyCommon');
-      const captchaDcEl = settingsPanel.querySelector('#adi-bot-captcha-dc');
+      const captchaDcEl = host.querySelector('#adi-bot-captcha-dc');
       if(captchaDcEl && !captchaDcEl.__adiBound){
         captchaDcEl.__adiBound = true;
         captchaDcEl.addEventListener('change', ()=>{
@@ -5128,16 +5116,6 @@ if (typeof window.window.__adi_equipByNameSequence !== 'function') {
         return n;
       }, (v)=>'Loot filter: cena minimalna ' + v);
       bindInput('adi-loot-discord-webhook', 'webhook', (v)=>String(v || '').trim());
-
-      try{
-        const saved = (localStorage.getItem('adi-bot_active_tab') || '').trim();
-        if(saved === 'settings'){
-          const allTabs = box.querySelectorAll('.adi-tab');
-          const allPanels = box.querySelectorAll('.adi-tab-content');
-          allTabs.forEach(x=>x.classList.toggle('active', x.dataset.tab === 'settings'));
-          allPanels.forEach(p=>p.classList.toggle('active', p.id === 'adi-tab-settings'));
-        }
-      }catch(_){ }
 
       return true;
     }catch(e){ console.warn('[adi-loot-ui] ensure tab failed', e); return false; }
