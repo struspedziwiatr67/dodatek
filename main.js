@@ -1495,6 +1495,87 @@ function setTempTarget(val){
   function a_getWay(x,y){ return new AStar(map.col,map.x,map.y,{x:hero.x,y:hero.y},{x:x,y:y},g.npccol).anotherFindPath(); }
   function a_goTo(x,y){ let r=a_getWay(x,y); if(Array.isArray(r)) window.road=r; }
 
+  // ===== STAN NIEAKTYWNOŚCI: wykryj overlay i wykonaj 1 krok =====
+  let __adiLastStasisBreakAt = 0;
+  const ADI_STASIS_BREAK_COOLDOWN = 2500;
+
+  function __adiDocList(){
+    const docs = [document];
+    try{
+      const iframes = document.querySelectorAll('iframe');
+      for(const fr of iframes){
+        try{
+          const d = fr.contentDocument || (fr.contentWindow && fr.contentWindow.document);
+          if(d) docs.push(d);
+        }catch(_){ }
+      }
+    }catch(_){ }
+    return docs;
+  }
+
+  function __adiIsElementVisible(el, win){
+    try{
+      if(!el) return false;
+      const w = win || window;
+      const cs = w.getComputedStyle ? w.getComputedStyle(el) : null;
+      if(!cs) return !!el.offsetParent;
+      return cs.display !== 'none' && cs.visibility !== 'hidden' && cs.opacity !== '0';
+    }catch(_){ return false; }
+  }
+
+  function __adiIsStasisActive(){
+    try{
+      for(const d of __adiDocList()){
+        const w = (d.defaultView || window);
+        const overlay = d.querySelector('#stasis-overlay');
+        if(overlay && __adiIsElementVisible(overlay, w)) return true;
+
+        const title = d.querySelector('#stasis-overlay .stasis-overlay__title');
+        if(title && /stan\s+nieaktywno[sś]ci/i.test(String(title.textContent||''))){
+          const parent = title.closest('#stasis-overlay') || title.parentElement;
+          if(parent && __adiIsElementVisible(parent, w)) return true;
+        }
+
+        const emo = d.querySelector('#hero .emo-stasis, .emo-stasis');
+        if(emo && __adiIsElementVisible(emo, w)) return true;
+      }
+    }catch(_){ }
+    return false;
+  }
+
+  function __adiTryBreakStasis(){
+    try{
+      if(!window.hero || !window.map || !map.col) return false;
+      const now = Date.now();
+      if(now - __adiLastStasisBreakAt < ADI_STASIS_BREAK_COOLDOWN) return false;
+      if(g && (g.battle || g.dead)) return false;
+      if(!__adiIsStasisActive()) return false;
+
+      const dirs = [
+        {x: 1, y: 0},
+        {x:-1, y: 0},
+        {x: 0, y: 1},
+        {x: 0, y:-1}
+      ];
+
+      for(const d of dirs){
+        const nx = hero.x + d.x;
+        const ny = hero.y + d.y;
+        if(nx < 0 || ny < 0 || nx >= map.x || ny >= map.y) continue;
+
+        const idx = nx + ny * map.x;
+        if(String(map.col || '').charAt(idx) === '1') continue;
+        if(g && g.npccol && g.npccol[nx + 256 * ny]) continue;
+
+        a_goTo(nx, ny);
+        __adiLastStasisBreakAt = now;
+        try{ message('[BOT] Wykryto stan nieaktywności — wykonuję 1 krok.'); }catch(_){ }
+        return true;
+      }
+    }catch(_){ }
+    return false;
+  }
+
   if(!localStorage.getItem("adi-bot_lastmaps")) localStorage.setItem("adi-bot_lastmaps", JSON.stringify([]));
 
   let self=this, blokada=false, blokada2=false, $m_id;
@@ -1685,6 +1766,9 @@ function setTempTarget(val){
 
     // logika ruch/atak + tryb wyczerpania
     if(!g.battle && !g.dead && start){
+      try{
+        if(__adiTryBreakStasis()) return ret;
+      }catch(_){ }
       try{ __adiAutoHealTick(); }catch(_){}
       try{ __adiE2LogoutTick(); }catch(_){ }
 
