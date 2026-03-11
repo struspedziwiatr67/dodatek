@@ -1797,6 +1797,11 @@ function setTempTarget(val){
   const __npcLastSeen = new Map(); // id -> {x,y,ts,mapName,grp,lvl,type}
   let __targetLockedUntil = 0;
 
+  // ===== E2: opóźnienie ataku po pojawieniu się celu =====
+  const E2_SPAWN_ATTACK_DELAY_MS = 3000;
+  let __e2SeenTargetId = null;
+  let __e2SeenSince = 0;
+
   function lockTarget(){ __targetLockedUntil = Date.now() + TARGET_LOCK_MS; }
   function clearTargetLock(){ __targetLockedUntil = 0; }
   function isTargetLocked(){ return !!$m_id && Date.now() < __targetLockedUntil; }
@@ -2215,9 +2220,24 @@ window.__adiE2HoldSpot = (!__e2Present && !__manualOverride && hero.x === tx && 
           }
 
           if(bestId){
+            const bestIdNum = Number(bestId);
+            const now = Date.now();
+            if(__e2SeenTargetId !== bestIdNum){
+              __e2SeenTargetId = bestIdNum;
+              __e2SeenSince = now;
+            }
+
+            if(now - __e2SeenSince < E2_SPAWN_ATTACK_DELAY_MS){
+              $m_id = undefined;
+              clearTargetLock();
+              return ret;
+            }
+
             $m_id = bestId;
             lockTarget();
           }else{
+            __e2SeenTargetId = null;
+            __e2SeenSince = 0;
             // brak E2 -> stoimy, nie szukamy innych mobów
             $m_id = undefined;
             clearTargetLock();
