@@ -177,6 +177,50 @@
   setInterval(tick, CHECK_MS);
 })();
 
+// ===== WHITE SCREEN GUARD (zorza.margonem.pl -> wait 1s and reload once) =====
+(function(){
+  const CHECK_DELAY_MS = 1000;
+  const RELOAD_FLAG = '__adi_white_screen_reload_once';
+
+  function __adi_isBlankLikeDoc(doc){
+    try{
+      if(!doc || !doc.documentElement) return false;
+      const body = doc.body;
+      if(!body) return false;
+
+      // Charakterystyczne dla zapisanego "białego ekranu": pusty <body>, brak UI gry,
+      // a w <head> siedzą skrypty strony / antybotowe.
+      const bodyText = String(body.textContent || '').replace(/\s+/g,'').trim();
+      const hasNoVisibleContent = body.children.length === 0 && bodyText === '';
+      const hasGameUi = !!doc.querySelector('#panel, #ground, #game-window, #mapa, #worldMap, #nick, #menu, #lagmeter');
+      const hasManyScripts = doc.scripts && doc.scripts.length >= 2;
+
+      return hasNoVisibleContent && !hasGameUi && hasManyScripts;
+    }catch(_){ return false; }
+  }
+
+  function __adi_whiteScreenTick(){
+    try{
+      const host = String(location.hostname || '').toLowerCase();
+      if(host !== 'zorza.margonem.pl') return;
+      if(sessionStorage.getItem(RELOAD_FLAG) === '1') return;
+      if(!__adi_isBlankLikeDoc(document)) return;
+
+      sessionStorage.setItem(RELOAD_FLAG, '1');
+      console.warn('[adi-bot] Wykryto biały ekran na zorza.margonem.pl -> odświeżam za 1s');
+      setTimeout(function(){
+        try{ location.reload(); }catch(_){ }
+      }, CHECK_DELAY_MS);
+    }catch(_){ }
+  }
+
+  if(document.readyState === 'loading'){
+    document.addEventListener('DOMContentLoaded', __adi_whiteScreenTick, { once:true });
+  }else{
+    setTimeout(__adi_whiteScreenTick, 0);
+  }
+})();
+
 var TpG3Y86zpgrtWMzb, ZHN4ekpZ5m95pFbJ, YQTtmEs6a5mTXE5a;
 
 
