@@ -2933,7 +2933,7 @@ try{ window.__adi_normTxt = __adi_normTxt; window.getPotionCountByName = getPoti
   }
 
   let __autoBuyGuard = false;
-  const CHECK_MS = 2500;
+  const CHECK_MS = 30000;
 
   setInterval(()=>{
     try{
