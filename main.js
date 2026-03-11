@@ -3143,6 +3143,37 @@ function getPotionCountByName(name){
   }
 }
 
+function __adi_canReadGoldAmount(){
+  try{
+    const el = document.querySelector('#gold');
+    if(!el) return false;
+
+    const rect = (typeof el.getBoundingClientRect === 'function') ? el.getBoundingClientRect() : null;
+    const style = window.getComputedStyle ? getComputedStyle(el) : null;
+    const visible = !!(
+      el.isConnected &&
+      (!style || (style.display !== 'none' && style.visibility !== 'hidden' && style.opacity !== '0')) &&
+      (!rect || (rect.width > 0 && rect.height > 0))
+    );
+    if(!visible) return false;
+
+    const txt = String(el.textContent || '').replace(/\s+/g, ' ').trim();
+    if(!txt) return false;
+
+    let m = txt.match(/@\s*([\d\s.,]+)/);
+    if(!m){
+      const all = [...txt.matchAll(/([\d][\d\s.,]*)/g)].map(x => x[1]).filter(Boolean);
+      if(all.length) m = [null, all[all.length - 1]];
+    }
+    if(!m || !m[1]) return false;
+
+    const digits = String(m[1]).replace(/[^\d]/g, '');
+    return !!digits;
+  }catch(_){
+    return false;
+  }
+}
+
 // expose for other parts of the bot (resume after refresh, etc.)
 try{ window.__adi_normTxt = __adi_normTxt; window.getPotionCountByName = getPotionCountByName; }catch(_){}
 
@@ -3193,6 +3224,10 @@ try{ window.__adi_normTxt = __adi_normTxt; window.getPotionCountByName = getPoti
 
       const name = getSelectedPotion();
       if(!name) return;
+
+      // Nie wykrywaj braku mikstur, jeśli panel złota nie jest dostępny / nie da się odczytać kwoty.
+      // Dzięki temu auto-zakup nie odpali w momentach, gdy UI nie pokazuje poprawnie złota.
+      if(!__adi_canReadGoldAmount()) return;
 
       const have = getPotionCountByName(name);
       if(have > 0) return; // mamy chociaż 1 -> nic nie rób
