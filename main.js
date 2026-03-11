@@ -1668,8 +1668,17 @@ function setTempTarget(val){
         if(sig!==__lastCaptchaSignature){
           __lastCaptchaSignature=sig;
           const nick=getHeroName();
-          if(info.type==="countdown"){ message(`[BOT] CAPTCHA za ${info.seconds}s`); sendDiscord(`[${nick}] Za ${info.seconds}s pojawi się CAPTCHA. Kliknij "Rozwiąż teraz".`); }
-          else { message(`[BOT] CAPTCHA aktywna`); sendDiscord(`[${nick}] CAPTCHA AKTYWNA${info.text?`: ${info.text}`:""}`); }
+          const __captchaDiscordEnabled = (()=>{
+            try{ return !!adiLoadLootCfg().notifyCaptcha; }catch(_){ return false; }
+          })();
+          if(info.type==="countdown"){
+            message(`[BOT] CAPTCHA za ${info.seconds}s`);
+            if(__captchaDiscordEnabled) sendDiscord(`[${nick}] Za ${info.seconds}s pojawi się CAPTCHA. Kliknij "Rozwiąż teraz".`);
+          }
+          else {
+            message(`[BOT] CAPTCHA aktywna`);
+            if(__captchaDiscordEnabled) sendDiscord(`[${nick}] CAPTCHA AKTYWNA${info.text?`: ${info.text}`:""}`);
+          }
         }
       }
     }catch(e){}
@@ -2933,7 +2942,7 @@ try{ window.__adi_normTxt = __adi_normTxt; window.getPotionCountByName = getPoti
   }
 
   let __autoBuyGuard = false;
-  const CHECK_MS = 2500;
+  const CHECK_MS = 30000;
 
   setInterval(()=>{
     try{
@@ -4924,7 +4933,8 @@ if (typeof window.window.__adi_equipByNameSequence !== 'function') {
       notifyLegendary: true,
       notifyHeroic: true,
       notifyUnique: true,
-      notifyCommon: false
+      notifyCommon: false,
+      notifyCaptcha: false
     };
   }
 
@@ -4946,6 +4956,7 @@ if (typeof window.window.__adi_equipByNameSequence !== 'function') {
         notifyHeroic: cfg.notifyHeroic ?? def.notifyHeroic,
         notifyUnique: cfg.notifyUnique ?? def.notifyUnique,
         notifyCommon: cfg.notifyCommon ?? def.notifyCommon,
+        notifyCaptcha: cfg.notifyCaptcha ?? def.notifyCaptcha,
       };
     }catch(_){ return adiLootDefaults(); }
   }
@@ -5052,6 +5063,7 @@ if (typeof window.window.__adi_equipByNameSequence !== 'function') {
           ${adiCheckbox('adi-loot-notify-heroic', 'Heroicznym', cfg.notifyHeroic)}
           ${adiCheckbox('adi-loot-notify-unique', 'Unikatowym', cfg.notifyUnique)}
           ${adiCheckbox('adi-loot-notify-common', 'Pospolitym', cfg.notifyCommon)}
+          ${adiCheckbox('adi-loot-notify-captcha', 'Informuj o captcha na dc', cfg.notifyCaptcha)}
         </div>
       `;
 
@@ -5096,6 +5108,7 @@ if (typeof window.window.__adi_equipByNameSequence !== 'function') {
       bindCheck('adi-loot-notify-heroic', 'notifyHeroic');
       bindCheck('adi-loot-notify-unique', 'notifyUnique');
       bindCheck('adi-loot-notify-common', 'notifyCommon');
+      bindCheck('adi-loot-notify-captcha', 'notifyCaptcha');
       bindInput('adi-loot-filter-minprice', 'minPrice', (v)=>{
         let n = parseInt(v || '0', 10);
         if(!Number.isFinite(n) || n < 0) n = 0;
