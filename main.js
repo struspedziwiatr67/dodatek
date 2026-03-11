@@ -589,7 +589,7 @@ const HERO_DISCORD_WEBHOOK = "https://discord.com/api/webhooks/14711759854948884
 
       if(!cand) return false;
 
-      const relogAtSec = Math.max(0, Math.floor(Number(cand.min) - 10)); // 10s before MIN
+      const relogAtSec = Math.max(0, Math.floor(Number(cand.min) - 20)); // 10s before MIN
       __adi_setCookie('adi_relog_at_sec', String(relogAtSec), 24*60*60);     // 1 dzień
       __adi_setCookie('adi_relog_for', String(selName), 24*60*60);
       __adi_setCookie('adi_relog_timer_id', String(cand.id||''), 24*60*60);
@@ -1798,7 +1798,7 @@ function setTempTarget(val){
   let __targetLockedUntil = 0;
 
   // ===== E2: opóźnienie ataku po pojawieniu się celu =====
-  const E2_SPAWN_ATTACK_DELAY_MS = 3000;
+  const E2_SPAWN_ATTACK_DELAY_MS = 2000;
   let __e2SeenTargetId = null;
   let __e2SeenSince = 0;
 
