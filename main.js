@@ -305,15 +305,8 @@ const HERO_DISCORD_WEBHOOK = "https://discord.com/api/webhooks/14711759854948884
   const DISCORD_FORCE_FOR_HERO = true;
   let __lastDiscordAt = 0;
   let __lastCaptchaSignature = null;
-  const CAPTCHA_DC_TOGGLE_KEY = 'adi-bot_captcha_dc';
 
   function getHeroName() { try { return hero?.nick || hero?.name || "Nieznany"; } catch { return "Nieznany"; } }
-  function isCaptchaDiscordEnabled(){
-    try{ return localStorage.getItem(CAPTCHA_DC_TOGGLE_KEY) === '1'; }catch(_){ return false; }
-  }
-  function setCaptchaDiscordEnabled(v){
-    try{ localStorage.setItem(CAPTCHA_DC_TOGGLE_KEY, v ? '1' : '0'); }catch(_){ }
-  }
 
   function sendDiscord(text, embed, { force = false, webhook = DISCORD_WEBHOOK } = {}) {
     try {
@@ -1675,14 +1668,8 @@ function setTempTarget(val){
         if(sig!==__lastCaptchaSignature){
           __lastCaptchaSignature=sig;
           const nick=getHeroName();
-          if(info.type==="countdown"){
-            message(`[BOT] CAPTCHA za ${info.seconds}s`);
-            if(isCaptchaDiscordEnabled()) sendDiscord(`[${nick}] Za ${info.seconds}s pojawi się CAPTCHA. Kliknij "Rozwiąż teraz".`);
-          }
-          else {
-            message(`[BOT] CAPTCHA aktywna`);
-            if(isCaptchaDiscordEnabled()) sendDiscord(`[${nick}] CAPTCHA AKTYWNA${info.text?`: ${info.text}`:""}`);
-          }
+          if(info.type==="countdown"){ message(`[BOT] CAPTCHA za ${info.seconds}s`); sendDiscord(`[${nick}] Za ${info.seconds}s pojawi się CAPTCHA. Kliknij "Rozwiąż teraz".`); }
+          else { message(`[BOT] CAPTCHA aktywna`); sendDiscord(`[${nick}] CAPTCHA AKTYWNA${info.text?`: ${info.text}`:""}`); }
         }
       }
     }catch(e){}
@@ -2946,7 +2933,7 @@ try{ window.__adi_normTxt = __adi_normTxt; window.getPotionCountByName = getPoti
   }
 
   let __autoBuyGuard = false;
-  const CHECK_MS = 30000;
+  const CHECK_MS = 2500;
 
   setInterval(()=>{
     try{
@@ -5018,19 +5005,31 @@ if (typeof window.window.__adi_equipByNameSequence !== 'function') {
     try{
       const box = document.getElementById('adi-bot_box');
       if(!box) return false;
-      const settingsPanel = document.getElementById('adi-tab-settings');
-      if(!settingsPanel) return false;
+      const tabs = box.querySelector('.adi-tabs');
+      const wrap = box.querySelector('.adi-tabwrap');
+      if(!tabs || !wrap) return false;
       adiEnsureLootStyle();
 
-      let host = settingsPanel.querySelector('#adi-extra-settings-host');
-      if(!host){
-        host = document.createElement('div');
-        host.id = 'adi-extra-settings-host';
-        settingsPanel.appendChild(host);
+      let settingsTabBtn = Array.from(tabs.querySelectorAll('.adi-tab')).find(x => x.dataset.tab === 'settings');
+      let settingsPanel = document.getElementById('adi-tab-settings');
+      if(!settingsTabBtn){
+        settingsTabBtn = document.createElement('div');
+        settingsTabBtn.className = 'adi-tab';
+        settingsTabBtn.dataset.tab = 'settings';
+        settingsTabBtn.textContent = 'Ustawienia';
+        const startBtn = Array.from(tabs.querySelectorAll('.adi-tab')).find(x => x.dataset.tab === 'start');
+        if(startBtn && startBtn.nextSibling) tabs.insertBefore(settingsTabBtn, startBtn.nextSibling);
+        else tabs.appendChild(settingsTabBtn);
+      }
+      if(!settingsPanel){
+        settingsPanel = document.createElement('div');
+        settingsPanel.id = 'adi-tab-settings';
+        settingsPanel.className = 'adi-tab-content';
+        wrap.appendChild(settingsPanel);
       }
 
       const cfg = adiLoadLootCfg();
-      host.innerHTML = `
+      settingsPanel.innerHTML = `
         <div class="adi-settings-section">
           <div class="adi-settings-title">Ustawienia łupu</div>
           ${adiSwitch('adi-loot-filter-enabled', 'Loot filter ON/OFF', cfg.filterEnabled)}
@@ -5054,15 +5053,10 @@ if (typeof window.window.__adi_equipByNameSequence !== 'function') {
           ${adiCheckbox('adi-loot-notify-unique', 'Unikatowym', cfg.notifyUnique)}
           ${adiCheckbox('adi-loot-notify-common', 'Pospolitym', cfg.notifyCommon)}
         </div>
-
-        <div class="adi-settings-section">
-          <div class="adi-settings-title">Captcha</div>
-          ${adiCheckbox('adi-bot-captcha-dc', 'Informuj o captcha na DC', isCaptchaDiscordEnabled())}
-        </div>
       `;
 
       const bindCheck = (id, key, textOn, textOff) => {
-        const el = host.querySelector('#' + id);
+        const el = settingsPanel.querySelector('#' + id);
         if(!el || el.__adiBound) return;
         el.__adiBound = true;
         el.addEventListener('change', ()=>{
@@ -5073,7 +5067,7 @@ if (typeof window.window.__adi_equipByNameSequence !== 'function') {
         });
       };
       const bindInput = (id, key, normalize, textFn) => {
-        const el = host.querySelector('#' + id);
+        const el = settingsPanel.querySelector('#' + id);
         if(!el || el.__adiBound) return;
         el.__adiBound = true;
         const save = ()=>{
@@ -5102,20 +5096,22 @@ if (typeof window.window.__adi_equipByNameSequence !== 'function') {
       bindCheck('adi-loot-notify-heroic', 'notifyHeroic');
       bindCheck('adi-loot-notify-unique', 'notifyUnique');
       bindCheck('adi-loot-notify-common', 'notifyCommon');
-      const captchaDcEl = host.querySelector('#adi-bot-captcha-dc');
-      if(captchaDcEl && !captchaDcEl.__adiBound){
-        captchaDcEl.__adiBound = true;
-        captchaDcEl.addEventListener('change', ()=>{
-          setCaptchaDiscordEnabled(!!captchaDcEl.checked);
-          adiLootMessage(captchaDcEl.checked ? 'Captcha na DC: WŁ' : 'Captcha na DC: WYŁ');
-        });
-      }
       bindInput('adi-loot-filter-minprice', 'minPrice', (v)=>{
         let n = parseInt(v || '0', 10);
         if(!Number.isFinite(n) || n < 0) n = 0;
         return n;
       }, (v)=>'Loot filter: cena minimalna ' + v);
       bindInput('adi-loot-discord-webhook', 'webhook', (v)=>String(v || '').trim());
+
+      try{
+        const saved = (localStorage.getItem('adi-bot_active_tab') || '').trim();
+        if(saved === 'settings'){
+          const allTabs = box.querySelectorAll('.adi-tab');
+          const allPanels = box.querySelectorAll('.adi-tab-content');
+          allTabs.forEach(x=>x.classList.toggle('active', x.dataset.tab === 'settings'));
+          allPanels.forEach(p=>p.classList.toggle('active', p.id === 'adi-tab-settings'));
+        }
+      }catch(_){ }
 
       return true;
     }catch(e){ console.warn('[adi-loot-ui] ensure tab failed', e); return false; }
