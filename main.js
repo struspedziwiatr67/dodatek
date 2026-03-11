@@ -1570,8 +1570,11 @@ function setTempTarget(val){
           if(parent && __adiIsElementVisible(parent, w)) return true;
         }
 
-        const emo = d.querySelector('#hero .emo-stasis, .emo-stasis');
-        if(emo && __adiIsElementVisible(emo, w)) return true;
+        const hero = d.querySelector('#hero');
+        if(hero){
+          const heroEmo = hero.querySelector('.emo-stasis');
+          if(heroEmo && __adiIsElementVisible(heroEmo, w)) return true;
+        }
       }
     }catch(_){ }
     return false;
