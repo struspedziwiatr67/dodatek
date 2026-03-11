@@ -1498,6 +1498,40 @@ function setTempTarget(val){
   // ===== STAN NIEAKTYWNOŚCI: wykryj overlay i wykonaj 1 krok =====
   let __adiLastStasisBreakAt = 0;
   const ADI_STASIS_BREAK_COOLDOWN = 2500;
+  let __adiStasisStepActive = false;
+  let __adiStasisUntil = 0;
+  let __adiStasisStartX = null;
+  let __adiStasisStartY = null;
+
+  function __adiClearMoveQueue(){
+    try{ window.road = []; }catch(_){ }
+  }
+
+  function __adiStartSingleStasisStep(){
+    try{
+      __adiStasisStepActive = true;
+      __adiStasisUntil = Date.now() + 1500;
+      __adiStasisStartX = Number(hero && hero.x);
+      __adiStasisStartY = Number(hero && hero.y);
+    }catch(_){ }
+  }
+
+  function __adiStopSingleStasisStep(){
+    __adiStasisStepActive = false;
+    __adiStasisUntil = 0;
+    __adiStasisStartX = null;
+    __adiStasisStartY = null;
+    __adiClearMoveQueue();
+  }
+
+  function __adiDidStasisStepMove(){
+    try{
+      if(!window.hero) return false;
+      return Number(hero.x) !== Number(__adiStasisStartX) || Number(hero.y) !== Number(__adiStasisStartY);
+    }catch(_){ }
+    return false;
+  }
+
 
   function __adiDocList(){
     const docs = [document];
@@ -1547,6 +1581,7 @@ function setTempTarget(val){
     try{
       if(!window.hero || !window.map || !map.col) return false;
       const now = Date.now();
+      if(__adiStasisStepActive) return true;
       if(now - __adiLastStasisBreakAt < ADI_STASIS_BREAK_COOLDOWN) return false;
       if(g && (g.battle || g.dead)) return false;
       if(!__adiIsStasisActive()) return false;
@@ -1567,7 +1602,9 @@ function setTempTarget(val){
         if(String(map.col || '').charAt(idx) === '1') continue;
         if(g && g.npccol && g.npccol[nx + 256 * ny]) continue;
 
+        __adiClearMoveQueue();
         a_goTo(nx, ny);
+        __adiStartSingleStasisStep();
         __adiLastStasisBreakAt = now;
         try{ message('[BOT] Wykryto stan nieaktywności — wykonuję 1 krok.'); }catch(_){ }
         return true;
@@ -1575,6 +1612,18 @@ function setTempTarget(val){
     }catch(_){ }
     return false;
   }
+
+  setInterval(()=>{
+    try{
+      if(!__adiStasisStepActive) return;
+      const overlayStillVisible = __adiIsStasisActive();
+      const moved = __adiDidStasisStepMove();
+      const timedOut = Date.now() > __adiStasisUntil;
+      if((moved && !overlayStillVisible) || timedOut){
+        __adiStopSingleStasisStep();
+      }
+    }catch(_){ }
+  }, 100)
 
   if(!localStorage.getItem("adi-bot_lastmaps")) localStorage.setItem("adi-bot_lastmaps", JSON.stringify([]));
 
@@ -1767,6 +1816,10 @@ function setTempTarget(val){
     // logika ruch/atak + tryb wyczerpania
     if(!g.battle && !g.dead && start){
       try{
+        if(__adiStasisStepActive){
+          if(!__adiIsStasisActive() && __adiDidStasisStepMove()) __adiStopSingleStasisStep();
+          return ret;
+        }
         if(__adiTryBreakStasis()) return ret;
       }catch(_){ }
       try{ __adiAutoHealTick(); }catch(_){}
