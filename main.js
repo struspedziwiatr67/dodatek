@@ -305,8 +305,15 @@ const HERO_DISCORD_WEBHOOK = "https://discord.com/api/webhooks/14711759854948884
   const DISCORD_FORCE_FOR_HERO = true;
   let __lastDiscordAt = 0;
   let __lastCaptchaSignature = null;
+  const CAPTCHA_DC_TOGGLE_KEY = 'adi-bot_captcha_dc';
 
   function getHeroName() { try { return hero?.nick || hero?.name || "Nieznany"; } catch { return "Nieznany"; } }
+  function isCaptchaDiscordEnabled(){
+    try{ return localStorage.getItem(CAPTCHA_DC_TOGGLE_KEY) === '1'; }catch(_){ return false; }
+  }
+  function setCaptchaDiscordEnabled(v){
+    try{ localStorage.setItem(CAPTCHA_DC_TOGGLE_KEY, v ? '1' : '0'); }catch(_){ }
+  }
 
   function sendDiscord(text, embed, { force = false, webhook = DISCORD_WEBHOOK } = {}) {
     try {
@@ -1668,8 +1675,14 @@ function setTempTarget(val){
         if(sig!==__lastCaptchaSignature){
           __lastCaptchaSignature=sig;
           const nick=getHeroName();
-          if(info.type==="countdown"){ message(`[BOT] CAPTCHA za ${info.seconds}s`); sendDiscord(`[${nick}] Za ${info.seconds}s pojawi się CAPTCHA. Kliknij "Rozwiąż teraz".`); }
-          else { message(`[BOT] CAPTCHA aktywna`); sendDiscord(`[${nick}] CAPTCHA AKTYWNA${info.text?`: ${info.text}`:""}`); }
+          if(info.type==="countdown"){
+            message(`[BOT] CAPTCHA za ${info.seconds}s`);
+            if(isCaptchaDiscordEnabled()) sendDiscord(`[${nick}] Za ${info.seconds}s pojawi się CAPTCHA. Kliknij "Rozwiąż teraz".`);
+          }
+          else {
+            message(`[BOT] CAPTCHA aktywna`);
+            if(isCaptchaDiscordEnabled()) sendDiscord(`[${nick}] CAPTCHA AKTYWNA${info.text?`: ${info.text}`:""}`);
+          }
         }
       }
     }catch(e){}
@@ -5053,6 +5066,11 @@ if (typeof window.window.__adi_equipByNameSequence !== 'function') {
           ${adiCheckbox('adi-loot-notify-unique', 'Unikatowym', cfg.notifyUnique)}
           ${adiCheckbox('adi-loot-notify-common', 'Pospolitym', cfg.notifyCommon)}
         </div>
+
+        <div class="adi-settings-section">
+          <div class="adi-settings-title">Captcha</div>
+          ${adiCheckbox('adi-bot-captcha-dc', 'Informuj o captcha na DC', isCaptchaDiscordEnabled())}
+        </div>
       `;
 
       const bindCheck = (id, key, textOn, textOff) => {
@@ -5096,6 +5114,14 @@ if (typeof window.window.__adi_equipByNameSequence !== 'function') {
       bindCheck('adi-loot-notify-heroic', 'notifyHeroic');
       bindCheck('adi-loot-notify-unique', 'notifyUnique');
       bindCheck('adi-loot-notify-common', 'notifyCommon');
+      const captchaDcEl = settingsPanel.querySelector('#adi-bot-captcha-dc');
+      if(captchaDcEl && !captchaDcEl.__adiBound){
+        captchaDcEl.__adiBound = true;
+        captchaDcEl.addEventListener('change', ()=>{
+          setCaptchaDiscordEnabled(!!captchaDcEl.checked);
+          adiLootMessage(captchaDcEl.checked ? 'Captcha na DC: WŁ' : 'Captcha na DC: WYŁ');
+        });
+      }
       bindInput('adi-loot-filter-minprice', 'minPrice', (v)=>{
         let n = parseInt(v || '0', 10);
         if(!Number.isFinite(n) || n < 0) n = 0;
