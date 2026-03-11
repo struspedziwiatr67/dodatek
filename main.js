@@ -2942,10 +2942,24 @@ try{ window.__adi_normTxt = __adi_normTxt; window.getPotionCountByName = getPoti
   }
 
   let __autoBuyGuard = false;
-  const CHECK_MS = 30000;
+  let __lastPotionDetectAt = 0;
+
+  function getPotionDetectMs(){
+    try{
+      const mode = (localStorage.getItem('adi-bot_exp_mode') || 'exp').trim().toLowerCase();
+      return mode === 'e2' ? 30000 : 3000;
+    }catch(_){
+      return 3000;
+    }
+  }
 
   setInterval(()=>{
     try{
+      const now = Date.now();
+      const detectMs = getPotionDetectMs();
+      if((now - __lastPotionDetectAt) < detectMs) return;
+      __lastPotionDetectAt = now;
+
       if(__autoBuyGuard) return;
       if(window.g?.battle || window.g?.dead) return;
       if(localStorage.getItem('adi-bot_potion_autobuy')!=='1') return;
@@ -2985,7 +2999,7 @@ try{ window.__adi_normTxt = __adi_normTxt; window.getPotionCountByName = getPoti
       // pozwól na kolejne sprawdzenie po krótkiej pauzie
       setTimeout(()=>{ __autoBuyGuard=false; }, 1000);
     }
-  }, CHECK_MS);
+  }, 1000);
 })();
 
 // TRYB ZBIJANIA WYCZERPANIA
