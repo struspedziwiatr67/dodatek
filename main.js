@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Bot na exp (iframe-aware exhaustion + throttling + captcha->Discord + ping-pong trasy + only-selected-maps + elite toggle + group-size filter + heros->Discord + obrazki + fixy map/lvl/wt/grupy + FOW cache)
-// @version      2.17.4-customroutes
+// @version      2.17.5-customroutes
 // @description  Bot z przechodzeniem map, anty-spam ataku, captcha->Discord, START/STOP, zbijanie wyczerpania, atak tylko na wybranych mapach, elity toggle, filtr grup, powiadomienia o herosach (bez Namiotu Tropicieli Herosów), normalizacja nazw map, odporne parsowanie lvli, poprawki 'wt', stabilny wybór grup przy mgle (cache max rozmiaru grupy)
 // @match        *://*/
 // @match        *://www.margonem.pl/*
@@ -75,6 +75,63 @@
     __adi_installGuard();
     if(window.__adi_eliteGuardInstalled || tries > 60) clearInterval(intId); // ~30s
   }, 500);
+})();
+
+// ===== 429 / Too Many Requests black-screen auto refresh =====
+(function(){
+  const CHECK_MS = 300;
+  const RELOAD_DELAY_MS = 1000;
+  const RELOAD_COOLDOWN_MS = 15000;
+
+  function isMargonemHost(){
+    try{ return /(?:^|\.)margonem\.pl$/i.test(String(location.hostname||'')); }catch(_){ return false; }
+  }
+
+  function getNow(){
+    try{ return Date.now(); }catch(_){ return new Date().getTime(); }
+  }
+
+  function getLastReloadAt(){
+    try{ return parseInt(sessionStorage.getItem('adi-bot_tmr_last_reload_at') || '0', 10) || 0; }catch(_){ return 0; }
+  }
+
+  function setLastReloadAt(ts){
+    try{ sessionStorage.setItem('adi-bot_tmr_last_reload_at', String(ts || getNow())); }catch(_){ }
+  }
+
+  function isTooManyRequestsScreen(doc){
+    try{
+      if(!doc || !doc.body) return false;
+      const pre = doc.querySelector('body > pre, pre');
+      const txt = String((pre && pre.textContent) || doc.body.innerText || doc.body.textContent || '').trim();
+      if(!txt) return false;
+      if(/^Too Many Requests$/i.test(txt)) return true;
+      return /^Too Many Requests\b/i.test(txt);
+    }catch(_){ return false; }
+  }
+
+  function doReload(){
+    try{ location.reload(); return; }catch(_){ }
+    try{ history.go(0); }catch(_){ }
+  }
+
+  function tick(){
+    try{
+      if(!isMargonemHost()) return;
+      if(!isTooManyRequestsScreen(document)) return;
+
+      const last = getLastReloadAt();
+      const now = getNow();
+      if(now - last < RELOAD_COOLDOWN_MS) return;
+
+      setLastReloadAt(now);
+      console.warn('[adi-bot] Wykryto czarny ekran "Too Many Requests" -> odświeżam za 1s');
+      setTimeout(doReload, RELOAD_DELAY_MS);
+    }catch(_){ }
+  }
+
+  setInterval(tick, CHECK_MS);
+  setTimeout(tick, 250);
 })();
 
 // ===== UI GUARD: auto-switch to OLD interface when NEW interface is detected =====
