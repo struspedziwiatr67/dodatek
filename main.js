@@ -366,7 +366,7 @@ const HERO_DISCORD_WEBHOOK = "https://discord.com/api/webhooks/14711759854948884
   // Docelowo licznik globalny dla wielu userów powinien iść przez wspólne API + bazę.
   const E2_COUNTER_API_URL = ""; // np. https://twoj-serwer.pl/api/e2/kill
   const E2_COUNTER_API_TOKEN = ""; // Bearer token do wspólnego API
-  const E2_COUNTER_WEBHOOK = "https://discord.com/api/webhooks/1385999505614176316/LAa95P0FErwVyGsm9KFzqtIepLUV3ZGejNRfLyuwrOKA6mMWWFZPS1Ux6TKyjVtf2WXw";
+  const E2_COUNTER_WEBHOOK = "https://discord.com/api/webhooks/1481440566968451143/bGYUzNu2p_X2uD9RwSsi6UYOt4363wq5iDNHIkStqO51gsK1KhSkqLhCecpGe28oVIPC";
   const E2_COUNTER_DEDUPE_MS = 45000;
   const E2_COUNTER_LOCAL_LOG_KEY = 'adi-bot_e2_counter_local_log_v1';
   const E2_COUNTER_LAST_SIG_KEY = 'adi-bot_e2_counter_last_sig_v1';
