@@ -426,7 +426,8 @@ const HERO_DISCORD_WEBHOOK = "https://discord.com/api/webhooks/14711759854948884
     bossName:'',
     bossMap:'',
     startedAt:0,
-    reported:false
+    reported:false,
+    heroName:''
   };
 
   function __adi_normName(s){
@@ -447,6 +448,70 @@ const HERO_DISCORD_WEBHOOK = "https://discord.com/api/webhooks/14711759854948884
       const el = document.querySelector('#adi-bot_e2_list');
       return (el && el.value) ? String(el.value) : '';
     }catch(_){ return ''; }
+  }
+
+
+  function __adi_stripBattleSideName(s){
+    try{
+      return String(s||'')
+        .replace(/\([^)]*\)\s*$/,'')
+        .replace(/\[[^\]]*\]\s*$/,'')
+        .replace(/\s+/g,' ')
+        .trim();
+    }catch(_){ return String(s||'').trim(); }
+  }
+
+  function __adi_parseBattleStartSides(rawMsg){
+    try{
+      const msg = String(rawMsg || '');
+      const marker = 'txt=Rozpoczęła się walka pomiędzy ';
+      const idx = msg.indexOf(marker);
+      if(idx < 0) return null;
+      const rest = msg.slice(idx + marker.length).trim();
+      const m = rest.match(/^(.*?)\s+a\s+(.*)$/i);
+      if(!m) return null;
+      const left = __adi_stripBattleSideName(m[1]);
+      const right = __adi_stripBattleSideName(m[2]);
+      if(!left || !right) return null;
+      return { left, right };
+    }catch(_){ return null; }
+  }
+
+  function __adi_trackE2FightFromBattleString(rawMsg){
+    try{
+      const sides = __adi_parseBattleStartSides(rawMsg);
+      if(!sides) return false;
+
+      const selectedRaw = __adi_getSelectedE2Name();
+      const selected = __adi_normName(selectedRaw);
+      if(!selected) { __adi_resetTrackedE2Fight(); return false; }
+
+      const leftNorm = __adi_normName(sides.left);
+      const rightNorm = __adi_normName(sides.right);
+      const heroNorm = __adi_normName(getHeroName());
+
+      const leftIsBoss = leftNorm === selected;
+      const rightIsBoss = rightNorm === selected;
+      const leftIsHero = heroNorm && leftNorm === heroNorm;
+      const rightIsHero = heroNorm && rightNorm === heroNorm;
+
+      if((leftIsBoss && rightIsHero) || (rightIsBoss && leftIsHero)){
+        __adiE2CounterFight.active = true;
+        __adiE2CounterFight.bossName = leftIsBoss ? sides.left : sides.right;
+        __adiE2CounterFight.bossMap = (window.map && map.name) || '';
+        __adiE2CounterFight.startedAt = Date.now();
+        __adiE2CounterFight.reported = false;
+        __adiE2CounterFight.heroName = getHeroName();
+        return true;
+      }
+
+      __adi_resetTrackedE2Fight();
+      return false;
+    }catch(err){
+      console.warn('[adi-bot] __adi_trackE2FightFromBattleString exception:', err);
+      __adi_resetTrackedE2Fight();
+      return false;
+    }
   }
 
   function __adi_loadE2Target(){
@@ -632,6 +697,7 @@ const HERO_DISCORD_WEBHOOK = "https://discord.com/api/webhooks/14711759854948884
     __adiE2CounterFight.bossMap = '';
     __adiE2CounterFight.startedAt = 0;
     __adiE2CounterFight.reported = false;
+    __adiE2CounterFight.heroName = '';
   }
 
   function __adi_handleTrackedE2BattleEnd(rawMsg){
@@ -639,6 +705,14 @@ const HERO_DISCORD_WEBHOOK = "https://discord.com/api/webhooks/14711759854948884
       if(!__adiE2CounterFight.active || __adiE2CounterFight.reported) return;
       const msg = String(rawMsg || '');
       if(msg.indexOf('winner=') < 0) return;
+
+      const winnerName = __adi_stripBattleSideName(msg.split('winner=').pop() || '');
+      const winnerNorm = __adi_normName(winnerName);
+      const heroNorm = __adi_normName(__adiE2CounterFight.heroName || getHeroName());
+      if(!winnerNorm || !heroNorm || winnerNorm !== heroNorm){
+        __adi_resetTrackedE2Fight();
+        return;
+      }
 
       __adiE2CounterFight.reported = true;
       const bossName = __adiE2CounterFight.bossName || __adi_getSelectedE2Name() || '';
@@ -4270,22 +4344,28 @@ try{
 
         if(__mode === "e2"){
           const selectedE2 = __adi_normName(__adi_getSelectedE2Name());
+          const heroNorm = __adi_normName(getHeroName());
           if(selectedE2){
             let matchedName = '';
+            let heroFound = false;
             for(let i=0;i<units.length;i++){
               const u = units[i] || {};
-              const unitName = __adi_normName(u.nick || u.name || u.n || '');
+              const rawName = String(u.nick || u.name || u.n || '').trim();
+              const unitName = __adi_normName(rawName);
               if(unitName && unitName === selectedE2){
-                matchedName = String(u.nick || u.name || u.n || __adi_getSelectedE2Name() || '').trim();
-                break;
+                matchedName = rawName || __adi_getSelectedE2Name() || '';
+              }
+              if(heroNorm && unitName && unitName === heroNorm){
+                heroFound = true;
               }
             }
-            if(matchedName){
+            if(matchedName && heroFound){
               __adiE2CounterFight.active = true;
               __adiE2CounterFight.bossName = matchedName;
               __adiE2CounterFight.bossMap = (window.map && map.name) || '';
               __adiE2CounterFight.startedAt = Date.now();
               __adiE2CounterFight.reported = false;
+              __adiE2CounterFight.heroName = getHeroName();
             }else{
               __adi_resetTrackedE2Fight();
             }
@@ -4321,9 +4401,14 @@ try{
     var oldBattleMsgAFC=window.battleMsg;
     window.battleMsg=function(c,t){
       var ret=oldBattleMsgAFC.apply(this, arguments);
-      if(typeof c==="string" && c.indexOf("winner=")>=0){
-        try{ __adi_handleTrackedE2BattleEnd(c); }catch(e){}
-        var btn=document.querySelector("#battleclose"); if(btn) btn.click();
+      if(typeof c==="string"){
+        if(c.indexOf("txt=Rozpoczęła się walka pomiędzy ")>=0){
+          try{ __adi_trackE2FightFromBattleString(c); }catch(e){}
+        }
+        if(c.indexOf("winner=")>=0){
+          try{ __adi_handleTrackedE2BattleEnd(c); }catch(e){}
+          var btn=document.querySelector("#battleclose"); if(btn) btn.click();
+        }
       }
       if(typeof c==="object" && c && c.init===1){
         __lastAttackTime=0; __lastAttackTarget=null;
