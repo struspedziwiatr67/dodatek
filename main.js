@@ -543,24 +543,18 @@ const HERO_DISCORD_WEBHOOK = "https://discord.com/api/webhooks/14711759854948884
 
   function __adi_buildE2CounterEmbed(data){
     try{
-      const countDate = new Date(Number(data.ts) || Date.now()).toISOString().slice(0, 10);
-      const heroNick = String(data.heroName || getHeroName() || 'Nieznany');
-      const thumb = data.thumbUrl ? { url: data.thumbUrl } : undefined;
+      const uniqueLoots = Number(data && data.uniqueLoots) || 0;
+      const heroicLoots = Number(data && data.heroicLoots) || 0;
+      const legendaryLoots = Number(data && data.legendaryLoots) || 0;
+      const kills = Number(data && data.totalKills) || 1;
       return {
         title: String(data.bossName || 'E2'),
-        description: 'Nowe zgłoszenie ubicia E2',
         color: 2236962,
-        fields: [
-          { name: 'Ubić', value: '1', inline: true },
-          { name: 'Gracz', value: heroNick, inline: true },
-          { name: 'Świat', value: String(data.world || __adi_getWorldName()), inline: true },
-          { name: 'Mapa', value: String(data.bossMap || (window.map && map.name) || '-'), inline: true },
-          { name: 'Powód', value: String(data.reason || 'battle_end'), inline: true },
-          { name: 'Liczone od', value: countDate, inline: true }
-        ],
-        thumbnail: thumb,
-        footer: { text: 'Fallback log z klienta – licznik globalny ustaw po stronie API' },
-        timestamp: new Date(Number(data.ts) || Date.now()).toISOString()
+        description:
+          `Ubić: ${kills}\n` +
+          `Looty unikatowe: ${uniqueLoots}\n` +
+          `Looty heroiczne: ${heroicLoots}\n` +
+          `Looty legendarne: ${legendaryLoots}`
       };
     }catch(_){ return null; }
   }
@@ -613,11 +607,10 @@ const HERO_DISCORD_WEBHOOK = "https://discord.com/api/webhooks/14711759854948884
         const webhook = __adi_getE2CounterWebhook();
         if(webhook){
           const embed = __adi_buildE2CounterEmbed(payload);
-          const content = `E2 kill: ${payload.bossName} | ${payload.heroName} | ${payload.bossMap}`;
           fetch(webhook, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(embed ? { content, embeds:[embed] } : { content })
+            body: JSON.stringify(embed ? { embeds:[embed] } : { content: String(payload.bossName || 'E2') })
           }).then(res => { if(!res.ok) console.warn('[adi-bot] E2 counter webhook HTTP', res.status); })
             .catch(err => console.warn('[adi-bot] E2 counter webhook error:', err));
           sent = true;
