@@ -868,6 +868,16 @@
     },
     {
       "to": "czelusc ognistej pozogi"
+    },
+    {
+      "to": "dom aukcyjny",
+      "via": {
+        "x": 34,
+        "y": 28
+      }
+    },
+    {
+      "to": "dom aukcyjny"
     }
   ],
   "jaskinia gnollich szamanow p.1": [
@@ -4233,6 +4243,18 @@
   "chata wojta fistuły p.1": [
     {
       "to": "chata wojta fistuły"
+    }
+  ],
+  "dom aukcyjny": [
+    {
+      "to": "ithan"
+    },
+    {
+      "to": "ithan",
+      "via": {
+        "x": 24,
+        "y": 13
+      }
     }
   ]
 }
