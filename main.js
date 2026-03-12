@@ -360,19 +360,6 @@ const HERO_DISCORD_WEBHOOK = "https://discord.com/api/webhooks/14711759854948884
   const DISCORD_PING_HERE = true;
   const DISCORD_COOLDOWN_MS = 20000;
   const DISCORD_FORCE_FOR_HERO = true;
-
-  // ---------- E2 COUNTER CONFIG ----------
-  // Uwaga: webhook do licznika najlepiej traktować jako awaryjny kanał logów.
-  // Docelowo licznik globalny dla wielu userów powinien iść przez wspólne API + bazę.
-  const E2_COUNTER_API_URL = ""; // np. https://twoj-serwer.pl/api/e2/kill
-  const E2_COUNTER_API_TOKEN = ""; // Bearer token do wspólnego API
-  const E2_COUNTER_WEBHOOK = "https://discord.com/api/webhooks/1481440566968451143/bGYUzNu2p_X2uD9RwSsi6UYOt4363wq5iDNHIkStqO51gsK1KhSkqLhCecpGe28oVIPC";
-  const E2_COUNTER_DEDUPE_MS = 45000;
-  const E2_COUNTER_LOCAL_LOG_KEY = 'adi-bot_e2_counter_local_log_v1';
-  const E2_COUNTER_LAST_SIG_KEY = 'adi-bot_e2_counter_last_sig_v1';
-  const E2_COUNTER_LAST_AT_KEY = 'adi-bot_e2_counter_last_at_v1';
-  const E2_COUNTER_CARD_STORE_KEY = 'adi-bot_e2_counter_cards_v1';
-
   let __lastDiscordAt = 0;
   let __lastCaptchaSignature = null;
 
@@ -416,18 +403,7 @@ const HERO_DISCORD_WEBHOOK = "https://discord.com/api/webhooks/14711759854948884
     lastSig:null,
     inBattle:false,
     lastBattleEnd:0,
-    lastBattleStart:0,
-    lastKillReportAt:0,
-    lastKillReportSig:null
-  };
-
-  let __adiE2CounterFight = {
-    active:false,
-    bossName:'',
-    bossMap:'',
-    startedAt:0,
-    reported:false,
-    heroName:''
+    lastBattleStart:0
   };
 
   function __adi_normName(s){
@@ -448,70 +424,6 @@ const HERO_DISCORD_WEBHOOK = "https://discord.com/api/webhooks/14711759854948884
       const el = document.querySelector('#adi-bot_e2_list');
       return (el && el.value) ? String(el.value) : '';
     }catch(_){ return ''; }
-  }
-
-
-  function __adi_stripBattleSideName(s){
-    try{
-      return String(s||'')
-        .replace(/\([^)]*\)\s*$/,'')
-        .replace(/\[[^\]]*\]\s*$/,'')
-        .replace(/\s+/g,' ')
-        .trim();
-    }catch(_){ return String(s||'').trim(); }
-  }
-
-  function __adi_parseBattleStartSides(rawMsg){
-    try{
-      const msg = String(rawMsg || '');
-      const marker = 'txt=Rozpoczęła się walka pomiędzy ';
-      const idx = msg.indexOf(marker);
-      if(idx < 0) return null;
-      const rest = msg.slice(idx + marker.length).trim();
-      const m = rest.match(/^(.*?)\s+a\s+(.*)$/i);
-      if(!m) return null;
-      const left = __adi_stripBattleSideName(m[1]);
-      const right = __adi_stripBattleSideName(m[2]);
-      if(!left || !right) return null;
-      return { left, right };
-    }catch(_){ return null; }
-  }
-
-  function __adi_trackE2FightFromBattleString(rawMsg){
-    try{
-      const sides = __adi_parseBattleStartSides(rawMsg);
-      if(!sides) return false;
-
-      const selectedRaw = __adi_getSelectedE2Name();
-      const selected = __adi_normName(selectedRaw);
-      if(!selected) { __adi_resetTrackedE2Fight(); return false; }
-
-      const leftNorm = __adi_normName(sides.left);
-      const rightNorm = __adi_normName(sides.right);
-      const heroNorm = __adi_normName(getHeroName());
-
-      const leftIsBoss = leftNorm === selected;
-      const rightIsBoss = rightNorm === selected;
-      const leftIsHero = heroNorm && leftNorm === heroNorm;
-      const rightIsHero = heroNorm && rightNorm === heroNorm;
-
-      if((leftIsBoss && rightIsHero) || (rightIsBoss && leftIsHero)){
-        __adiE2CounterFight.active = true;
-        __adiE2CounterFight.bossName = leftIsBoss ? sides.left : sides.right;
-        __adiE2CounterFight.bossMap = (window.map && map.name) || '';
-        __adiE2CounterFight.startedAt = Date.now();
-        __adiE2CounterFight.reported = false;
-        __adiE2CounterFight.heroName = getHeroName();
-        return true;
-      }
-
-      __adi_resetTrackedE2Fight();
-      return false;
-    }catch(err){
-      console.warn('[adi-bot] __adi_trackE2FightFromBattleString exception:', err);
-      __adi_resetTrackedE2Fight();
-      return false;
-    }
   }
 
   function __adi_loadE2Target(){
@@ -545,275 +457,6 @@ const HERO_DISCORD_WEBHOOK = "https://discord.com/api/webhooks/14711759854948884
 
   function __adi_distManhattan(x1,y1,x2,y2){
     try{ return Math.abs((x1|0)-(x2|0)) + Math.abs((y1|0)-(y2|0)); }catch(_){ return 9999; }
-  }
-
-  function __adi_getWorldName(){
-    try{
-      if(window.g && g.worldname) return String(g.worldname);
-      return String(location.hostname || '').replace(/^www\./i,'');
-    }catch(_){ return 'unknown'; }
-  }
-
-  function __adi_getE2CounterApiUrl(){
-    try{
-      const ls = (localStorage.getItem('adi-bot_e2_counter_api_url') || '').trim();
-      return ls || E2_COUNTER_API_URL;
-    }catch(_){ return E2_COUNTER_API_URL; }
-  }
-
-  function __adi_getE2CounterApiToken(){
-    try{
-      const ls = (localStorage.getItem('adi-bot_e2_counter_api_token') || '').trim();
-      return ls || E2_COUNTER_API_TOKEN;
-    }catch(_){ return E2_COUNTER_API_TOKEN; }
-  }
-
-  function __adi_getE2CounterWebhook(){
-    try{
-      const ls = (localStorage.getItem('adi-bot_e2_counter_webhook') || '').trim();
-      return ls || E2_COUNTER_WEBHOOK;
-    }catch(_){ return E2_COUNTER_WEBHOOK; }
-  }
-
-  function __adi_isE2CounterEnabled(){
-    try{
-      const v = localStorage.getItem('adi-bot_e2_counter_enabled');
-      return v == null ? true : v === '1';
-    }catch(_){ return true; }
-  }
-
-  function __adi_makeE2KillSignature(data){
-    try{
-      const boss = __adi_normName(data && data.bossName);
-      const bossMap = __adi_normName(data && data.bossMap);
-      const world = __adi_normName(data && data.world);
-      const bucket = Math.floor((Number(data && data.ts) || Date.now()) / E2_COUNTER_DEDUPE_MS);
-      return [boss, bossMap, world, bucket].join('|');
-    }catch(_){ return ''; }
-  }
-
-  function __adi_shouldReportE2Kill(sig){
-    try{
-      if(!sig) return false;
-      const lastSig = localStorage.getItem(E2_COUNTER_LAST_SIG_KEY) || '';
-      const lastAt = parseInt(localStorage.getItem(E2_COUNTER_LAST_AT_KEY) || '0', 10) || 0;
-      const now = Date.now();
-      if(lastSig === sig && (now - lastAt) < E2_COUNTER_DEDUPE_MS) return false;
-      localStorage.setItem(E2_COUNTER_LAST_SIG_KEY, sig);
-      localStorage.setItem(E2_COUNTER_LAST_AT_KEY, String(now));
-      return true;
-    }catch(_){ return true; }
-  }
-
-  function __adi_appendLocalE2CounterLog(entry){
-    try{
-      const raw = localStorage.getItem(E2_COUNTER_LOCAL_LOG_KEY) || '[]';
-      const arr = JSON.parse(raw);
-      arr.push(entry);
-      while(arr.length > 200) arr.shift();
-      localStorage.setItem(E2_COUNTER_LOCAL_LOG_KEY, JSON.stringify(arr));
-    }catch(_){ }
-  }
-
-  function __adi_loadE2CounterCards(){
-    try{
-      const raw = localStorage.getItem(E2_COUNTER_CARD_STORE_KEY) || '{}';
-      const obj = JSON.parse(raw);
-      return (obj && typeof obj === 'object') ? obj : {};
-    }catch(_){ return {}; }
-  }
-
-  function __adi_saveE2CounterCards(obj){
-    try{ localStorage.setItem(E2_COUNTER_CARD_STORE_KEY, JSON.stringify(obj || {})); }catch(_){ }
-  }
-
-  function __adi_getE2CardKey(bossName){
-    try{ return __adi_normName(bossName || 'e2'); }catch(_){ return String(bossName || 'e2'); }
-  }
-
-  async function __adi_upsertE2CounterWebhookCard(payload){
-    try{
-      const webhook = __adi_getE2CounterWebhook();
-      if(!webhook) return false;
-
-      const bossName = String((payload && payload.bossName) || 'E2').trim();
-      const key = __adi_getE2CardKey(bossName);
-      const cards = __adi_loadE2CounterCards();
-      const card = cards[key] || {
-        bossName,
-        totalKills: 0,
-        uniqueLoots: 0,
-        heroicLoots: 0,
-        legendaryLoots: 0,
-        messageId: ''
-      };
-
-      card.bossName = bossName;
-      card.totalKills = Math.max(0, Number(card.totalKills) || 0) + 1;
-      card.uniqueLoots = Math.max(0, Number(card.uniqueLoots) || 0);
-      card.heroicLoots = Math.max(0, Number(card.heroicLoots) || 0);
-      card.legendaryLoots = Math.max(0, Number(card.legendaryLoots) || 0);
-
-      const embed = __adi_buildE2CounterEmbed(card);
-      const body = JSON.stringify(embed ? { embeds:[embed] } : { content: bossName });
-
-      if(card.messageId){
-        try{
-          const patchRes = await fetch(`${webhook}/messages/${card.messageId}`, {
-            method: 'PATCH',
-            headers: { 'Content-Type': 'application/json' },
-            body
-          });
-          if(!patchRes.ok) throw new Error('HTTP ' + patchRes.status);
-          cards[key] = card;
-          __adi_saveE2CounterCards(cards);
-          return true;
-        }catch(err){
-          console.warn('[adi-bot] E2 counter PATCH error:', err);
-          card.messageId = '';
-        }
-      }
-
-      const postRes = await fetch(`${webhook}?wait=true`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body
-      });
-      if(!postRes.ok) throw new Error('HTTP ' + postRes.status);
-      const msg = await postRes.json().catch(()=>null);
-      card.messageId = String((msg && msg.id) || '');
-      cards[key] = card;
-      __adi_saveE2CounterCards(cards);
-      return true;
-    }catch(err){
-      console.warn('[adi-bot] E2 counter webhook upsert exception:', err);
-      return false;
-    }
-  }
-
-  function __adi_resetTrackedE2Fight(){
-    __adiE2CounterFight.active = false;
-    __adiE2CounterFight.bossName = '';
-    __adiE2CounterFight.bossMap = '';
-    __adiE2CounterFight.startedAt = 0;
-    __adiE2CounterFight.reported = false;
-    __adiE2CounterFight.heroName = '';
-  }
-
-  function __adi_handleTrackedE2BattleEnd(rawMsg){
-    try{
-      if(!__adiE2CounterFight.active || __adiE2CounterFight.reported) return;
-      const msg = String(rawMsg || '');
-      if(msg.indexOf('winner=') < 0) return;
-
-      const winnerName = __adi_stripBattleSideName(msg.split('winner=').pop() || '');
-      const winnerNorm = __adi_normName(winnerName);
-      const heroNorm = __adi_normName(__adiE2CounterFight.heroName || getHeroName());
-      if(!winnerNorm || !heroNorm || winnerNorm !== heroNorm){
-        __adi_resetTrackedE2Fight();
-        return;
-      }
-
-      __adiE2CounterFight.reported = true;
-      const bossName = __adiE2CounterFight.bossName || __adi_getSelectedE2Name() || '';
-      const bossMap = __adiE2CounterFight.bossMap || ((window.map && map.name) || '');
-
-      setTimeout(function(){
-        try{
-          if(window.g && g.dead) return;
-          __adi_reportE2Kill({
-            bossName: bossName,
-            bossMap: bossMap,
-            heroName: getHeroName(),
-            heroLvl: (window.hero && hero.lvl) || 0,
-            world: __adi_getWorldName(),
-            reason: 'battle_confirmed',
-            ts: Date.now()
-          });
-        }finally{
-          __adi_resetTrackedE2Fight();
-        }
-      }, 150);
-    }catch(err){
-      console.warn('[adi-bot] __adi_handleTrackedE2BattleEnd exception:', err);
-      __adi_resetTrackedE2Fight();
-    }
-  }
-
-  function __adi_buildE2CounterEmbed(data){
-    try{
-      const uniqueLoots = Number(data && data.uniqueLoots) || 0;
-      const heroicLoots = Number(data && data.heroicLoots) || 0;
-      const legendaryLoots = Number(data && data.legendaryLoots) || 0;
-      const kills = Number(data && data.totalKills) || 1;
-      return {
-        title: String(data.bossName || 'E2'),
-        color: 2236962,
-        description:
-          `Ubić: ${kills}\n` +
-          `Looty unikatowe: ${uniqueLoots}\n` +
-          `Looty heroiczne: ${heroicLoots}\n` +
-          `Looty legendarne: ${legendaryLoots}`
-      };
-    }catch(_){ return null; }
-  }
-
-  async function __adi_reportE2Kill(data){
-    try{
-      if(!__adi_isE2CounterEnabled()) return false;
-      const payload = {
-        bossName: String((data && data.bossName) || __adi_getSelectedE2Name() || '').trim(),
-        bossMap: String((data && data.bossMap) || (window.map && map.name) || '').trim(),
-        heroName: String((data && data.heroName) || getHeroName() || '').trim(),
-        heroLvl: Number((data && data.heroLvl) || (window.hero && hero.lvl) || 0),
-        world: String((data && data.world) || __adi_getWorldName() || '').trim(),
-        reason: String((data && data.reason) || 'battle_end').trim(),
-        ts: Number((data && data.ts) || Date.now()),
-        selectedE2: String(__adi_getSelectedE2Name() || '').trim()
-      };
-
-      if(!payload.bossName) return false;
-
-      const sig = __adi_makeE2KillSignature(payload);
-      if(!__adi_shouldReportE2Kill(sig)){
-        console.log('[adi-bot] E2 counter dedupe -> pomijam duplikat', sig);
-        return false;
-      }
-
-      __adi_appendLocalE2CounterLog({ ...payload, sig });
-
-      const apiUrl = __adi_getE2CounterApiUrl();
-      const apiToken = __adi_getE2CounterApiToken();
-      let sent = false;
-
-      if(apiUrl){
-        try{
-          const headers = { 'Content-Type': 'application/json' };
-          if(apiToken) headers['Authorization'] = `Bearer ${apiToken}`;
-          const res = await fetch(apiUrl, {
-            method: 'POST',
-            headers,
-            body: JSON.stringify(payload)
-          });
-          if(!res.ok) throw new Error('HTTP ' + res.status);
-          sent = true;
-        }catch(err){
-          console.warn('[adi-bot] E2 counter API error:', err);
-        }
-      }
-
-      if(!sent){
-        sent = await __adi_upsertE2CounterWebhookCard(payload);
-      }
-
-      if(sent){
-        console.log('[adi-bot] Zgłoszono ubicie E2:', payload);
-      }
-      return sent;
-    }catch(err){
-      console.warn('[adi-bot] __adi_reportE2Kill exception:', err);
-      return false;
-    }
   }
 
   function __adi_clickLogout(){
@@ -4339,43 +3982,11 @@ try{
     function __adi_onBattleInit(initObj){
       try{
         const __mode = (localStorage.getItem("adi-bot_exp_mode") || "exp").trim();
+        if(__mode === "e2") return; // w trybie E2 checkbox elity jest ignorowany
+        if(localStorage.getItem("adi-bot_allow_elite")!=="0") return;
+
         const units=[];
         __adi_collectBattleUnits(initObj, units, 0);
-
-        if(__mode === "e2"){
-          const selectedE2 = __adi_normName(__adi_getSelectedE2Name());
-          const heroNorm = __adi_normName(getHeroName());
-          if(selectedE2){
-            let matchedName = '';
-            let heroFound = false;
-            for(let i=0;i<units.length;i++){
-              const u = units[i] || {};
-              const rawName = String(u.nick || u.name || u.n || '').trim();
-              const unitName = __adi_normName(rawName);
-              if(unitName && unitName === selectedE2){
-                matchedName = rawName || __adi_getSelectedE2Name() || '';
-              }
-              if(heroNorm && unitName && unitName === heroNorm){
-                heroFound = true;
-              }
-            }
-            if(matchedName && heroFound){
-              __adiE2CounterFight.active = true;
-              __adiE2CounterFight.bossName = matchedName;
-              __adiE2CounterFight.bossMap = (window.map && map.name) || '';
-              __adiE2CounterFight.startedAt = Date.now();
-              __adiE2CounterFight.reported = false;
-              __adiE2CounterFight.heroName = getHeroName();
-            }else{
-              __adi_resetTrackedE2Fight();
-            }
-          }else{
-            __adi_resetTrackedE2Fight();
-          }
-          return;
-        }
-
-        if(localStorage.getItem("adi-bot_allow_elite")!=="0") return;
 
         let hasElite=false;
         for(let i=0;i<units.length;i++){
@@ -4401,15 +4012,7 @@ try{
     var oldBattleMsgAFC=window.battleMsg;
     window.battleMsg=function(c,t){
       var ret=oldBattleMsgAFC.apply(this, arguments);
-      if(typeof c==="string"){
-        if(c.indexOf("txt=Rozpoczęła się walka pomiędzy ")>=0){
-          try{ __adi_trackE2FightFromBattleString(c); }catch(e){}
-        }
-        if(c.indexOf("winner=")>=0){
-          try{ __adi_handleTrackedE2BattleEnd(c); }catch(e){}
-          var btn=document.querySelector("#battleclose"); if(btn) btn.click();
-        }
-      }
+      if(typeof c==="string" && c.indexOf("winner=")>=0){ var btn=document.querySelector("#battleclose"); if(btn) btn.click(); }
       if(typeof c==="object" && c && c.init===1){
         __lastAttackTime=0; __lastAttackTarget=null;
         try{ __adi_onBattleInit(c); }catch(e){}
@@ -6197,3 +5800,237 @@ if (typeof window.window.__adi_equipByNameSequence !== 'function') {
   if(document.readyState === 'complete' || document.readyState === 'interactive') setTimeout(adiBootLootPatch, 300);
   else document.addEventListener('DOMContentLoaded', ()=>setTimeout(adiBootLootPatch, 300));
 })();
+
+// ===== E2 COUNTER -> Discord (single message per boss, persisted in localStorage) =====
+(function(){
+  const E2_DISCORD_WEBHOOK = "https://discord.com/api/webhooks/1481440566968451143/bGYUzNu2p_X2uD9RwSsi6UYOt4363wq5iDNHIkStqO51gsK1KhSkqLhCecpGe28oVIPC";
+  const E2_STATS_KEY = 'adi-e2-counter-stats-v2';
+  const E2_MSG_IDS_KEY = 'adi-e2-counter-msgids-v2';
+  const E2_BATTLE_STATE_KEY = 'adi-e2-counter-battle-v2';
+  const E2_LAST_KILL_KEY = 'adi-e2-counter-lastkill-v2';
+  const E2_DEDUPE_MS = 15000;
+
+  function e2Norm(s){
+    return String(s||'')
+      .toLowerCase()
+      .normalize('NFKD').replace(/[\u0300-\u036f]/g,'')
+      .replace(/\u00A0/g,' ')
+      .replace(/[^a-z0-9ąćęłńóśźż]+/gi,' ')
+      .replace(/\s+/g,' ')
+      .trim();
+  }
+
+  function e2Load(key, fallback){
+    try{
+      const raw = localStorage.getItem(key);
+      return raw ? JSON.parse(raw) : fallback;
+    }catch(_){ return fallback; }
+  }
+
+  function e2Save(key, value){
+    try{ localStorage.setItem(key, JSON.stringify(value)); }catch(_){ }
+  }
+
+  let e2Stats = e2Load(E2_STATS_KEY, {});
+  let e2MsgIds = e2Load(E2_MSG_IDS_KEY, {});
+  let e2Battle = e2Load(E2_BATTLE_STATE_KEY, null);
+  let e2LastKill = e2Load(E2_LAST_KILL_KEY, {});
+
+  function e2GetSelectedBoss(){
+    try{
+      const ls = (localStorage.getItem('adi-bot_e2_sel') || '').trim();
+      if(ls) return ls;
+    }catch(_){ }
+    try{
+      const el = document.querySelector('#adi-bot_e2_list');
+      if(el && el.value) return String(el.value).trim();
+    }catch(_){ }
+    return '';
+  }
+
+  function e2GetHeroName(){
+    try{ return String(hero?.nick || hero?.name || '').trim(); }catch(_){ return ''; }
+  }
+
+  function e2EnsureBoss(name){
+    const key = String(name||'').trim();
+    if(!key) return null;
+    if(!e2Stats[key]){
+      e2Stats[key] = { kills: 0, unique: 0, heroic: 0, legendary: 0 };
+      e2Save(E2_STATS_KEY, e2Stats);
+    }
+    return e2Stats[key];
+  }
+
+  function e2BuildEmbed(name){
+    const s = e2EnsureBoss(name) || { kills: 0, unique: 0, heroic: 0, legendary: 0 };
+    return {
+      title: String(name || 'E2'),
+      description:
+        `Ubić: ${Number(s.kills||0)}\n` +
+        `Looty unikatowe: ${Number(s.unique||0)}\n` +
+        `Looty heroiczne: ${Number(s.heroic||0)}\n` +
+        `Looty legendarne: ${Number(s.legendary||0)}`
+    };
+  }
+
+  async function e2CreateDiscordMessage(name){
+    const res = await fetch(`${E2_DISCORD_WEBHOOK}?wait=true`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ embeds: [e2BuildEmbed(name)] })
+    });
+    if(!res.ok) throw new Error(`discord create ${res.status}`);
+    const data = await res.json();
+    if(!data || !data.id) throw new Error('discord create missing id');
+    e2MsgIds[name] = String(data.id);
+    e2Save(E2_MSG_IDS_KEY, e2MsgIds);
+    return data.id;
+  }
+
+  async function e2PatchDiscordMessage(name, messageId){
+    const res = await fetch(`${E2_DISCORD_WEBHOOK}/messages/${messageId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ embeds: [e2BuildEmbed(name)] })
+    });
+    if(!res.ok) throw new Error(`discord patch ${res.status}`);
+    return true;
+  }
+
+  async function e2SyncDiscordCard(name){
+    try{
+      if(!E2_DISCORD_WEBHOOK) return false;
+      const currentId = e2MsgIds[name];
+      if(currentId){
+        try{
+          await e2PatchDiscordMessage(name, currentId);
+          return true;
+        }catch(err){
+          console.warn('[adi-e2-counter] patch failed, recreating card', name, err);
+          delete e2MsgIds[name];
+          e2Save(E2_MSG_IDS_KEY, e2MsgIds);
+        }
+      }
+      await e2CreateDiscordMessage(name);
+      return true;
+    }catch(err){
+      console.warn('[adi-e2-counter] sync discord failed', name, err);
+      return false;
+    }
+  }
+
+  function e2MarkKill(name){
+    try{
+      const boss = String(name||'').trim();
+      if(!boss) return false;
+      const now = Date.now();
+      const sig = e2Norm(boss);
+      const last = Number(e2LastKill[sig] || 0);
+      if(last && (now - last) < E2_DEDUPE_MS) return false;
+      e2LastKill[sig] = now;
+      e2Save(E2_LAST_KILL_KEY, e2LastKill);
+
+      const s = e2EnsureBoss(boss);
+      if(!s) return false;
+      s.kills = Number(s.kills||0) + 1;
+      e2Save(E2_STATS_KEY, e2Stats);
+      e2SyncDiscordCard(boss);
+      return true;
+    }catch(err){
+      console.warn('[adi-e2-counter] mark kill failed', err);
+      return false;
+    }
+  }
+
+  function e2ParseBattleStart(msg){
+    try{
+      const m = String(msg||'').match(/txt=Rozpoczęła się walka pomiędzy\s+(.+?)\s+\([^)]*\)\s+a\s+(.+?)\s+\([^)]*\)\s*$/i);
+      if(!m) return null;
+      return { a: String(m[1]||'').trim(), b: String(m[2]||'').trim() };
+    }catch(_){ return null; }
+  }
+
+  function e2OnBattleStart(msg){
+    try{
+      const parsed = e2ParseBattleStart(msg);
+      if(!parsed) return;
+      const selectedBoss = e2GetSelectedBoss();
+      const heroName = e2GetHeroName();
+      if(!selectedBoss || !heroName) {
+        e2Battle = null;
+        e2Save(E2_BATTLE_STATE_KEY, e2Battle);
+        return;
+      }
+
+      const a = e2Norm(parsed.a);
+      const b = e2Norm(parsed.b);
+      const boss = e2Norm(selectedBoss);
+      const me = e2Norm(heroName);
+
+      let active = null;
+      if(a === me && b === boss){
+        active = { bossName: selectedBoss, heroName, startedAt: Date.now() };
+      }else if(b === me && a === boss){
+        active = { bossName: selectedBoss, heroName, startedAt: Date.now() };
+      }
+      e2Battle = active;
+      e2Save(E2_BATTLE_STATE_KEY, e2Battle);
+    }catch(err){ console.warn('[adi-e2-counter] battle start parse failed', err); }
+  }
+
+  function e2OnBattleWinner(msg){
+    try{
+      const m = String(msg||'').match(/(?:^|;)winner=([^;]+)/i);
+      if(!m || !e2Battle || !e2Battle.bossName) return;
+      const winner = String(m[1]||'').trim();
+      if(e2Norm(winner) === e2Norm(e2Battle.heroName || e2GetHeroName())){
+        e2MarkKill(e2Battle.bossName);
+      }
+      e2Battle = null;
+      e2Save(E2_BATTLE_STATE_KEY, e2Battle);
+    }catch(err){ console.warn('[adi-e2-counter] winner parse failed', err); }
+  }
+
+  function e2OnBattleLoser(msg){
+    try{
+      const m = String(msg||'').match(/(?:^|;)loser=([^;]+)/i);
+      if(!m || !e2Battle) return;
+      const loser = String(m[1]||'').trim();
+      const myName = String(e2Battle.heroName || e2GetHeroName() || '').trim();
+      if(e2Norm(loser) === e2Norm(myName)){
+        e2Battle = null;
+        e2Save(E2_BATTLE_STATE_KEY, e2Battle);
+      }
+    }catch(_){ }
+  }
+
+  function e2WrapBattleMsg(){
+    try{
+      if(typeof window.battleMsg !== 'function' || window.battleMsg.__adiE2CounterWrapped) return false;
+      const orig = window.battleMsg;
+      const wrapped = function(c){
+        try{
+          if(typeof c === 'string'){
+            if(c.indexOf('txt=Rozpoczęła się walka pomiędzy ') >= 0) e2OnBattleStart(c);
+            else if(c.indexOf('winner=') >= 0) e2OnBattleWinner(c);
+            else if(c.indexOf('loser=') >= 0) e2OnBattleLoser(c);
+          }
+        }catch(err){ console.warn('[adi-e2-counter] battle hook failed', err); }
+        return orig.apply(this, arguments);
+      };
+      wrapped.__adiE2CounterWrapped = true;
+      wrapped.__adiE2CounterOriginal = orig;
+      window.battleMsg = wrapped;
+      return true;
+    }catch(err){ console.warn('[adi-e2-counter] wrap battleMsg failed', err); return false; }
+  }
+
+  const e2HookTimer = setInterval(function(){
+    try{
+      if(e2WrapBattleMsg()) clearInterval(e2HookTimer);
+    }catch(_){ }
+  }, 800);
+  setTimeout(e2WrapBattleMsg, 300);
+})();
+// ===== /E2 COUNTER =====
