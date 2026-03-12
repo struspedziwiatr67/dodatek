@@ -394,7 +394,7 @@ const HERO_DISCORD_WEBHOOK = "https://discord.com/api/webhooks/14711759854948884
   // Trigger: we have seen selected E2 on the target map, then it disappears shortly after (death),
   // even if another player killed it. Extra guards prevent false positives from fog / map changes.
   // State for "logout after E2" logic.
-  // NOTE: Battle can last longer than 2.5s, so we also detect "battle just ended" near spawn.
+  // NOTE: Battle can last longer than 2s, so we also detect "battle just ended" near spawn.
   let __adiE2Logout = {
     wasPresent:false,
     lastSeen:0,
@@ -1695,14 +1695,15 @@ function setTempTarget(val){
   let globalArray=[]; function addToGlobal(id){ let n=g.npc[id]; if(n.grp){ for(let i in g.npc){ if(g.npc[i].grp==n.grp && !globalArray.includes(g.npc[i].id)) globalArray.push(g.npc[i].id); } } else if(!globalArray.includes(id)) globalArray.push(id); }
 
   // === THROTTLE / DEBOUNCE ATAKU ===
-  const ATTACK_GAP=900, ATTACK_SAME_TARGET_GAP=3000;
+  const ATTACK_GAP=900, ATTACK_SAME_TARGET_GAP=3000, E2_ATTACK_SAME_TARGET_GAP=10000;
   let __lastAttackTime=0, __lastAttackTarget=null, __attackBanUntil=0;
   function safeAttack(targetId, cb){
     const now=Date.now();
+    let __mode = 'exp';
     // mapa na czarnej liście -> nie atakuj
     try{ if(typeof __adi_isAttackBlockedOnMap==='function' && __adi_isAttackBlockedOnMap()) return; }catch(_){ }
     try{
-      const __mode = (localStorage.getItem('adi-bot_exp_mode') || 'exp').trim();
+      __mode = (localStorage.getItem('adi-bot_exp_mode') || 'exp').trim();
       if(__mode !== 'e2' && localStorage.getItem('adi-bot_allow_elite')==='0'){
         const npc = (typeof g!=='undefined' && g && g.npc) ? g.npc[targetId] : null;
         if(npc){
@@ -1710,9 +1711,10 @@ function setTempTarget(val){
         }
       }
     }catch(_){ }
+    const sameTargetGap = (__mode === 'e2') ? E2_ATTACK_SAME_TARGET_GAP : ATTACK_SAME_TARGET_GAP;
     if(now<__attackBanUntil) return;
     if(now-__lastAttackTime<ATTACK_GAP) return;
-    if(__lastAttackTarget===targetId && (now-__lastAttackTime)<ATTACK_SAME_TARGET_GAP) return;
+    if(__lastAttackTarget===targetId && (now-__lastAttackTime)<sameTargetGap) return;
     __lastAttackTime=now; __lastAttackTarget=targetId;
     _g(`fight&a=attack&ff=1&id=-${targetId}`, function(res){
       if(res&&res.alert&&/z powodu ogromnej ilości|opóźnienia internetu/i.test(res.alert)) __attackBanUntil=Date.now()+10500;
