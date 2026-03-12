@@ -5808,7 +5808,10 @@ if (typeof window.window.__adi_equipByNameSequence !== 'function') {
   const E2_MSG_IDS_KEY = 'adi-e2-counter-msgids-v2';
   const E2_BATTLE_STATE_KEY = 'adi-e2-counter-battle-v2';
   const E2_LAST_KILL_KEY = 'adi-e2-counter-lastkill-v2';
+  const E2_PENDING_LOOT_KEY = 'adi-e2-counter-pendingloot-v1';
+  const E2_LOOT_SEEN_KEY = 'adi-e2-counter-lootseen-v1';
   const E2_DEDUPE_MS = 15000;
+  const E2_PENDING_LOOT_MS = 30000;
 
   function e2Norm(s){
     return String(s||'')
@@ -5835,6 +5838,8 @@ if (typeof window.window.__adi_equipByNameSequence !== 'function') {
   let e2MsgIds = e2Load(E2_MSG_IDS_KEY, {});
   let e2Battle = e2Load(E2_BATTLE_STATE_KEY, null);
   let e2LastKill = e2Load(E2_LAST_KILL_KEY, {});
+  let e2PendingLoot = e2Load(E2_PENDING_LOOT_KEY, null);
+  let e2LootSeen = e2Load(E2_LOOT_SEEN_KEY, {});
 
   function e2GetSelectedBoss(){
     try{
@@ -5860,6 +5865,64 @@ if (typeof window.window.__adi_equipByNameSequence !== 'function') {
       e2Save(E2_STATS_KEY, e2Stats);
     }
     return e2Stats[key];
+  }
+
+
+  function e2TouchPendingLoot(bossName){
+    try{
+      const boss = String(bossName || '').trim();
+      if(!boss) return;
+      e2PendingLoot = { bossName: boss, expiresAt: Date.now() + E2_PENDING_LOOT_MS };
+      e2Save(E2_PENDING_LOOT_KEY, e2PendingLoot);
+    }catch(_){ }
+  }
+
+  function e2GetPendingLootBoss(){
+    try{
+      if(!e2PendingLoot || !e2PendingLoot.bossName) return '';
+      const exp = Number(e2PendingLoot.expiresAt || 0);
+      if(!exp || Date.now() > exp){
+        e2PendingLoot = null;
+        e2Save(E2_PENDING_LOOT_KEY, e2PendingLoot);
+        return '';
+      }
+      return String(e2PendingLoot.bossName || '').trim();
+    }catch(_){ return ''; }
+  }
+
+  function e2GetLootRarity(item){
+    try{
+      const all = String((item && item.stat) || '') + ' ' + String((item && item.cl) || '');
+      const norm = e2Norm(all);
+      if(norm.includes('legendary') || norm.includes('legenda')) return 'legendary';
+      if(norm.includes('heroic') || norm.includes('heroik')) return 'heroic';
+      if(norm.includes('unique') || norm.includes('unikat')) return 'unique';
+    }catch(_){ }
+    return '';
+  }
+
+  function e2WasLootCounted(item, bossName){
+    try{
+      const boss = e2Norm(bossName);
+      if(!boss) return true;
+      const sig = [
+        boss,
+        String(item && item.id != null ? item.id : ''),
+        String((item && item.name) || (item && item.n) || '').trim(),
+        String((item && item.stat) || '').trim()
+      ].join('|');
+      if(!sig.replace(/\|/g,'')) return false;
+      const prev = Number(e2LootSeen[sig] || 0);
+      if(prev) return true;
+      e2LootSeen[sig] = Date.now();
+      const keys = Object.keys(e2LootSeen);
+      if(keys.length > 250){
+        keys.sort((a,b)=>Number(e2LootSeen[a]||0)-Number(e2LootSeen[b]||0));
+        for(let i=0;i<keys.length-200;i++) delete e2LootSeen[keys[i]];
+      }
+      e2Save(E2_LOOT_SEEN_KEY, e2LootSeen);
+      return false;
+    }catch(_){ return false; }
   }
 
   function e2BuildEmbed(name){
@@ -5986,6 +6049,7 @@ if (typeof window.window.__adi_equipByNameSequence !== 'function') {
       const winner = String(m[1]||'').trim();
       if(e2Norm(winner) === e2Norm(e2Battle.heroName || e2GetHeroName())){
         e2MarkKill(e2Battle.bossName);
+        e2TouchPendingLoot(e2Battle.bossName);
       }
       e2Battle = null;
       e2Save(E2_BATTLE_STATE_KEY, e2Battle);
@@ -6003,6 +6067,42 @@ if (typeof window.window.__adi_equipByNameSequence !== 'function') {
         e2Save(E2_BATTLE_STATE_KEY, e2Battle);
       }
     }catch(_){ }
+  }
+
+
+  function e2OnLootItem(item){
+    try{
+      const bossName = e2GetPendingLootBoss();
+      if(!bossName || !item) return;
+      const rarity = e2GetLootRarity(item);
+      if(!rarity) return;
+      if(e2WasLootCounted(item, bossName)) return;
+      const s = e2EnsureBoss(bossName);
+      if(!s) return;
+      if(rarity === 'legendary') s.legendary = Number(s.legendary || 0) + 1;
+      else if(rarity === 'heroic') s.heroic = Number(s.heroic || 0) + 1;
+      else if(rarity === 'unique') s.unique = Number(s.unique || 0) + 1;
+      else return;
+      e2Save(E2_STATS_KEY, e2Stats);
+      e2SyncDiscordCard(bossName);
+    }catch(err){ console.warn('[adi-e2-counter] loot parse failed', err); }
+  }
+
+  function e2WrapLootItem(){
+    try{
+      if(typeof window.lootItem !== 'function' || window.lootItem.__adiE2CounterLootWrapped) return false;
+      const orig = window.lootItem;
+      const wrapped = function(item){
+        let ret;
+        try{ ret = orig.apply(this, arguments); }catch(err){ console.warn('[adi-e2-counter] orig lootItem failed', err); throw err; }
+        try{ e2OnLootItem(item); }catch(err){ console.warn('[adi-e2-counter] loot hook failed', err); }
+        return ret;
+      };
+      wrapped.__adiE2CounterLootWrapped = true;
+      wrapped.__adiE2CounterLootOriginal = orig;
+      window.lootItem = wrapped;
+      return true;
+    }catch(err){ console.warn('[adi-e2-counter] wrap lootItem failed', err); return false; }
   }
 
   function e2WrapBattleMsg(){
@@ -6028,9 +6128,11 @@ if (typeof window.window.__adi_equipByNameSequence !== 'function') {
 
   const e2HookTimer = setInterval(function(){
     try{
-      if(e2WrapBattleMsg()) clearInterval(e2HookTimer);
+      const okBattle = e2WrapBattleMsg();
+      const okLoot = e2WrapLootItem();
+      if(okBattle && okLoot) clearInterval(e2HookTimer);
     }catch(_){ }
   }, 800);
-  setTimeout(e2WrapBattleMsg, 300);
+  setTimeout(function(){ e2WrapBattleMsg(); e2WrapLootItem(); }, 300);
 })();
 // ===== /E2 COUNTER =====
