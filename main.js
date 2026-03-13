@@ -1413,6 +1413,42 @@ Lvl: **${n.lvl ?? "?"}**`,
     return false;
   }
 
+
+  function __adi_prepareResumeAfterCityTask(){
+    try{
+      __adi_clearCityReturnState();
+      const route = __adi_getSpecialRouteMaps();
+      if(!Array.isArray(route) || !route.length) return false;
+
+      const cur = normMapName((window.map && map.name) || '');
+      if(!cur) return false;
+
+      const routeSig = route.map(s=>normMapName(s)).join('>');
+      const first = normMapName(route[0] || '');
+
+      // Po zakupie / eq w Ithan chcemy wznowić trasę dokładnie od początku,
+      // tak jak przy poprawnym dojściu do Vari Krugera.
+      if(first && cur === first){
+        try{ localStorage.setItem('adi-bot_route_sig', routeSig); }catch(_){ }
+        try{ localStorage.setItem('alksjd', '0'); }catch(_){ }
+        try{ localStorage.setItem('adi-bot_dir', '1'); }catch(_){ }
+        return true;
+      }
+
+      // Fallback: zsynchronizuj indeks do najbliższego poprawnego miejsca na trasie
+      // i ustaw ruch do przodu.
+      let idx = -1;
+      try{ idx = __adi_pickRouteIndex(route, cur, 0, 1); }catch(_){ idx = -1; }
+      if(idx < 0) idx = 0;
+      try{ localStorage.setItem('adi-bot_route_sig', routeSig); }catch(_){ }
+      try{ localStorage.setItem('alksjd', String(idx)); }catch(_){ }
+      try{ localStorage.setItem('adi-bot_dir', '1'); }catch(_){ }
+      return true;
+    }catch(_){
+      return false;
+    }
+  }
+
   // ===== MAP GRAPH (expowisko routing to the first map) =====
 
   (function(){
@@ -3217,7 +3253,8 @@ function apOpenDialogShop(){
             task.stage='back'; saveBuyTask(task);
 
             setTimeout(()=>{
-              // finish: clear temp target and task; resume exp
+              // finish: clear temp target and task; resume exp / E2
+              try{ __adi_prepareResumeAfterCityTask(); }catch(_){ }
               setTempTarget(null); window.__tempRoute=null; window.__tempRouteTarget=null;
               window.__graphRoute=null; window.__graphRouteTarget=null;
               apSetInfo('Kupione. Wracam na expowisko...', true);
@@ -4436,6 +4473,7 @@ if(task.stage==='equip'){
     setTimeout(()=>{
       try{
         eqSetInfo('Ekwipunek założony / sprawdzony. Wracam do expowiska.', true);
+        try{ __adi_prepareResumeAfterCityTask(); }catch(_){ }
         clearEquipTask();
         setTempTarget(null);
         clearInterval(window.__adiEquipTimer);
