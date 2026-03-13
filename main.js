@@ -1222,87 +1222,6 @@ Lvl: **${n.lvl ?? "?"}**`,
     return null;
   }
 
-  function __adi_getPrevMapName(){
-    try{ return normMapName(window.__adi_prevMapName || ''); }catch(_){ return ''; }
-  }
-
-  (function(){
-    try{
-      window.__adi_prevMapName = window.__adi_prevMapName || '';
-      window.__adi_lastMapName = window.__adi_lastMapName || '';
-      setInterval(function(){
-        try{
-          const cur = String((window.map && map.name) || '');
-          if(!cur) return;
-          if(window.__adi_lastMapName !== cur){
-            if(window.__adi_lastMapName) window.__adi_prevMapName = window.__adi_lastMapName;
-            window.__adi_lastMapName = cur;
-          }
-        }catch(_){ }
-      }, 250);
-    }catch(_){ }
-  })();
-
-  function __adi_pickLinearRouteIndex(route, curName, prevName){
-    if(!Array.isArray(route) || !route.length) return -1;
-    const cur = normMapName(curName || map.name);
-    const prev = normMapName(prevName || __adi_getPrevMapName());
-    const matches = [];
-    for(let i=0;i<route.length;i++){
-      if(isNameMatch(normMapName(route[i]), cur)) matches.push(i);
-    }
-    if(matches.length === 0) return -1;
-    if(matches.length === 1) return matches[0];
-    if(prev){
-      for(const idx of matches){
-        const prevRoute = idx > 0 ? normMapName(route[idx-1]) : '';
-        if(prevRoute && isNameMatch(prevRoute, prev)) return idx;
-      }
-      for(const idx of matches){
-        const nextRoute = idx < route.length-1 ? normMapName(route[idx+1]) : '';
-        if(nextRoute && isNameMatch(nextRoute, prev)) return idx;
-      }
-    }
-    return matches[0];
-  }
-
-  function __adi_getTempTargetSpecialRoute(target){
-    const tgt = normMapName(target);
-    if(tgt !== normMapName('Ithan')) return null;
-    try{
-      const mode = (localStorage.getItem('adi-bot_exp_mode') || 'exp').trim();
-      const e2Name = __adi_getSelectedE2Name();
-      const expKey = getSelectedExpKey();
-      if(mode === 'e2' && e2Name === 'Vari Kruger'){
-        return ['Wioska Gnolli', 'Ithan', 'Jaskinia Łowców p.2', 'Jaskinia Łowców p.1', 'Ithan'];
-      }
-      if(expKey === 'Gnolle'){
-        return ['Wioska Gnolli', 'Ithan', 'Jaskinia Łowców p.2', 'Jaskinia Łowców p.1', 'Ithan'];
-      }
-    }catch(_){ }
-    return null;
-  }
-
-  function __adi_isLinearRouteFinished(route){
-    if(!Array.isArray(route) || !route.length) return false;
-    const idx = __adi_pickLinearRouteIndex(route, map.name, __adi_getPrevMapName());
-    return idx === route.length - 1;
-  }
-
-  function __adi_followLinearRoute(route){
-    if(!Array.isArray(route) || !route.length) return null;
-    const idx = __adi_pickLinearRouteIndex(route, map.name, __adi_getPrevMapName());
-    if(idx < 0) return __adi_routeToNamedMap(route[0]);
-    if(idx >= route.length - 1) return null;
-    return __adi_routeToNamedMap(route[idx + 1]);
-  }
-
-  function __adi_shouldContinueTempTargetRoute(target){
-    const route = __adi_getTempTargetSpecialRoute(target);
-    if(!route) return false;
-    return !__adi_isLinearRouteFinished(route);
-  }
-
   function __adi_followNamedRoute(route){
     if(!Array.isArray(route) || route.length===0) return null;
 
@@ -1341,6 +1260,126 @@ Lvl: **${n.lvl ?? "?"}**`,
 
     const target = route[Math.max(0, Math.min(route.length-1, inc))];
     return __adi_routeToNamedMap(target);
+  }
+
+
+  const __ADI_CITY_RETURN_KEY = 'adi-bot_city_ithan_return';
+  const __ADI_CITY_RETURN_ROUTE = ['Namiot Vari Krugera', 'Wioska Gnolli', 'Ithan', 'Jaskinia Łowców p.2', 'Jaskinia Łowców p.1', 'Ithan'];
+
+  function __adi_prevMapState(){
+    try{ return { prev: normMapName(localStorage.getItem('adi-bot_prev_map') || ''), cur: normMapName(localStorage.getItem('adi-bot_cur_map') || '') }; }
+    catch(_){ return { prev:'', cur:'' }; }
+  }
+
+  (function(){
+    let __lastSeenMap = '';
+    setInterval(function(){
+      try{
+        const cur = normMapName((window.map && map.name) || '');
+        if(!cur || cur === __lastSeenMap) return;
+        if(__lastSeenMap) localStorage.setItem('adi-bot_prev_map', __lastSeenMap);
+        localStorage.setItem('adi-bot_cur_map', cur);
+        __lastSeenMap = cur;
+      }catch(_){ }
+    }, 250);
+  })();
+
+  function __adi_loadCityReturnState(){
+    try{ const raw = localStorage.getItem(__ADI_CITY_RETURN_KEY); return raw ? JSON.parse(raw) : null; }
+    catch(_){ return null; }
+  }
+  function __adi_saveCityReturnState(st){ try{ localStorage.setItem(__ADI_CITY_RETURN_KEY, JSON.stringify(st || null)); }catch(_){ } }
+  function __adi_clearCityReturnState(){ try{ localStorage.removeItem(__ADI_CITY_RETURN_KEY); }catch(_){ } }
+
+  function __adi_isVariContext(){
+    try{
+      const mode = (localStorage.getItem('adi-bot_exp_mode') || 'exp').trim();
+      if(mode === 'e2' && (__adi_getSelectedE2Name() || '') === 'Vari Kruger') return true;
+      return getSelectedExpKey() === 'Gnolle';
+    }catch(_){ return false; }
+  }
+
+  function __adi_shouldUseCityReturn(target){
+    try{
+      if(!target || !isNameMatch(normMapName(target), 'ithan')) return false;
+      if(!__adi_isVariContext()) return false;
+      const saved = __adi_loadCityReturnState();
+      if(saved && saved.active) return true;
+      const cur = normMapName((window.map && map.name) || '');
+      const prev = __adi_prevMapState().prev;
+      if(cur === normMapName('Namiot Vari Krugera') || cur === normMapName('Wioska Gnolli')) return true;
+      if(cur === normMapName('Ithan') && prev === normMapName('Wioska Gnolli')) return true;
+      if(cur === normMapName('Jaskinia Łowców p.2') && (prev === normMapName('Ithan') || prev === normMapName('Jaskinia Łowców p.1'))) return true;
+      if(cur === normMapName('Jaskinia Łowców p.1') && prev === normMapName('Jaskinia Łowców p.2')) return true;
+      return false;
+    }catch(_){ return false; }
+  }
+
+  function __adi_pickForwardRouteIndex(route, curName, preferredIdx){
+    try{
+      const hits = [];
+      for(let i=0;i<route.length;i++) if(isNameMatch(normMapName(route[i]), curName)) hits.push(i);
+      if(!hits.length) return -1;
+      preferredIdx = Number(preferredIdx);
+      if(!Number.isFinite(preferredIdx)) preferredIdx = 0;
+      for(const idx of hits){ if(idx >= Math.max(0, preferredIdx - 1)) return idx; }
+      return hits[hits.length - 1];
+    }catch(_){ return -1; }
+  }
+
+  function __adi_followFixedForwardRoute(route, stateKey){
+    try{
+      if(!Array.isArray(route) || route.length < 2) return null;
+      const curName = normMapName((window.map && map.name) || '');
+      let st = null;
+      try{ st = JSON.parse(localStorage.getItem(stateKey) || 'null'); }catch(_){ st = null; }
+      if(!st || !st.active) st = { active:true, idx:0 };
+      let idx = __adi_pickForwardRouteIndex(route, curName, st.idx);
+      if(idx < 0){
+        __adi_saveCityReturnState(st);
+        return __adi_routeToNamedMap(route[Math.max(0, Math.min(route.length - 1, st.idx))]);
+      }
+      st.idx = idx;
+      __adi_saveCityReturnState(st);
+      if(idx >= route.length - 1) return null;
+      return __adi_routeToNamedMap(route[idx + 1]);
+    }catch(_){ return null; }
+  }
+
+  function __adi_isAtResolvedTargetMap(target){
+    try{
+      const tgt = normMapName(target || '');
+      const cur = normMapName((window.map && map.name) || '');
+      if(!tgt) return false;
+      if(__adi_shouldUseCityReturn(target)){
+        const st = __adi_loadCityReturnState() || { idx:0 };
+        const idx = __adi_pickForwardRouteIndex(__ADI_CITY_RETURN_ROUTE, cur, st.idx);
+        return idx === (__ADI_CITY_RETURN_ROUTE.length - 1);
+      }
+      return cur === tgt;
+    }catch(_){ return false; }
+  }
+
+  function __adi_routeToResolvedTargetMap(target){
+    try{
+      if(__adi_shouldUseCityReturn(target)){
+        const step = __adi_followFixedForwardRoute(__ADI_CITY_RETURN_ROUTE, __ADI_CITY_RETURN_KEY);
+        return step ? { x: step.x, y: step.y } : null;
+      }
+      if(__adi_isAtResolvedTargetMap(target)) return null;
+      const via = (typeof followGraphTo === 'function') ? followGraphTo(target) : null;
+      return via ? { x: via.x, y: via.y } : null;
+    }catch(_){ return null; }
+  }
+
+  function __adi_maybeFinishCityReturn(target){
+    try{
+      if(__adi_shouldUseCityReturn(target) && __adi_isAtResolvedTargetMap(target)){
+        __adi_clearCityReturnState();
+        return true;
+      }
+    }catch(_){ }
+    return false;
   }
 
   // ===== MAP GRAPH (expowisko routing to the first map) =====
@@ -2053,7 +2092,7 @@ function setTempTarget(val){
           const cur = normMapName(map.name);
           const tgt = normMapName(eqTask.map);
 
-          if(cur !== tgt || __adi_shouldContinueTempTargetRoute(eqTask.map)){
+          if(cur !== tgt){
             $map_cords = self.findBestGw();
             if($map_cords && !bolcka){
               if(hero.x == $map_cords.x && hero.y == $map_cords.y){
@@ -2092,7 +2131,7 @@ function setTempTarget(val){
             const cur = normMapName(map.name);
             const v = (bt && bt.vendor) ? bt.vendor : getSelectedVendor();
             const tgt = normMapName(v.map);
-            if(cur !== tgt || __adi_shouldContinueTempTargetRoute(v.map)){
+            if(cur !== tgt){
               $map_cords = self.findBestGw();
               if($map_cords && !bolcka){
                 if(hero.x == $map_cords.x && hero.y == $map_cords.y){
@@ -2700,22 +2739,17 @@ function __adiAutoHealTick(){
     if(window.ADI_TEMP_TARGET_MAP){
       const tgt = normMapName(window.ADI_TEMP_TARGET_MAP);
       const cur = normMapName(map.name);
-      const __tempSpecialRoute = __adi_getTempTargetSpecialRoute(window.ADI_TEMP_TARGET_MAP);
-
-      if(__tempSpecialRoute){
-        const via = __adi_followLinearRoute(__tempSpecialRoute);
-        if(via) return via;
-        if(__adi_isLinearRouteFinished(__tempSpecialRoute)) return;
-      }
 
       if(__specialRoute && normMapName(__specialRoute[__specialRoute.length - 1]) === tgt){
         const via = __adi_followNamedRoute(__specialRoute);
         if(via) return via;
       }
 
-      if(cur !== tgt){
-        const via = followGraphTo(window.ADI_TEMP_TARGET_MAP);
+      if(!__adi_isAtResolvedTargetMap(window.ADI_TEMP_TARGET_MAP)){
+        const via = __adi_routeToResolvedTargetMap(window.ADI_TEMP_TARGET_MAP);
         if(via) return {x: via.x, y: via.y};
+      }else{
+        __adi_maybeFinishCityReturn(window.ADI_TEMP_TARGET_MAP);
       }
       // already at target -> do not move anywhere until caller clears ADI_TEMP_TARGET_MAP
       return;
@@ -3107,13 +3141,13 @@ function apOpenDialogShop(){
         try{ setTempTarget(v.map); }catch(_){}
 
         if(task.stage==='toMap'){
-          if(here===normMapName(v.map)){
+          if(__adi_isAtResolvedTargetMap(v.map)){
+            __adi_maybeFinishCityReturn(v.map);
             a_goTo(standX, standY);
             apSetInfo('Podchodzę do kapłanki...', true);
             task.stage='toStand'; saveBuyTask(task);
           }else{
-            // move along the graph towards vendor map
-            const via = followGraphTo(v.map);
+            const via = __adi_routeToResolvedTargetMap(v.map);
             if(via){
               if(hero.x===via.x && hero.y===via.y){ _g('walk'); }
               else { a_goTo(via.x, via.y); }
@@ -4274,13 +4308,16 @@ try{
         const task = loadEquipTask(); if(!task) return clearInterval(window.__adiEquipTimer);
         // 1) Do miasta
         if(task.stage==='toCity'){
-          if(norm(map?.name||'')===norm(task.map)){ task.stage='toStand'; saveEquipTask(task); }
+          if(__adi_isAtResolvedTargetMap(task.map)){
+            __adi_maybeFinishCityReturn(task.map);
+            task.stage='toStand'; saveEquipTask(task);
+          }
           else{
           setTempTarget(task.map);
           eqSetInfo('Wyznaczam trasę do '+task.map+'...', true);
           // Move one step of the route here (do not depend on main bot loop)
           try{
-            var step = (typeof followGraphTo==='function') ? followGraphTo(task.map) : null;
+            var step = __adi_routeToResolvedTargetMap(task.map);
             if(step && typeof step.x!=='undefined') a_goTo(step.x, step.y);
           }catch(_){}
         }
@@ -4747,10 +4784,9 @@ if (typeof window.window.__adi_equipByNameSequence !== 'function') {
     // jeśli mamy ustawiony cel i doszliśmy -> wyczyść
     if(window.ADI_TEMP_TARGET_MAP){
       const tgt = normMapName(window.ADI_TEMP_TARGET_MAP);
-      const __tempSpecialRoute = __adi_getTempTargetSpecialRoute(window.ADI_TEMP_TARGET_MAP);
-      if(cur && tgt && cur === tgt && (!__tempSpecialRoute || __adi_isLinearRouteFinished(__tempSpecialRoute))){
+      if(cur && tgt && cur === tgt){
         window.ADI_TEMP_TARGET_MAP = null;
-        try{ localStorage.removeItem('adi-temp-target'); }catch(_){ }
+        try{ localStorage.removeItem('adi-temp-target'); }catch(_){}
       } else {
         // cel ustawiony (vendor/exh/smart) -> nie przeszkadzaj
         return _origFindBestGw();
