@@ -1296,6 +1296,8 @@ Lvl: **${n.lvl ?? "?"}**`,
 
   const __ADI_CITY_RETURN_KEY = 'adi-bot_city_ithan_return';
   const __ADI_CITY_RETURN_ROUTE = ['Namiot Vari Krugera', 'Wioska Gnolli', 'Ithan', 'Jaskinia Łowców p.2', 'Jaskinia Łowców p.1', 'Ithan'];
+  const __ADI_VARI_FORWARD_KEY = 'adi-bot_vari_forward_route';
+  const __ADI_VARI_FORWARD_ROUTE = ['Ithan', 'Jaskinia Łowców p.1', 'Jaskinia Łowców p.2', 'Ithan', 'Wioska Gnolli', 'Namiot Vari Krugera'];
 
   function __adi_prevMapState(){
     try{ return { prev: normMapName(localStorage.getItem('adi-bot_prev_map') || ''), cur: normMapName(localStorage.getItem('adi-bot_cur_map') || '') }; }
@@ -1315,12 +1317,16 @@ Lvl: **${n.lvl ?? "?"}**`,
     }, 250);
   })();
 
-  function __adi_loadCityReturnState(){
-    try{ const raw = localStorage.getItem(__ADI_CITY_RETURN_KEY); return raw ? JSON.parse(raw) : null; }
+  function __adi_loadRouteState(stateKey){
+    try{ const raw = localStorage.getItem(stateKey); return raw ? JSON.parse(raw) : null; }
     catch(_){ return null; }
   }
-  function __adi_saveCityReturnState(st){ try{ localStorage.setItem(__ADI_CITY_RETURN_KEY, JSON.stringify(st || null)); }catch(_){ } }
-  function __adi_clearCityReturnState(){ try{ localStorage.removeItem(__ADI_CITY_RETURN_KEY); }catch(_){ } }
+  function __adi_saveRouteState(stateKey, st){ try{ localStorage.setItem(stateKey, JSON.stringify(st || null)); }catch(_){ } }
+  function __adi_clearRouteState(stateKey){ try{ localStorage.removeItem(stateKey); }catch(_){ } }
+
+  function __adi_loadCityReturnState(){ return __adi_loadRouteState(__ADI_CITY_RETURN_KEY); }
+  function __adi_saveCityReturnState(st){ __adi_saveRouteState(__ADI_CITY_RETURN_KEY, st); }
+  function __adi_clearCityReturnState(){ __adi_clearRouteState(__ADI_CITY_RETURN_KEY); }
 
   function __adi_isVariContext(){
     try{
@@ -1346,6 +1352,18 @@ Lvl: **${n.lvl ?? "?"}**`,
     }catch(_){ return false; }
   }
 
+  function __adi_shouldUseVariForward(target){
+    try{
+      if(!target || !isNameMatch(normMapName(target), normMapName('Namiot Vari Krugera'))) return false;
+      if(!__adi_isVariContext()) return false;
+      const saved = __adi_loadRouteState(__ADI_VARI_FORWARD_KEY);
+      if(saved && saved.active) return true;
+      const cur = normMapName((window.map && map.name) || '');
+      if(!cur) return false;
+      return __ADI_VARI_FORWARD_ROUTE.some(name => isNameMatch(normMapName(name), cur));
+    }catch(_){ return false; }
+  }
+
   function __adi_pickForwardRouteIndex(route, curName, preferredIdx){
     try{
       const hits = [];
@@ -1362,16 +1380,15 @@ Lvl: **${n.lvl ?? "?"}**`,
     try{
       if(!Array.isArray(route) || route.length < 2) return null;
       const curName = normMapName((window.map && map.name) || '');
-      let st = null;
-      try{ st = JSON.parse(localStorage.getItem(stateKey) || 'null'); }catch(_){ st = null; }
+      let st = __adi_loadRouteState(stateKey);
       if(!st || !st.active) st = { active:true, idx:0 };
       let idx = __adi_pickForwardRouteIndex(route, curName, st.idx);
       if(idx < 0){
-        __adi_saveCityReturnState(st);
+        __adi_saveRouteState(stateKey, st);
         return __adi_routeToNamedMap(route[Math.max(0, Math.min(route.length - 1, st.idx))]);
       }
       st.idx = idx;
-      __adi_saveCityReturnState(st);
+      __adi_saveRouteState(stateKey, st);
       if(idx >= route.length - 1) return null;
       return __adi_routeToNamedMap(route[idx + 1]);
     }catch(_){ return null; }
@@ -1387,6 +1404,11 @@ Lvl: **${n.lvl ?? "?"}**`,
         const idx = __adi_pickForwardRouteIndex(__ADI_CITY_RETURN_ROUTE, cur, st.idx);
         return idx === (__ADI_CITY_RETURN_ROUTE.length - 1);
       }
+      if(__adi_shouldUseVariForward(target)){
+        const st = __adi_loadRouteState(__ADI_VARI_FORWARD_KEY) || { idx:0 };
+        const idx = __adi_pickForwardRouteIndex(__ADI_VARI_FORWARD_ROUTE, cur, st.idx);
+        return idx === (__ADI_VARI_FORWARD_ROUTE.length - 1);
+      }
       return cur === tgt;
     }catch(_){ return false; }
   }
@@ -1395,6 +1417,10 @@ Lvl: **${n.lvl ?? "?"}**`,
     try{
       if(__adi_shouldUseCityReturn(target)){
         const step = __adi_followFixedForwardRoute(__ADI_CITY_RETURN_ROUTE, __ADI_CITY_RETURN_KEY);
+        return step ? { x: step.x, y: step.y } : null;
+      }
+      if(__adi_shouldUseVariForward(target)){
+        const step = __adi_followFixedForwardRoute(__ADI_VARI_FORWARD_ROUTE, __ADI_VARI_FORWARD_KEY);
         return step ? { x: step.x, y: step.y } : null;
       }
       if(__adi_isAtResolvedTargetMap(target)) return null;
@@ -1409,6 +1435,10 @@ Lvl: **${n.lvl ?? "?"}**`,
         __adi_clearCityReturnState();
         return true;
       }
+      if(__adi_shouldUseVariForward(target) && __adi_isAtResolvedTargetMap(target)){
+        __adi_clearRouteState(__ADI_VARI_FORWARD_KEY);
+        return true;
+      }
     }catch(_){ }
     return false;
   }
@@ -1417,17 +1447,22 @@ Lvl: **${n.lvl ?? "?"}**`,
   function __adi_prepareResumeAfterCityTask(){
     try{
       __adi_clearCityReturnState();
+      __adi_clearRouteState(__ADI_VARI_FORWARD_KEY);
       const route = __adi_getSpecialRouteMaps();
       if(!Array.isArray(route) || !route.length) return false;
 
       const cur = normMapName((window.map && map.name) || '');
       if(!cur) return false;
 
+      // Dla Vari Krugera po zakupie w Ithan wznawiamy dojście osobną twardą trasą do przodu,
+      // bez polegania na stanie ping-ponga.
+      if(__adi_shouldUseVariForward('Namiot Vari Krugera')){
+        const idx = __adi_pickForwardRouteIndex(__ADI_VARI_FORWARD_ROUTE, cur, 0);
+        __adi_saveRouteState(__ADI_VARI_FORWARD_KEY, { active:true, idx: idx >= 0 ? idx : 0 });
+      }
+
       const routeSig = route.map(s=>normMapName(s)).join('>');
       const first = normMapName(route[0] || '');
-
-      // Po zakupie / eq w Ithan chcemy wznowić trasę dokładnie od początku,
-      // tak jak przy poprawnym dojściu do Vari Krugera.
       if(first && cur === first){
         try{ localStorage.setItem('adi-bot_route_sig', routeSig); }catch(_){ }
         try{ localStorage.setItem('alksjd', '0'); }catch(_){ }
@@ -1435,8 +1470,6 @@ Lvl: **${n.lvl ?? "?"}**`,
         return true;
       }
 
-      // Fallback: zsynchronizuj indeks do najbliższego poprawnego miejsca na trasie
-      // i ustaw ruch do przodu.
       let idx = -1;
       try{ idx = __adi_pickRouteIndex(route, cur, 0, 1); }catch(_){ idx = -1; }
       if(idx < 0) idx = 0;
@@ -2807,17 +2840,18 @@ function __adiAutoHealTick(){
       const tgt = normMapName(window.ADI_TEMP_TARGET_MAP);
       const cur = normMapName(map.name);
 
+      if(!__adi_isAtResolvedTargetMap(window.ADI_TEMP_TARGET_MAP)){
+        const viaResolved = __adi_routeToResolvedTargetMap(window.ADI_TEMP_TARGET_MAP);
+        if(viaResolved) return {x: viaResolved.x, y: viaResolved.y};
+      }else{
+        __adi_maybeFinishCityReturn(window.ADI_TEMP_TARGET_MAP);
+      }
+
       if(__specialRoute && normMapName(__specialRoute[__specialRoute.length - 1]) === tgt){
         const via = __adi_followNamedRoute(__specialRoute);
         if(via) return via;
       }
 
-      if(!__adi_isAtResolvedTargetMap(window.ADI_TEMP_TARGET_MAP)){
-        const via = __adi_routeToResolvedTargetMap(window.ADI_TEMP_TARGET_MAP);
-        if(via) return {x: via.x, y: via.y};
-      }else{
-        __adi_maybeFinishCityReturn(window.ADI_TEMP_TARGET_MAP);
-      }
       // already at target -> do not move anywhere until caller clears ADI_TEMP_TARGET_MAP
       return;
     }
