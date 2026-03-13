@@ -1299,6 +1299,38 @@ Lvl: **${n.lvl ?? "?"}**`,
   const __ADI_VARI_FORWARD_KEY = 'adi-bot_vari_forward_route';
   const __ADI_VARI_FORWARD_ROUTE = ['Ithan', 'Jaskinia Łowców p.1', 'Jaskinia Łowców p.2', 'Ithan', 'Wioska Gnolli', 'Namiot Vari Krugera'];
 
+  const __ADI_GNOLLE_FORWARD_KEY = 'adi-bot_gnolle_forward_route';
+  const __ADI_GNOLLE_FORWARD_ROUTE = ['Ithan', 'Jaskinia Łowców p.1', 'Jaskinia Łowców p.2', 'Ithan', 'Wioska Gnolli'];
+  const __ADI_GNOLLE_RETURN_KEY = 'adi-bot_gnolle_return_route';
+  const __ADI_GNOLLE_RETURN_ROUTE = ['Wioska Gnolli', 'Ithan', 'Jaskinia Łowców p.2', 'Jaskinia Łowców p.1', 'Ithan'];
+
+  function __adi_shouldUseGnolleForward(target){
+    try{
+      const tgt = normMapName(target || '');
+      if(!tgt) return false;
+      if(!isNameMatch(tgt, normMapName('Wioska Gnolli'))) return false;
+      const saved = __adi_loadRouteState(__ADI_GNOLLE_FORWARD_KEY);
+      if(saved && saved.active) return true;
+      const cur = normMapName((window.map && map.name) || '');
+      if(!cur) return false;
+      return __ADI_GNOLLE_FORWARD_ROUTE.some(n => isNameMatch(normMapName(n), cur));
+    }catch(_){ return false; }
+  }
+
+  function __adi_shouldUseGnolleReturn(target){
+    try{
+      const tgt = normMapName(target || '');
+      if(!tgt) return false;
+      if(!isNameMatch(tgt, normMapName('Ithan'))) return false;
+      const saved = __adi_loadRouteState(__ADI_GNOLLE_RETURN_KEY);
+      if(saved && saved.active) return true;
+      const cur = normMapName((window.map && map.name) || '');
+      if(!cur) return false;
+      return __ADI_GNOLLE_RETURN_ROUTE.some(n => isNameMatch(normMapName(n), cur));
+    }catch(_){ return false; }
+  }
+
+
   function __adi_prevMapState(){
     try{ return { prev: normMapName(localStorage.getItem('adi-bot_prev_map') || ''), cur: normMapName(localStorage.getItem('adi-bot_cur_map') || '') }; }
     catch(_){ return { prev:'', cur:'' }; }
@@ -1404,6 +1436,14 @@ Lvl: **${n.lvl ?? "?"}**`,
         const idx = __adi_pickForwardRouteIndex(__ADI_CITY_RETURN_ROUTE, cur, st.idx);
         return idx === (__ADI_CITY_RETURN_ROUTE.length - 1);
       }
+      if(__adi_shouldUseGnolleReturn(target)){
+        const step = __adi_followFixedForwardRoute(__ADI_GNOLLE_RETURN_ROUTE, __ADI_GNOLLE_RETURN_KEY);
+        return step ? { x: step.x, y: step.y } : null;
+      }
+      if(__adi_shouldUseGnolleForward(target)){
+        const step = __adi_followFixedForwardRoute(__ADI_GNOLLE_FORWARD_ROUTE, __ADI_GNOLLE_FORWARD_KEY);
+        return step ? { x: step.x, y: step.y } : null;
+      }
       if(__adi_shouldUseVariForward(target)){
         const st = __adi_loadRouteState(__ADI_VARI_FORWARD_KEY) || { idx:0 };
         const idx = __adi_pickForwardRouteIndex(__ADI_VARI_FORWARD_ROUTE, cur, st.idx);
@@ -1417,6 +1457,14 @@ Lvl: **${n.lvl ?? "?"}**`,
     try{
       if(__adi_shouldUseCityReturn(target)){
         const step = __adi_followFixedForwardRoute(__ADI_CITY_RETURN_ROUTE, __ADI_CITY_RETURN_KEY);
+        return step ? { x: step.x, y: step.y } : null;
+      }
+      if(__adi_shouldUseGnolleReturn(target)){
+        const step = __adi_followFixedForwardRoute(__ADI_GNOLLE_RETURN_ROUTE, __ADI_GNOLLE_RETURN_KEY);
+        return step ? { x: step.x, y: step.y } : null;
+      }
+      if(__adi_shouldUseGnolleForward(target)){
+        const step = __adi_followFixedForwardRoute(__ADI_GNOLLE_FORWARD_ROUTE, __ADI_GNOLLE_FORWARD_KEY);
         return step ? { x: step.x, y: step.y } : null;
       }
       if(__adi_shouldUseVariForward(target)){
