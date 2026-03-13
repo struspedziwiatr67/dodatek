@@ -1184,7 +1184,8 @@ Lvl: **${n.lvl ?? "?"}**`,
     },
     e2: {
       "Szczęt alias Gładki": ["Fort Eder", "Ciemnica Szubrawców p.1 - sala 1", "Ciemnica Szubrawców p.1 - sala 2", "Ciemnica Szubrawców p.1 - sala 3", "Stary Kupiecki Trakt"],
-      "Vari Kruger": ["Ithan", "Jaskinia Łowców p.1", "Jaskinia Łowców p.2", "Ithan", "Wioska Gnolli", "Namiot Vari Krugera"]
+      // pełna trasa w obie strony, żeby po wyjściu spod Vari Krugera bot umiał wrócić do Ithan
+      "Vari Kruger": ["Ithan", "Jaskinia Łowców p.1", "Jaskinia Łowców p.2", "Ithan", "Wioska Gnolli", "Namiot Vari Krugera", "Wioska Gnolli", "Ithan", "Jaskinia Łowców p.2", "Jaskinia Łowców p.1", "Ithan"]
     }
   };
 
