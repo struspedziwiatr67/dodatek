@@ -1222,80 +1222,39 @@ Lvl: **${n.lvl ?? "?"}**`,
     return null;
   }
 
-  function __adi_pickRouteIndex(route, curName, hintIdx){
-    if(!Array.isArray(route) || !route.length) return -1;
-    const matches = [];
-    for(let i=0;i<route.length;i++){
-      if(isNameMatch(normMapName(route[i]), curName)) matches.push(i);
-    }
-    if(!matches.length) return -1;
-    if(matches.length === 1) return matches[0];
-    const hint = Number.isFinite(Number(hintIdx)) ? Number(hintIdx) : 0;
-    let best = matches[0];
-    let bestDist = Math.abs(matches[0] - hint);
-    for(let i=1;i<matches.length;i++){
-      const dist = Math.abs(matches[i] - hint);
-      if(dist < bestDist){ best = matches[i]; bestDist = dist; }
-    }
-    return best;
-  }
-
-  function __adi_buildTempTargetRoute(targetMap){
+  function __adi_pickRouteIndex(route, curName, preferredInc, dir){
     try{
-      if(!targetMap || !window.map || !map.name) return null;
-      const baseRoute = __adi_getSpecialRouteMaps();
-      if(!Array.isArray(baseRoute) || baseRoute.length < 2) return null;
-
-      const targetNorm = normMapName(targetMap);
-      const currentNorm = normMapName(map.name);
-      const targetIdxs = [];
-      for(let i=0;i<baseRoute.length;i++){
-        if(isNameMatch(normMapName(baseRoute[i]), targetNorm)) targetIdxs.push(i);
+      if(!Array.isArray(route) || route.length===0) return -1;
+      const hits = [];
+      for(let i=0;i<route.length;i++){
+        if(isNameMatch(normMapName(route[i]), curName)) hits.push(i);
       }
-      if(!targetIdxs.length) return null;
+      if(hits.length===0) return -1;
 
-      let hint = parseInt(localStorage.getItem('alksjd'), 10);
-      if(!Number.isFinite(hint)) hint = 0;
-      const curIdx = __adi_pickRouteIndex(baseRoute, currentNorm, hint);
-      if(curIdx < 0) return null;
+      preferredInc = Number(preferredInc);
+      if(!Number.isFinite(preferredInc)) preferredInc = 0;
+      dir = Number(dir);
+      if(!Number.isFinite(dir) || dir===0) dir = 1;
 
-      let desiredIdx = targetIdxs[0];
-      const firstIdx = targetIdxs[0];
-      const lastIdx = targetIdxs[targetIdxs.length - 1];
-      if(targetIdxs.length > 1){
-        const targetIsRouteStart = isNameMatch(normMapName(baseRoute[0]), targetNorm);
-        const targetIsRouteEnd = isNameMatch(normMapName(baseRoute[baseRoute.length - 1]), targetNorm);
-        if(targetIsRouteStart && curIdx > firstIdx) desiredIdx = firstIdx;
-        else if(targetIsRouteEnd && curIdx < lastIdx) desiredIdx = lastIdx;
-        else {
-          desiredIdx = targetIdxs[0];
-          let bestDist = Math.abs(targetIdxs[0] - curIdx);
-          for(let i=1;i<targetIdxs.length;i++){
-            const dist = Math.abs(targetIdxs[i] - curIdx);
-            if(dist < bestDist){ desiredIdx = targetIdxs[i]; bestDist = dist; }
-          }
+      if(hits.includes(preferredInc)) return preferredInc;
+
+      const prev = preferredInc - dir;
+      if(hits.includes(prev)) return prev;
+
+      let best = hits[0];
+      let bestScore = Number.POSITIVE_INFINITY;
+      for(const idx of hits){
+        const dist = Math.abs(idx - preferredInc);
+        const wrongSidePenalty = ((idx - preferredInc) * dir < 0) ? 0.25 : 0;
+        const score = dist + wrongSidePenalty;
+        if(score < bestScore){
+          best = idx;
+          bestScore = score;
         }
       }
-
-      if(curIdx === desiredIdx) return [baseRoute[curIdx]];
-      const slice = curIdx < desiredIdx
-        ? baseRoute.slice(curIdx, desiredIdx + 1)
-        : baseRoute.slice(desiredIdx, curIdx + 1).reverse();
-      return slice.length ? slice : null;
-    }catch(_){ return null; }
+      return best;
+    }catch(_){ return -1; }
   }
-
-  window.__adiHasReachedTempTarget = function(targetMap){
-    try{
-      if(!targetMap || !window.map || !map.name) return false;
-      const curNorm = normMapName(map.name);
-      const targetNorm = normMapName(targetMap);
-      if(curNorm !== targetNorm) return false;
-      const route = __adi_buildTempTargetRoute(targetMap);
-      if(Array.isArray(route) && route.length > 1) return false;
-      return true;
-    }catch(_){ return false; }
-  };
 
   function __adi_followNamedRoute(route){
     if(!Array.isArray(route) || route.length===0) return null;
@@ -1314,7 +1273,7 @@ Lvl: **${n.lvl ?? "?"}**`,
     let dir=parseInt(localStorage.getItem('adi-bot_dir'),10); if(!Number.isFinite(dir)||dir===0) dir=1;
 
     const curName = normMapName(map.name);
-    const curIdx = __adi_pickRouteIndex(route, curName, inc);
+    const curIdx = __adi_pickRouteIndex(route, curName, inc, dir);
 
     if(curIdx >= 0) inc = curIdx;
     else inc = 0;
@@ -2044,7 +2003,7 @@ function setTempTarget(val){
           const cur = normMapName(map.name);
           const tgt = normMapName(eqTask.map);
 
-          if(!(window.__adiHasReachedTempTarget && window.__adiHasReachedTempTarget(eqTask.map))){
+          if(cur !== tgt){
             $map_cords = self.findBestGw();
             if($map_cords && !bolcka){
               if(hero.x == $map_cords.x && hero.y == $map_cords.y){
@@ -2083,7 +2042,7 @@ function setTempTarget(val){
             const cur = normMapName(map.name);
             const v = (bt && bt.vendor) ? bt.vendor : getSelectedVendor();
             const tgt = normMapName(v.map);
-            if(!(window.__adiHasReachedTempTarget && window.__adiHasReachedTempTarget(v.map))){
+            if(cur !== tgt){
               $map_cords = self.findBestGw();
               if($map_cords && !bolcka){
                 if(hero.x == $map_cords.x && hero.y == $map_cords.y){
@@ -2691,12 +2650,6 @@ function __adiAutoHealTick(){
     if(window.ADI_TEMP_TARGET_MAP){
       const tgt = normMapName(window.ADI_TEMP_TARGET_MAP);
       const cur = normMapName(map.name);
-      const __tempRoute = __adi_buildTempTargetRoute(window.ADI_TEMP_TARGET_MAP);
-
-      if(Array.isArray(__tempRoute) && __tempRoute.length > 1){
-        const via = __adi_followNamedRoute(__tempRoute);
-        if(via) return via;
-      }
 
       if(__specialRoute && normMapName(__specialRoute[__specialRoute.length - 1]) === tgt){
         const via = __adi_followNamedRoute(__specialRoute);
@@ -2726,11 +2679,10 @@ function __adiAutoHealTick(){
 
     const curName = normMapName(map.name);
 
-    // If we are currently on one of the listed maps, sync the pointer to that position.
-    let curIdx = -1;
-    for(let i=0;i<txt.length;i++){
-      if(isNameMatch(normMapName(txt[i]), curName)){ curIdx=i; break; }
-    }
+    // If the route contains duplicated map names (np. Ithan -> ... -> Ithan),
+    // do not snap to the first occurrence blindly. Pick the index closest to the
+    // currently remembered progress so ping-pong does not loop forever.
+    const curIdx = __adi_pickRouteIndex(txt, curName, inc, dir);
     if(curIdx>=0) inc = curIdx;
 
     // Ping-pong advance if we're already at the current target.
