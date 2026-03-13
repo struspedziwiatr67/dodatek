@@ -1222,38 +1222,85 @@ Lvl: **${n.lvl ?? "?"}**`,
     return null;
   }
 
-  function __adi_pickRouteIndex(route, curName, preferredInc, dir){
+  function __adi_getPrevMapName(){
+    try{ return normMapName(window.__adi_prevMapName || ''); }catch(_){ return ''; }
+  }
+
+  (function(){
     try{
-      if(!Array.isArray(route) || route.length===0) return -1;
-      const hits = [];
-      for(let i=0;i<route.length;i++){
-        if(isNameMatch(normMapName(route[i]), curName)) hits.push(i);
+      window.__adi_prevMapName = window.__adi_prevMapName || '';
+      window.__adi_lastMapName = window.__adi_lastMapName || '';
+      setInterval(function(){
+        try{
+          const cur = String((window.map && map.name) || '');
+          if(!cur) return;
+          if(window.__adi_lastMapName !== cur){
+            if(window.__adi_lastMapName) window.__adi_prevMapName = window.__adi_lastMapName;
+            window.__adi_lastMapName = cur;
+          }
+        }catch(_){ }
+      }, 250);
+    }catch(_){ }
+  })();
+
+  function __adi_pickLinearRouteIndex(route, curName, prevName){
+    if(!Array.isArray(route) || !route.length) return -1;
+    const cur = normMapName(curName || map.name);
+    const prev = normMapName(prevName || __adi_getPrevMapName());
+    const matches = [];
+    for(let i=0;i<route.length;i++){
+      if(isNameMatch(normMapName(route[i]), cur)) matches.push(i);
+    }
+    if(matches.length === 0) return -1;
+    if(matches.length === 1) return matches[0];
+    if(prev){
+      for(const idx of matches){
+        const prevRoute = idx > 0 ? normMapName(route[idx-1]) : '';
+        if(prevRoute && isNameMatch(prevRoute, prev)) return idx;
       }
-      if(hits.length===0) return -1;
-
-      preferredInc = Number(preferredInc);
-      if(!Number.isFinite(preferredInc)) preferredInc = 0;
-      dir = Number(dir);
-      if(!Number.isFinite(dir) || dir===0) dir = 1;
-
-      if(hits.includes(preferredInc)) return preferredInc;
-
-      const prev = preferredInc - dir;
-      if(hits.includes(prev)) return prev;
-
-      let best = hits[0];
-      let bestScore = Number.POSITIVE_INFINITY;
-      for(const idx of hits){
-        const dist = Math.abs(idx - preferredInc);
-        const wrongSidePenalty = ((idx - preferredInc) * dir < 0) ? 0.25 : 0;
-        const score = dist + wrongSidePenalty;
-        if(score < bestScore){
-          best = idx;
-          bestScore = score;
-        }
+      for(const idx of matches){
+        const nextRoute = idx < route.length-1 ? normMapName(route[idx+1]) : '';
+        if(nextRoute && isNameMatch(nextRoute, prev)) return idx;
       }
-      return best;
-    }catch(_){ return -1; }
+    }
+    return matches[0];
+  }
+
+  function __adi_getTempTargetSpecialRoute(target){
+    const tgt = normMapName(target);
+    if(tgt !== normMapName('Ithan')) return null;
+    try{
+      const mode = (localStorage.getItem('adi-bot_exp_mode') || 'exp').trim();
+      const e2Name = __adi_getSelectedE2Name();
+      const expKey = getSelectedExpKey();
+      if(mode === 'e2' && e2Name === 'Vari Kruger'){
+        return ['Wioska Gnolli', 'Ithan', 'Jaskinia Łowców p.2', 'Jaskinia Łowców p.1', 'Ithan'];
+      }
+      if(expKey === 'Gnolle'){
+        return ['Wioska Gnolli', 'Ithan', 'Jaskinia Łowców p.2', 'Jaskinia Łowców p.1', 'Ithan'];
+      }
+    }catch(_){ }
+    return null;
+  }
+
+  function __adi_isLinearRouteFinished(route){
+    if(!Array.isArray(route) || !route.length) return false;
+    const idx = __adi_pickLinearRouteIndex(route, map.name, __adi_getPrevMapName());
+    return idx === route.length - 1;
+  }
+
+  function __adi_followLinearRoute(route){
+    if(!Array.isArray(route) || !route.length) return null;
+    const idx = __adi_pickLinearRouteIndex(route, map.name, __adi_getPrevMapName());
+    if(idx < 0) return __adi_routeToNamedMap(route[0]);
+    if(idx >= route.length - 1) return null;
+    return __adi_routeToNamedMap(route[idx + 1]);
+  }
+
+  function __adi_shouldContinueTempTargetRoute(target){
+    const route = __adi_getTempTargetSpecialRoute(target);
+    if(!route) return false;
+    return !__adi_isLinearRouteFinished(route);
   }
 
   function __adi_followNamedRoute(route){
@@ -1273,7 +1320,10 @@ Lvl: **${n.lvl ?? "?"}**`,
     let dir=parseInt(localStorage.getItem('adi-bot_dir'),10); if(!Number.isFinite(dir)||dir===0) dir=1;
 
     const curName = normMapName(map.name);
-    const curIdx = __adi_pickRouteIndex(route, curName, inc, dir);
+    let curIdx = -1;
+    for(let i=0;i<route.length;i++){
+      if(isNameMatch(normMapName(route[i]), curName)){ curIdx=i; break; }
+    }
 
     if(curIdx >= 0) inc = curIdx;
     else inc = 0;
@@ -2003,7 +2053,7 @@ function setTempTarget(val){
           const cur = normMapName(map.name);
           const tgt = normMapName(eqTask.map);
 
-          if(cur !== tgt){
+          if(cur !== tgt || __adi_shouldContinueTempTargetRoute(eqTask.map)){
             $map_cords = self.findBestGw();
             if($map_cords && !bolcka){
               if(hero.x == $map_cords.x && hero.y == $map_cords.y){
@@ -2042,7 +2092,7 @@ function setTempTarget(val){
             const cur = normMapName(map.name);
             const v = (bt && bt.vendor) ? bt.vendor : getSelectedVendor();
             const tgt = normMapName(v.map);
-            if(cur !== tgt){
+            if(cur !== tgt || __adi_shouldContinueTempTargetRoute(v.map)){
               $map_cords = self.findBestGw();
               if($map_cords && !bolcka){
                 if(hero.x == $map_cords.x && hero.y == $map_cords.y){
@@ -2650,6 +2700,13 @@ function __adiAutoHealTick(){
     if(window.ADI_TEMP_TARGET_MAP){
       const tgt = normMapName(window.ADI_TEMP_TARGET_MAP);
       const cur = normMapName(map.name);
+      const __tempSpecialRoute = __adi_getTempTargetSpecialRoute(window.ADI_TEMP_TARGET_MAP);
+
+      if(__tempSpecialRoute){
+        const via = __adi_followLinearRoute(__tempSpecialRoute);
+        if(via) return via;
+        if(__adi_isLinearRouteFinished(__tempSpecialRoute)) return;
+      }
 
       if(__specialRoute && normMapName(__specialRoute[__specialRoute.length - 1]) === tgt){
         const via = __adi_followNamedRoute(__specialRoute);
@@ -2679,10 +2736,11 @@ function __adiAutoHealTick(){
 
     const curName = normMapName(map.name);
 
-    // If the route contains duplicated map names (np. Ithan -> ... -> Ithan),
-    // do not snap to the first occurrence blindly. Pick the index closest to the
-    // currently remembered progress so ping-pong does not loop forever.
-    const curIdx = __adi_pickRouteIndex(txt, curName, inc, dir);
+    // If we are currently on one of the listed maps, sync the pointer to that position.
+    let curIdx = -1;
+    for(let i=0;i<txt.length;i++){
+      if(isNameMatch(normMapName(txt[i]), curName)){ curIdx=i; break; }
+    }
     if(curIdx>=0) inc = curIdx;
 
     // Ping-pong advance if we're already at the current target.
@@ -4689,9 +4747,10 @@ if (typeof window.window.__adi_equipByNameSequence !== 'function') {
     // jeśli mamy ustawiony cel i doszliśmy -> wyczyść
     if(window.ADI_TEMP_TARGET_MAP){
       const tgt = normMapName(window.ADI_TEMP_TARGET_MAP);
-      if(cur && tgt && cur === tgt){
+      const __tempSpecialRoute = __adi_getTempTargetSpecialRoute(window.ADI_TEMP_TARGET_MAP);
+      if(cur && tgt && cur === tgt && (!__tempSpecialRoute || __adi_isLinearRouteFinished(__tempSpecialRoute))){
         window.ADI_TEMP_TARGET_MAP = null;
-        try{ localStorage.removeItem('adi-temp-target'); }catch(_){}
+        try{ localStorage.removeItem('adi-temp-target'); }catch(_){ }
       } else {
         // cel ustawiony (vendor/exh/smart) -> nie przeszkadzaj
         return _origFindBestGw();
