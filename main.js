@@ -1184,8 +1184,16 @@ Lvl: **${n.lvl ?? "?"}**`,
     },
     e2: {
       "Szczęt alias Gładki": ["Fort Eder", "Ciemnica Szubrawców p.1 - sala 1", "Ciemnica Szubrawców p.1 - sala 2", "Ciemnica Szubrawców p.1 - sala 3", "Stary Kupiecki Trakt"],
-      // pełna trasa w obie strony, żeby po wyjściu spod Vari Krugera bot umiał wrócić do Ithan
-      "Vari Kruger": ["Ithan", "Jaskinia Łowców p.1", "Jaskinia Łowców p.2", "Ithan", "Wioska Gnolli", "Namiot Vari Krugera", "Wioska Gnolli", "Ithan", "Jaskinia Łowców p.2", "Jaskinia Łowców p.1", "Ithan"]
+      "Vari Kruger": ["Ithan", "Jaskinia Łowców p.1", "Jaskinia Łowców p.2", "Ithan", "Wioska Gnolli", "Namiot Vari Krugera"]
+    }
+  };
+
+  const ADI_SPECIAL_TARGET_ROUTES = {
+    e2: {
+      "Vari Kruger": {
+        "Namiot Vari Krugera": ["Ithan", "Jaskinia Łowców p.1", "Jaskinia Łowców p.2", "Ithan", "Wioska Gnolli", "Namiot Vari Krugera"],
+        "Ithan": ["Wioska Gnolli", "Ithan", "Jaskinia Łowców p.2", "Jaskinia Łowców p.1", "Ithan"]
+      }
     }
   };
 
@@ -1200,6 +1208,57 @@ Lvl: **${n.lvl ?? "?"}**`,
       const expKey = getSelectedExpKey();
       const route = ADI_SPECIAL_ROUTES.exp[expKey];
       return Array.isArray(route) ? route.slice() : null;
+    }catch(_){ return null; }
+  }
+
+  function __adi_getTargetSpecialRoute(target){
+    try{
+      const targetNorm = normMapName(target);
+      if(!targetNorm) return null;
+
+      const mode = (localStorage.getItem('adi-bot_exp_mode') || 'exp').trim();
+      if(mode !== 'e2') return null;
+
+      const e2Name = __adi_getSelectedE2Name();
+      const cfg = ADI_SPECIAL_TARGET_ROUTES.e2[e2Name];
+      if(!cfg) return null;
+
+      for(const mapName in cfg){
+        if(!Object.prototype.hasOwnProperty.call(cfg, mapName)) continue;
+        if(isNameMatch(normMapName(mapName), targetNorm)){
+          const route = cfg[mapName];
+          return Array.isArray(route) ? route.slice() : null;
+        }
+      }
+    }catch(_){ }
+    return null;
+  }
+
+  function __adi_followNamedRouteToTarget(route, target){
+    try{
+      if(!Array.isArray(route) || route.length === 0 || !target) return null;
+      const targetNorm = normMapName(target);
+      const hits = [];
+      for(let i=0;i<route.length;i++){
+        if(isNameMatch(normMapName(route[i]), targetNorm)) hits.push(i);
+      }
+      if(hits.length === 0) return null;
+
+      const curName = normMapName(map && map.name);
+      let targetIdx = hits[hits.length - 1];
+      const curIdx = __adi_pickRouteIndex(route, curName, hits[0], 1);
+
+      if(curIdx >= 0){
+        for(const idx of hits){
+          if(idx >= curIdx){
+            targetIdx = idx;
+            break;
+          }
+        }
+      }
+
+      const sub = route.slice(0, targetIdx + 1);
+      return __adi_followNamedRoute(sub);
     }catch(_){ return null; }
   }
 
@@ -1223,7 +1282,7 @@ Lvl: **${n.lvl ?? "?"}**`,
     return null;
   }
 
-  function __adi_pickRouteIndex(route, curName, preferredInc, dir, prevMap){
+  function __adi_pickRouteIndex(route, curName, preferredInc, dir){
     try{
       if(!Array.isArray(route) || route.length===0) return -1;
       const hits = [];
@@ -1236,50 +1295,24 @@ Lvl: **${n.lvl ?? "?"}**`,
       if(!Number.isFinite(preferredInc)) preferredInc = 0;
       dir = Number(dir);
       if(!Number.isFinite(dir) || dir===0) dir = 1;
-      prevMap = normMapName(prevMap);
-
-      const chooseClosest = (arr)=>{
-        if(!Array.isArray(arr) || arr.length===0) return -1;
-        let best = arr[0];
-        let bestScore = Number.POSITIVE_INFINITY;
-        for(const idx of arr){
-          const dist = Math.abs(idx - preferredInc);
-          const wrongSidePenalty = ((idx - preferredInc) * dir < 0) ? 0.25 : 0;
-          const score = dist + wrongSidePenalty;
-          if(score < bestScore){
-            best = idx;
-            bestScore = score;
-          }
-        }
-        return best;
-      };
-
-      // Najpierw spróbuj rozpoznać, z którego wystąpienia mapy weszliśmy,
-      // patrząc na poprzednią mapę i aktualny kierunek ping-ponga.
-      if(prevMap){
-        const directional = hits.filter(idx=>{
-          const backIdx = idx - dir;
-          return backIdx >= 0 && backIdx < route.length && isNameMatch(normMapName(route[backIdx]), prevMap);
-        });
-        if(directional.length===1) return directional[0];
-        if(directional.length>1) return chooseClosest(directional);
-
-        const adjacent = hits.filter(idx=>{
-          return (
-            (idx > 0 && isNameMatch(normMapName(route[idx-1]), prevMap)) ||
-            (idx < route.length-1 && isNameMatch(normMapName(route[idx+1]), prevMap))
-          );
-        });
-        if(adjacent.length===1) return adjacent[0];
-        if(adjacent.length>1) return chooseClosest(adjacent);
-      }
 
       if(hits.includes(preferredInc)) return preferredInc;
 
       const prev = preferredInc - dir;
       if(hits.includes(prev)) return prev;
 
-      return chooseClosest(hits);
+      let best = hits[0];
+      let bestScore = Number.POSITIVE_INFINITY;
+      for(const idx of hits){
+        const dist = Math.abs(idx - preferredInc);
+        const wrongSidePenalty = ((idx - preferredInc) * dir < 0) ? 0.25 : 0;
+        const score = dist + wrongSidePenalty;
+        if(score < bestScore){
+          best = idx;
+          bestScore = score;
+        }
+      }
+      return best;
     }catch(_){ return -1; }
   }
 
@@ -1300,15 +1333,7 @@ Lvl: **${n.lvl ?? "?"}**`,
     let dir=parseInt(localStorage.getItem('adi-bot_dir'),10); if(!Number.isFinite(dir)||dir===0) dir=1;
 
     const curName = normMapName(map.name);
-    let prevMap = normMapName(localStorage.getItem('adi-bot_prev_map_name') || '');
-    const lastSeenMap = normMapName(localStorage.getItem('adi-bot_last_seen_map') || '');
-    if(lastSeenMap && lastSeenMap !== curName){
-      prevMap = lastSeenMap;
-      localStorage.setItem('adi-bot_prev_map_name', prevMap);
-    }
-    localStorage.setItem('adi-bot_last_seen_map', curName);
-
-    const curIdx = __adi_pickRouteIndex(route, curName, inc, dir, prevMap);
+    const curIdx = __adi_pickRouteIndex(route, curName, inc, dir);
 
     if(curIdx >= 0) inc = curIdx;
     else inc = 0;
@@ -1324,7 +1349,6 @@ Lvl: **${n.lvl ?? "?"}**`,
       localStorage.setItem('adi-bot_dir', String(dir));
     }
 
-    try{ localStorage.setItem('adi-bot_prev_route_idx', String(Math.max(0, Math.min(route.length-1, inc - dir)))); }catch(_){ }
     const target = route[Math.max(0, Math.min(route.length-1, inc))];
     return __adi_routeToNamedMap(target);
   }
@@ -2687,6 +2711,12 @@ function __adiAutoHealTick(){
       const tgt = normMapName(window.ADI_TEMP_TARGET_MAP);
       const cur = normMapName(map.name);
 
+      const __targetRoute = __adi_getTargetSpecialRoute(window.ADI_TEMP_TARGET_MAP);
+      if(__targetRoute){
+        const via = __adi_followNamedRouteToTarget(__targetRoute, window.ADI_TEMP_TARGET_MAP);
+        if(via) return via;
+      }
+
       if(__specialRoute && normMapName(__specialRoute[__specialRoute.length - 1]) === tgt){
         const via = __adi_followNamedRoute(__specialRoute);
         if(via) return via;
@@ -2714,18 +2744,11 @@ function __adiAutoHealTick(){
     let dir=parseInt(localStorage.getItem('adi-bot_dir'),10); if(!Number.isFinite(dir)||dir===0) dir=1;
 
     const curName = normMapName(map.name);
-    let prevMap = normMapName(localStorage.getItem('adi-bot_prev_map_name') || '');
-    const lastSeenMap = normMapName(localStorage.getItem('adi-bot_last_seen_map') || '');
-    if(lastSeenMap && lastSeenMap !== curName){
-      prevMap = lastSeenMap;
-      localStorage.setItem('adi-bot_prev_map_name', prevMap);
-    }
-    localStorage.setItem('adi-bot_last_seen_map', curName);
 
     // If the route contains duplicated map names (np. Ithan -> ... -> Ithan),
-    // do not snap to the first occurrence blindly. Prefer the occurrence that
-    // matches the real previous map transition, then fall back to nearest progress.
-    const curIdx = __adi_pickRouteIndex(txt, curName, inc, dir, prevMap);
+    // do not snap to the first occurrence blindly. Pick the index closest to the
+    // currently remembered progress so ping-pong does not loop forever.
+    const curIdx = __adi_pickRouteIndex(txt, curName, inc, dir);
     if(curIdx>=0) inc = curIdx;
 
     // Ping-pong advance if we're already at the current target.
@@ -2741,7 +2764,6 @@ function __adiAutoHealTick(){
       localStorage.setItem('adi-bot_dir', String(dir));
     }
 
-    try{ localStorage.setItem('adi-bot_prev_route_idx', String(Math.max(0, Math.min(txt.length-1, inc - dir)))); }catch(_){ }
     const target = txt[Math.max(0, Math.min(txt.length-1, inc))];
 
     // 1) Try direct gateway (adjacent map).
