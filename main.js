@@ -1222,6 +1222,40 @@ Lvl: **${n.lvl ?? "?"}**`,
     return null;
   }
 
+  function __adi_pickRouteIndex(route, curName, preferredInc, dir){
+    try{
+      if(!Array.isArray(route) || route.length===0) return -1;
+      const hits = [];
+      for(let i=0;i<route.length;i++){
+        if(isNameMatch(normMapName(route[i]), curName)) hits.push(i);
+      }
+      if(hits.length===0) return -1;
+
+      preferredInc = Number(preferredInc);
+      if(!Number.isFinite(preferredInc)) preferredInc = 0;
+      dir = Number(dir);
+      if(!Number.isFinite(dir) || dir===0) dir = 1;
+
+      if(hits.includes(preferredInc)) return preferredInc;
+
+      const prev = preferredInc - dir;
+      if(hits.includes(prev)) return prev;
+
+      let best = hits[0];
+      let bestScore = Number.POSITIVE_INFINITY;
+      for(const idx of hits){
+        const dist = Math.abs(idx - preferredInc);
+        const wrongSidePenalty = ((idx - preferredInc) * dir < 0) ? 0.25 : 0;
+        const score = dist + wrongSidePenalty;
+        if(score < bestScore){
+          best = idx;
+          bestScore = score;
+        }
+      }
+      return best;
+    }catch(_){ return -1; }
+  }
+
   function __adi_followNamedRoute(route){
     if(!Array.isArray(route) || route.length===0) return null;
 
@@ -1239,10 +1273,7 @@ Lvl: **${n.lvl ?? "?"}**`,
     let dir=parseInt(localStorage.getItem('adi-bot_dir'),10); if(!Number.isFinite(dir)||dir===0) dir=1;
 
     const curName = normMapName(map.name);
-    let curIdx = -1;
-    for(let i=0;i<route.length;i++){
-      if(isNameMatch(normMapName(route[i]), curName)){ curIdx=i; break; }
-    }
+    const curIdx = __adi_pickRouteIndex(route, curName, inc, dir);
 
     if(curIdx >= 0) inc = curIdx;
     else inc = 0;
@@ -2648,11 +2679,10 @@ function __adiAutoHealTick(){
 
     const curName = normMapName(map.name);
 
-    // If we are currently on one of the listed maps, sync the pointer to that position.
-    let curIdx = -1;
-    for(let i=0;i<txt.length;i++){
-      if(isNameMatch(normMapName(txt[i]), curName)){ curIdx=i; break; }
-    }
+    // If the route contains duplicated map names (np. Ithan -> ... -> Ithan),
+    // do not snap to the first occurrence blindly. Pick the index closest to the
+    // currently remembered progress so ping-pong does not loop forever.
+    const curIdx = __adi_pickRouteIndex(txt, curName, inc, dir);
     if(curIdx>=0) inc = curIdx;
 
     // Ping-pong advance if we're already at the current target.
