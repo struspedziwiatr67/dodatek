@@ -3289,6 +3289,7 @@ function apOpenDialogShop(){
             setTimeout(()=>{
               // finish: clear temp target and task; resume exp / E2
               try{ __adi_prepareResumeAfterCityTask(); }catch(_){ }
+              try{ __adiPotionLastPositiveAt = Date.now(); __adiPotionZeroStreak = 0; }catch(_){ }
               setTempTarget(null); window.__tempRoute=null; window.__tempRouteTarget=null;
               window.__graphRoute=null; window.__graphRouteTarget=null;
               apSetInfo('Kupione. Wracam na expowisko...', true);
@@ -3343,7 +3344,7 @@ function __adi_normTxt(s){
 
 function getPotionCountByName(name){
   try{
-    if(!window.g || !g.item) return 0;
+    if(!window.g || !g.item || typeof g.item !== 'object') return 0;
 
     const needle = __adi_normTxt(name);
     if(!needle || needle.length < 3) return 0;
@@ -3363,6 +3364,23 @@ function getPotionCountByName(name){
     return sum;
   }catch(_){
     return 0;
+  }
+}
+
+function __adi_canSafelyDetectPotionShortage(){
+  try{
+    if(!window.g || !g.item || typeof g.item !== 'object') return false;
+    const itemKeys = Object.keys(g.item || {});
+    if(itemKeys.length === 0) return false;
+
+    const lastMapTs = Number(window.lastMapChangeTs || 0);
+    const nowSec = (typeof nowUnix === 'function') ? nowUnix() : Math.floor(Date.now()/1000);
+    if(lastMapTs > 0 && (nowSec - lastMapTs) <= 12) return false;
+
+    if(window.g?.battle || window.g?.dead) return false;
+    return true;
+  }catch(_){
+    return false;
   }
 }
 
@@ -3414,6 +3432,8 @@ try{ window.__adi_normTxt = __adi_normTxt; window.getPotionCountByName = getPoti
 
   let __autoBuyGuard = false;
   let __lastPotionDetectAt = 0;
+  let __adiPotionZeroStreak = 0;
+  let __adiPotionLastPositiveAt = 0;
 
   function getPotionDetectMs(){
     try{
@@ -3451,11 +3471,24 @@ try{ window.__adi_normTxt = __adi_normTxt; window.getPotionCountByName = getPoti
       // Nie wykrywaj braku mikstur, jeśli panel złota nie jest dostępny / nie da się odczytać kwoty.
       // Dzięki temu auto-zakup nie odpali w momentach, gdy UI nie pokazuje poprawnie złota.
       if(!__adi_canReadGoldAmount()) return;
+      if(!__adi_canSafelyDetectPotionShortage()) return;
 
       const have = getPotionCountByName(name);
-      if(have > 0) return; // mamy chociaż 1 -> nic nie rób
+      if(have > 0){
+        __adiPotionZeroStreak = 0;
+        __adiPotionLastPositiveAt = Date.now();
+        return; // mamy chociaż 1 -> nic nie rób
+      }
+
+      __adiPotionZeroStreak = (__adiPotionZeroStreak || 0) + 1;
+      const now2 = Date.now();
+      const mode2 = (localStorage.getItem('adi-bot_exp_mode') || 'exp').trim().toLowerCase();
+      const minPositiveGap = mode2 === 'e2' ? 45000 : 8000;
+      if(__adiPotionLastPositiveAt && (now2 - __adiPotionLastPositiveAt) < minPositiveGap) return;
+      if(__adiPotionZeroStreak < 2) return;
 
       __autoBuyGuard = true;
+      __adiPotionZeroStreak = 0;
 
       const qtyN = getDesiredQty();
       const v = getSelectedVendor();
@@ -4881,14 +4914,18 @@ if (typeof window.window.__adi_equipByNameSequence !== 'function') {
     const allowedRaw = getAllowedMapsRaw();
     const cur = normMapName(window.map && map.name);
 
-    // jeśli mamy ustawiony cel i doszliśmy -> wyczyść
+    // jeśli mamy ustawiony cel tymczasowy, nie czyść go po samym cur===tgt,
+    // bo dla tras z duplikatem Ithan psuło to dojście/powrót i auto-buy.
     if(window.ADI_TEMP_TARGET_MAP){
-      const tgt = normMapName(window.ADI_TEMP_TARGET_MAP);
-      if(cur && tgt && cur === tgt){
-        window.ADI_TEMP_TARGET_MAP = null;
-        try{ localStorage.removeItem('adi-temp-target'); }catch(_){}
-      } else {
-        // cel ustawiony (vendor/exh/smart) -> nie przeszkadzaj
+      try{
+        if(typeof __adi_isAtResolvedTargetMap === 'function' && __adi_isAtResolvedTargetMap(window.ADI_TEMP_TARGET_MAP)){
+          window.ADI_TEMP_TARGET_MAP = null;
+          try{ localStorage.removeItem('adi-temp-target'); }catch(_){}
+        } else {
+          // cel ustawiony (vendor/exh/smart) -> nie przeszkadzaj
+          return _origFindBestGw();
+        }
+      }catch(_){
         return _origFindBestGw();
       }
     }
