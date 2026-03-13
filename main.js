@@ -1290,7 +1290,26 @@ Lvl: **${n.lvl ?? "?"}**`,
     }catch(_){ return -1; }
   }
 
-  function __adi_followNamedRoute(route){
+  
+/* === ROUTE AUTO SYNC PATCH ===
+If bot starts on a map outside the route (e.g. Dolina Yss),
+reset route index so traversal begins from start.
+*/
+function __adi_forceRouteStartIfOutside(route){
+  try{
+    if(!Array.isArray(route) || !window.map) return;
+    const cur = normMapName(map.name || "");
+    const inside = route.some(m => isNameMatch(normMapName(m), cur));
+    if(!inside){
+      localStorage.setItem('alksjd','0');
+      localStorage.setItem('adi-bot_dir','1');
+    }
+  }catch(e){}
+}
+
+function __adi_followNamedRoute(route){
+  __adi_forceRouteStartIfOutside(route);
+
     if(!Array.isArray(route) || route.length===0) return null;
 
     const routeSig = route.map(s=>normMapName(s)).join('>');
