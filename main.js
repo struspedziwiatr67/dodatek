@@ -1290,6 +1290,59 @@ Lvl: **${n.lvl ?? "?"}**`,
     return __adi_routeToNamedMap(target);
   }
 
+  function __adi_followSpecialTransitRoute(targetMap){
+    try{
+      const route = __adi_getSpecialRouteMaps();
+      if(!Array.isArray(route) || route.length===0 || !targetMap) return null;
+
+      const curName = normMapName(map.name);
+      const tgtName = normMapName(targetMap);
+      if(!curName || !tgtName || curName === tgtName) return null;
+
+      const curMatches = [];
+      const tgtMatches = [];
+      for(let i=0;i<route.length;i++){
+        const nm = normMapName(route[i]);
+        if(isNameMatch(nm, curName)) curMatches.push(i);
+        if(isNameMatch(nm, tgtName)) tgtMatches.push(i);
+      }
+      if(!tgtMatches.length) return null;
+
+      // Gdy stoimy poza specjalną trasą (np. Czeluść Ognistej Pożogi),
+      // najpierw dojedź do jej końcówki przy expowisku (np. Wioska Gnolli),
+      // a dopiero potem skorzystaj ze specjalnego przejścia do miasta.
+      if(!curMatches.length){
+        const anchor = route[route.length - 1];
+        if(anchor && !isNameMatch(normMapName(anchor), curName)){
+          return __adi_routeToNamedMap(anchor);
+        }
+        return null;
+      }
+
+      let curIdx = curMatches[0];
+      if(curMatches.length > 1){
+        let best = curMatches[0], bestScore = Infinity;
+        for(const idx of curMatches){
+          const score = Math.min.apply(null, tgtMatches.map(t=>Math.abs(t-idx)));
+          if(score < bestScore){ best = idx; bestScore = score; }
+        }
+        curIdx = best;
+      }
+
+      let tgtIdx = tgtMatches[0], bestTargetScore = Infinity;
+      for(const idx of tgtMatches){
+        const score = Math.abs(idx - curIdx);
+        if(score < bestTargetScore){ tgtIdx = idx; bestTargetScore = score; }
+      }
+
+      if(tgtIdx === curIdx) return null;
+      const step = tgtIdx > curIdx ? 1 : -1;
+      const nextIdx = curIdx + step;
+      const nextMap = route[nextIdx];
+      return nextMap ? __adi_routeToNamedMap(nextMap) : null;
+    }catch(_){ return null; }
+  }
+
   // ===== MAP GRAPH (expowisko routing to the first map) =====
 
   (function(){
@@ -2651,6 +2704,13 @@ function __adiAutoHealTick(){
       if(__specialRoute && normMapName(__specialRoute[__specialRoute.length - 1]) === tgt){
         const via = __adi_followNamedRoute(__specialRoute);
         if(via) return via;
+      }
+
+      // Pozwól używać specjalnych tras także w drugą stronę / do punktów pośrednich
+      // (np. Gnolle -> Ithan po mikstury, a potem z Ithan znów na Gnolle).
+      if(__specialRoute){
+        const viaSpecialTransit = __adi_followSpecialTransitRoute(window.ADI_TEMP_TARGET_MAP);
+        if(viaSpecialTransit) return viaSpecialTransit;
       }
 
       if(cur !== tgt){
