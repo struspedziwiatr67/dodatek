@@ -3132,6 +3132,9 @@ function getPotionCountByName(name){
       const it = g.item[k];
       if(!it) continue;
 
+      const loc = String(it.loc || '');
+      if(loc !== 'g') continue;
+
       const nm = __adi_normTxt(it.name) + ' ' + __adi_normTxt(it.nick) + ' ' + __adi_normTxt(it.tip);
 
       if(nm.includes(needle)){
@@ -3176,6 +3179,35 @@ function __adi_canReadGoldAmount(){
   }
 }
 
+function __adi_canTrustInventoryRead(){
+  try{
+    if(document.hidden) return false;
+    if(typeof document.hasFocus === 'function' && !document.hasFocus()) return false;
+
+    const lastVisibleAt = Number(window.__adiLastVisibleAt || 0);
+    if(!lastVisibleAt) return false;
+
+    if((Date.now() - lastVisibleAt) < 2000) return false;
+
+    if(!window.g || !g.item) return false;
+    return true;
+  }catch(_){
+    return false;
+  }
+}
+
+window.__adiLastVisibleAt = Date.now();
+document.addEventListener('visibilitychange', ()=>{
+  if(!document.hidden){
+    window.__adiLastVisibleAt = Date.now();
+    window.__adiPotionZeroReads = 0;
+  }
+});
+window.addEventListener('focus', ()=>{
+  window.__adiLastVisibleAt = Date.now();
+  window.__adiPotionZeroReads = 0;
+});
+
 // expose for other parts of the bot (resume after refresh, etc.)
 try{ window.__adi_normTxt = __adi_normTxt; window.getPotionCountByName = getPotionCountByName; }catch(_){}
 
@@ -3193,6 +3225,7 @@ try{ window.__adi_normTxt = __adi_normTxt; window.getPotionCountByName = getPoti
 
   let __autoBuyGuard = false;
   let __lastPotionDetectAt = 0;
+  let __potionZeroReads = 0;
 
   function getPotionDetectMs(){
     try{
@@ -3213,6 +3246,7 @@ try{ window.__adi_normTxt = __adi_normTxt; window.getPotionCountByName = getPoti
       if(__autoBuyGuard) return;
       if(window.g?.battle || window.g?.dead) return;
       if(localStorage.getItem('adi-bot_potion_autobuy')!=='1') return;
+      if(!__adi_canTrustInventoryRead()) return;
       // nie rozpoczynaj, jeśli jest już aktywne zadanie zakupowe
       try{ const t = (function(){ try{return JSON.parse(localStorage.getItem('adi-bot_buy_task')||'{}');}catch(_){return null;} })(); if(t && t.active) return; }catch(_){}
       // nie rozpoczynaj, jeśli już lecimy gdzieś tymczasowo (np. inny task)
@@ -3232,9 +3266,19 @@ try{ window.__adi_normTxt = __adi_normTxt; window.getPotionCountByName = getPoti
       if(!__adi_canReadGoldAmount()) return;
 
       const have = getPotionCountByName(name);
-      if(have > 0) return; // mamy chociaż 1 -> nic nie rób
+      if(have > 0){
+        __potionZeroReads = 0;
+        try{ window.__adiPotionZeroReads = 0; }catch(_){}
+        return;
+      }
+
+      __potionZeroReads++;
+      try{ window.__adiPotionZeroReads = __potionZeroReads; }catch(_){}
+      if(__potionZeroReads < 3) return;
 
       __autoBuyGuard = true;
+      __potionZeroReads = 0;
+      try{ window.__adiPotionZeroReads = 0; }catch(_){}
 
       const qtyN = getDesiredQty();
       const v = getSelectedVendor();
