@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Bot na exp (iframe-aware exhaustion + throttling + captcha->Discord + ping-pong trasy + only-selected-maps + elite toggle + group-size filter + heros->Discord + obrazki + fixy map/lvl/wt/grupy + FOW cache)
-// @version      2.17.6-vari-routefix
+// @version      2.17.7-vari-returnfix
 // @description  Bot z przechodzeniem map, anty-spam ataku, captcha->Discord, START/STOP, zbijanie wyczerpania, atak tylko na wybranych mapach, elity toggle, filtr grup, powiadomienia o herosach (bez Namiotu Tropicieli Herosów), normalizacja nazw map, odporne parsowanie lvli, poprawki 'wt', stabilny wybór grup przy mgle (cache max rozmiaru grupy)
 // @match        *://*/
 // @match        *://www.margonem.pl/*
@@ -1319,6 +1319,30 @@ Lvl: **${n.lvl ?? "?"}**`,
     saveState(inc, dir, curName, normMapName(target));
     return __adi_routeToNamedMap(target);
   }
+
+  function __adi_followSpecialRouteToTarget(target){
+    try{
+      if(!target) return null;
+      const route = __adi_getSpecialRouteMaps();
+      if(!Array.isArray(route) || route.length < 2) return null;
+
+      const cur = normMapName(map && map.name);
+      const tgt = normMapName(target);
+      const onRoute = route.some(name => isNameMatch(normMapName(name), cur));
+      if(!onRoute) return null;
+
+      if(isNameMatch(normMapName(route[0]), tgt)){
+        return __adi_followNamedRoute(route.slice().reverse());
+      }
+      if(isNameMatch(normMapName(route[route.length - 1]), tgt)){
+        return __adi_followNamedRoute(route.slice());
+      }
+      return null;
+    }catch(_){
+      return null;
+    }
+  }
+
 
   // ===== MAP GRAPH (expowisko routing to the first map) =====
 
@@ -2678,9 +2702,9 @@ function __adiAutoHealTick(){
       const tgt = normMapName(window.ADI_TEMP_TARGET_MAP);
       const cur = normMapName(map.name);
 
-      if(__specialRoute && normMapName(__specialRoute[__specialRoute.length - 1]) === tgt){
-        const via = __adi_followNamedRoute(__specialRoute);
-        if(via) return via;
+      if(__specialRoute){
+        const viaSpecial = __adi_followSpecialRouteToTarget(window.ADI_TEMP_TARGET_MAP);
+        if(viaSpecial) return viaSpecial;
       }
 
       if(cur !== tgt){
@@ -3082,8 +3106,9 @@ function apOpenDialogShop(){
             apSetInfo('Podchodzę do kapłanki...', true);
             task.stage='toStand'; saveBuyTask(task);
           }else{
-            // move along the graph towards vendor map
-            const via = followGraphTo(v.map);
+            // first try hard special-route return/entry (handles duplicated maps like Ithan)
+            const viaSpecial = __adi_followSpecialRouteToTarget(v.map);
+            const via = viaSpecial || followGraphTo(v.map);
             if(via){
               if(hero.x===via.x && hero.y===via.y){ _g('walk'); }
               else { a_goTo(via.x, via.y); }
@@ -4250,7 +4275,8 @@ try{
           eqSetInfo('Wyznaczam trasę do '+task.map+'...', true);
           // Move one step of the route here (do not depend on main bot loop)
           try{
-            var step = (typeof followGraphTo==='function') ? followGraphTo(task.map) : null;
+            var stepSpecial = (typeof __adi_followSpecialRouteToTarget==='function') ? __adi_followSpecialRouteToTarget(task.map) : null;
+            var step = stepSpecial || ((typeof followGraphTo==='function') ? followGraphTo(task.map) : null);
             if(step && typeof step.x!=='undefined') a_goTo(step.x, step.y);
           }catch(_){}
         }
