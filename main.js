@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Bot na exp (iframe-aware exhaustion + throttling + captcha->Discord + ping-pong trasy + only-selected-maps + elite toggle + group-size filter + heros->Discord + obrazki + fixy map/lvl/wt/grupy + FOW cache)
-// @version      2.17.5-customroutes
+// @version      2.17.6-vari-kruger-routefix
 // @description  Bot z przechodzeniem map, anty-spam ataku, captcha->Discord, START/STOP, zbijanie wyczerpania, atak tylko na wybranych mapach, elity toggle, filtr grup, powiadomienia o herosach (bez Namiotu Tropicieli Herosów), normalizacja nazw map, odporne parsowanie lvli, poprawki 'wt', stabilny wybór grup przy mgle (cache max rozmiaru grupy)
 // @match        *://*/
 // @match        *://www.margonem.pl/*
@@ -1513,6 +1513,37 @@ function setTempTarget(val){
     if(val) localStorage.setItem('adi-temp-target', String(val));
     else localStorage.removeItem('adi-temp-target');
   }catch(_){}
+}
+function __adiResumeTargetAfterVendor(){
+  try{
+    const mode = String(localStorage.getItem('adi-bot_exp_mode') || 'exp').trim().toLowerCase();
+    const special = (typeof __adi_getSpecialRouteMaps === 'function') ? __adi_getSpecialRouteMaps() : null;
+
+    window.__tempRoute = null;
+    window.__tempRouteTarget = null;
+    window.__graphRoute = null;
+    window.__graphRouteTarget = null;
+
+    if(mode === 'e2'){
+      let tgt = null;
+      try{ tgt = JSON.parse(localStorage.getItem('adi-bot_e2_target') || 'null'); }catch(_){ tgt = null; }
+      if(tgt && tgt.map){
+        setTempTarget(String(tgt.map));
+        try{
+          if(Array.isArray(special) && special.length){
+            localStorage.setItem('adi-bot_route_sig', special.map(s=>normMapName(s)).join('>'));
+          }
+        }catch(_){ }
+        return true;
+      }
+    }
+
+    setTempTarget(null);
+    return false;
+  }catch(_){
+    try{ setTempTarget(null); }catch(__){}
+    return false;
+  }
 }
 // ===== A* =====
   class AStar {
@@ -3067,10 +3098,9 @@ function apOpenDialogShop(){
             task.stage='back'; saveBuyTask(task);
 
             setTimeout(()=>{
-              // finish: clear temp target and task; resume exp
-              setTempTarget(null); window.__tempRoute=null; window.__tempRouteTarget=null;
-              window.__graphRoute=null; window.__graphRouteTarget=null;
-              apSetInfo('Kupione. Wracam na expowisko...', true);
+              // finish: restore route context and task; resume exp / E2
+              const resumedE2 = __adiResumeTargetAfterVendor();
+              apSetInfo(resumedE2 ? 'Kupione. Wracam na E2...' : 'Kupione. Wracam na expowisko...', true);
               clearBuyTask();
               stopBuyFlow();
             }, qtyN*400 + 700);
@@ -4653,6 +4683,11 @@ if (typeof window.window.__adi_equipByNameSequence !== 'function') {
   const _origFindBestGw = bot.findBestGw.bind(bot);
 
   bot.findBestGw = function(){
+    const specialRoute = (typeof __adi_getSpecialRouteMaps === 'function') ? __adi_getSpecialRouteMaps() : null;
+    if(Array.isArray(specialRoute) && specialRoute.length){
+      return _origFindBestGw();
+    }
+
     const allowedRaw = getAllowedMapsRaw();
     const cur = normMapName(window.map && map.name);
 
