@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Bot na exp (iframe-aware exhaustion + throttling + captcha->Discord + ping-pong trasy + only-selected-maps + elite toggle + group-size filter + heros->Discord + obrazki + fixy map/lvl/wt/grupy + FOW cache)
-// @version      2.17.5-customroutes
+// @version      2.17.6-vari-routefix
 // @description  Bot z przechodzeniem map, anty-spam ataku, captcha->Discord, START/STOP, zbijanie wyczerpania, atak tylko na wybranych mapach, elity toggle, filtr grup, powiadomienia o herosach (bez Namiotu Tropicieli Herosów), normalizacja nazw map, odporne parsowanie lvli, poprawki 'wt', stabilny wybór grup przy mgle (cache max rozmiaru grupy)
 // @match        *://*/
 // @match        *://www.margonem.pl/*
@@ -1227,38 +1227,96 @@ Lvl: **${n.lvl ?? "?"}**`,
 
     const routeSig = route.map(s=>normMapName(s)).join('>');
     const sigKey = 'adi-bot_route_sig';
+    const stateKey = 'adi-bot_route_state_v2';
     const savedSig = localStorage.getItem(sigKey) || '';
-    if(savedSig !== routeSig){
-      localStorage.setItem(sigKey, routeSig);
-      localStorage.setItem('alksjd', '0');
-      localStorage.setItem('adi-bot_dir', '1');
+
+    function clampIdx(v){
+      v = parseInt(v, 10);
+      if(!Number.isFinite(v)) v = 0;
+      return Math.max(0, Math.min(route.length - 1, v));
+    }
+    function loadState(){
+      try{
+        const raw = localStorage.getItem(stateKey);
+        const st = raw ? JSON.parse(raw) : {};
+        return {
+          idx: clampIdx(st && st.idx),
+          dir: (Number(st && st.dir) === -1 ? -1 : 1),
+          lastMap: normMapName(st && st.lastMap || ''),
+          lastTarget: normMapName(st && st.lastTarget || '')
+        };
+      }catch(_){
+        return { idx: 0, dir: 1, lastMap: '', lastTarget: '' };
+      }
+    }
+    function saveState(idx, dir, lastMap, lastTarget){
+      idx = clampIdx(idx);
+      dir = (Number(dir) === -1 ? -1 : 1);
+      try{
+        localStorage.setItem(sigKey, routeSig);
+        localStorage.setItem('alksjd', String(idx));
+        localStorage.setItem('adi-bot_dir', String(dir));
+        localStorage.setItem(stateKey, JSON.stringify({
+          idx,
+          dir,
+          lastMap: String(lastMap || ''),
+          lastTarget: String(lastTarget || '')
+        }));
+      }catch(_){ }
     }
 
-    if(!localStorage.getItem('adi-bot_dir')) localStorage.setItem('adi-bot_dir','1');
-    let inc=parseInt(localStorage.getItem('alksjd'),10); if(!Number.isFinite(inc)) inc=0;
-    let dir=parseInt(localStorage.getItem('adi-bot_dir'),10); if(!Number.isFinite(dir)||dir===0) dir=1;
+    if(savedSig !== routeSig){
+      saveState(0, 1, '', '');
+    }
+
+    let state = loadState();
+    let inc = clampIdx(state.idx);
+    let dir = state.dir;
 
     const curName = normMapName(map.name);
-    let curIdx = -1;
+    const matches = [];
     for(let i=0;i<route.length;i++){
-      if(isNameMatch(normMapName(route[i]), curName)){ curIdx=i; break; }
+      if(isNameMatch(normMapName(route[i]), curName)) matches.push(i);
     }
 
-    if(curIdx >= 0) inc = curIdx;
-    else inc = 0;
+    if(matches.length === 1){
+      inc = matches[0];
+    }else if(matches.length > 1){
+      // duplicate maps in route (e.g. Ithan appears twice on the way to Vari Kruger).
+      // Pick the occurrence closest to the current route progress instead of always the first one.
+      let picked = matches.includes(inc) ? inc : -1;
+
+      if(picked === -1 && dir >= 0){
+        picked = matches.find(i => i >= inc);
+      }
+      if((picked === -1 || picked == null) && dir < 0){
+        for(let i=matches.length-1;i>=0;i--){
+          if(matches[i] <= inc){ picked = matches[i]; break; }
+        }
+      }
+      if((picked === -1 || picked == null) && state.lastTarget){
+        const lt = state.lastTarget;
+        if(dir >= 0){
+          picked = matches.find(i => i > 0 && isNameMatch(normMapName(route[i-1]), lt));
+        }else{
+          picked = matches.find(i => i < route.length-1 && isNameMatch(normMapName(route[i+1]), lt));
+        }
+      }
+      if((picked === -1 || picked == null)){
+        picked = matches.slice().sort((a,b)=>Math.abs(a-inc)-Math.abs(b-inc))[0];
+      }
+      inc = clampIdx(picked);
+    }
 
     if(route[inc] && isNameMatch(normMapName(route[inc]), curName)){
       inc += dir;
       if(inc>=route.length){ inc=Math.max(0, route.length-2); dir=-1; }
       else if(inc<0){ inc=Math.min(1, route.length-1); dir=1; }
-      localStorage.setItem('alksjd', String(inc));
-      localStorage.setItem('adi-bot_dir', String(dir));
-    }else{
-      localStorage.setItem('alksjd', String(Math.max(0, Math.min(route.length-1, inc))));
-      localStorage.setItem('adi-bot_dir', String(dir));
     }
 
-    const target = route[Math.max(0, Math.min(route.length-1, inc))];
+    inc = clampIdx(inc);
+    const target = route[inc];
+    saveState(inc, dir, curName, normMapName(target));
     return __adi_routeToNamedMap(target);
   }
 
