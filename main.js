@@ -77,7 +77,7 @@
   }, 500);
 })();
 
-// ===== 429 / Too Many Requests black-screen auto refresh =====
+// ===== Auto refresh: Too Many Requests + biały ekran po wylogowaniu =====
 (function(){
   const CHECK_MS = 300;
   const RELOAD_DELAY_MS = 1000;
@@ -92,11 +92,11 @@
   }
 
   function getLastReloadAt(){
-    try{ return parseInt(sessionStorage.getItem('adi-bot_tmr_last_reload_at') || '0', 10) || 0; }catch(_){ return 0; }
+    try{ return parseInt(sessionStorage.getItem('adi-bot_auto_reload_last_at') || '0', 10) || 0; }catch(_){ return 0; }
   }
 
   function setLastReloadAt(ts){
-    try{ sessionStorage.setItem('adi-bot_tmr_last_reload_at', String(ts || getNow())); }catch(_){ }
+    try{ sessionStorage.setItem('adi-bot_auto_reload_last_at', String(ts || getNow())); }catch(_){ }
   }
 
   function isTooManyRequestsScreen(doc){
@@ -110,23 +110,64 @@
     }catch(_){ return false; }
   }
 
+  function isBlankWhiteScreen(doc){
+    try{
+      if(!doc || !doc.documentElement || !doc.body) return false;
+
+      const body = doc.body;
+      const txt = String(body.innerText || body.textContent || '').replace(/[\s\u00A0]+/g, '');
+      if(txt) return false;
+
+      const visibleNodes = Array.from(body.children || []).filter(function(el){
+        try{
+          if(!el) return false;
+          const tag = String(el.tagName || '').toUpperCase();
+          if(tag === 'SCRIPT' || tag === 'STYLE' || tag === 'LINK' || tag === 'META' || tag === 'NOSCRIPT') return false;
+          const st = window.getComputedStyle ? getComputedStyle(el) : null;
+          if(st && (st.display === 'none' || st.visibility === 'hidden' || Number(st.opacity||'1') === 0)) return false;
+          const rect = el.getBoundingClientRect ? el.getBoundingClientRect() : null;
+          if(rect && rect.width <= 2 && rect.height <= 2) return false;
+          return true;
+        }catch(_){ return false; }
+      });
+      if(visibleNodes.length > 0) return false;
+
+      const bgBody = String((window.getComputedStyle && getComputedStyle(body).backgroundColor) || body.style.backgroundColor || '').toLowerCase();
+      const bgHtml = String((window.getComputedStyle && getComputedStyle(doc.documentElement).backgroundColor) || doc.documentElement.style.backgroundColor || '').toLowerCase();
+      const looksWhite = !bgBody || /rgba?\(255,\s*255,\s*255(?:,\s*(?:1|0?\.\d+))?\)|white/.test(bgBody) || /rgba?\(255,\s*255,\s*255(?:,\s*(?:1|0?\.\d+))?\)|white/.test(bgHtml);
+      if(!looksWhite) return false;
+
+      const scripts = doc.scripts ? doc.scripts.length : 0;
+      return scripts >= 1;
+    }catch(_){ return false; }
+  }
+
   function doReload(){
     try{ location.reload(); return; }catch(_){ }
     try{ history.go(0); }catch(_){ }
   }
 
-  function tick(){
+  function scheduleReload(reason){
     try{
-      if(!isMargonemHost()) return;
-      if(!isTooManyRequestsScreen(document)) return;
-
       const last = getLastReloadAt();
       const now = getNow();
       if(now - last < RELOAD_COOLDOWN_MS) return;
-
       setLastReloadAt(now);
-      console.warn('[adi-bot] Wykryto czarny ekran "Too Many Requests" -> odświeżam za 1s');
+      console.warn('[adi-bot] Wykryto ' + reason + ' -> odświeżam za 1s');
       setTimeout(doReload, RELOAD_DELAY_MS);
+    }catch(_){ }
+  }
+
+  function tick(){
+    try{
+      if(!isMargonemHost()) return;
+      if(isTooManyRequestsScreen(document)){
+        scheduleReload('ekran "Too Many Requests"');
+        return;
+      }
+      if(isBlankWhiteScreen(document)){
+        scheduleReload('biały ekran po wylogowaniu');
+      }
     }catch(_){ }
   }
 
