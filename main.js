@@ -1008,7 +1008,7 @@ Lvl: **${n.lvl ?? "?"}**`,
     "Zbiry Eder": { map: "Stary Kupiecki Trakt, Stukot Widmowych Kół, Wertepy Rzezimieszków" },
     "Galaretki + Pająki": { map: "Zapomniany Szlak, Mokra Grota p.1, Mokra Grota p.1 - przełaz, Mokra Grota p.1 - boczny korytarz, Mokra Grota p.2 - korytarz, Mokra Grota p.1 - boczny korytarz, Mokra Grota p.1, Zapomniany Szlak, Grota Bezszelestnych Kroków - sala 1, Grota Bezszelestnych Kroków - sala 2, Grota Bezszelestnych Kroków - sala 3, Grota Bezszelestnych Kroków - sala 1, Zapomniany Szlak" },
     "Pszczoły Ithan": { map: "Porzucone Pasieki, Kopalnia Kapiącego Miodu p.1 - sala 2, Kopalnia Kapiącego Miodu p.2 - sala 2, Kopalnia Kapiącego Miodu p.3, Kopalnia Kapiącego Miodu p.2 - sala 1, Kopalnia Kapiącego Miodu p.2 - sala Owadziej Matki, Kopalnia Kapiącego Miodu p.2 - sala 1, Kopalnia Kapiącego Miodu p.1 - sala 1, Porzucone Pasieki", mobs_id: [71698] },
-    "Gnolle": { map: "Wioska Gnolli, Czeluść Ognistej Pożogi" },
+    "Gnolle": { map: "Ithan, Jaskinia Łowców p.1, Jaskinia Łowców p.2, Ithan, Wioska Gnolli" },
     "Mnisi LOW": { map: "Świątynia Andarum, Świątynia Andarum - zejście lewe, Świątynia Andarum - podziemia, Świątynia Andarum - zejście prawe, Świątynia Andarum - podziemia, Świątynia Andarum - lokum mnichów" },
     "Mnisi+Zbrojki": { map: "Świątynia Andarum, Świątynia Andarum - zejście lewe, Świątynia Andarum - podziemia, Świątynia Andarum - zejście prawe, Świątynia Andarum - podziemia, Świątynia Andarum - biblioteka, Świątynia Andarum - podziemia, Świątynia Andarum - lokum mnichów, Świątynia Andarum - magazyn p.2, Świątynia Andarum - magazyn p.1" },
     "Erem+Zbrojki": { map: "Świątynia Andarum - magazyn p.1, Świątynia Andarum - magazyn p.2, Erem Czarnego Słońca p.4 - sala 2, Erem Czarnego Słońca p.3 - południe, Erem Czarnego Słońca p.4 - sala 2, Erem Czarnego Słońca p.3, Erem Czarnego Słońca p.2, Erem Czarnego Słońca p.1 - północ, Erem Czarnego Słońca p.2, Erem Czarnego Słońca p.3, Erem Czarnego Słońca p.4 - sala 1, Erem Czarnego Słońca p.5" },
@@ -1222,37 +1222,6 @@ Lvl: **${n.lvl ?? "?"}**`,
     return null;
   }
 
-  function __adi_pickRouteIndex(route, curName, inc, dir){
-    try{
-      if(!Array.isArray(route) || route.length===0) return -1;
-      const matches=[];
-      for(let i=0;i<route.length;i++){
-        if(isNameMatch(normMapName(route[i]), curName)) matches.push(i);
-      }
-      if(matches.length===0) return -1;
-
-      inc = Number.isFinite(inc) ? inc : 0;
-      dir = Number.isFinite(dir) && dir !== 0 ? dir : 1;
-      inc = Math.max(0, Math.min(route.length-1, inc));
-
-      // Najważniejsze przy mapach powtarzających się w trasie (np. Ithan na Gnollach):
-      // jeśli zapisany indeks już wskazuje na bieżącą mapę, nie cofaj się do pierwszego wystąpienia.
-      if(matches.includes(inc)) return inc;
-
-      // Preferuj wystąpienie "przed nami" zgodnie z kierunkiem ping-pong.
-      if(dir > 0){
-        const ahead = matches.filter(i => i >= inc).sort((a,b)=>a-b);
-        if(ahead.length) return ahead[0];
-      }else{
-        const behind = matches.filter(i => i <= inc).sort((a,b)=>b-a);
-        if(behind.length) return behind[0];
-      }
-
-      // Fallback: najbliższe wystąpienie do aktualnego indeksu.
-      return matches.sort((a,b)=>Math.abs(a-inc)-Math.abs(b-inc))[0];
-    }catch(_){ return -1; }
-  }
-
   function __adi_followNamedRoute(route){
     if(!Array.isArray(route) || route.length===0) return null;
 
@@ -1270,7 +1239,10 @@ Lvl: **${n.lvl ?? "?"}**`,
     let dir=parseInt(localStorage.getItem('adi-bot_dir'),10); if(!Number.isFinite(dir)||dir===0) dir=1;
 
     const curName = normMapName(map.name);
-    const curIdx = __adi_pickRouteIndex(route, curName, inc, dir);
+    let curIdx = -1;
+    for(let i=0;i<route.length;i++){
+      if(isNameMatch(normMapName(route[i]), curName)){ curIdx=i; break; }
+    }
 
     if(curIdx >= 0) inc = curIdx;
     else inc = 0;
@@ -1288,59 +1260,6 @@ Lvl: **${n.lvl ?? "?"}**`,
 
     const target = route[Math.max(0, Math.min(route.length-1, inc))];
     return __adi_routeToNamedMap(target);
-  }
-
-  function __adi_followSpecialTransitRoute(targetMap){
-    try{
-      const route = __adi_getSpecialRouteMaps();
-      if(!Array.isArray(route) || route.length===0 || !targetMap) return null;
-
-      const curName = normMapName(map.name);
-      const tgtName = normMapName(targetMap);
-      if(!curName || !tgtName || curName === tgtName) return null;
-
-      const curMatches = [];
-      const tgtMatches = [];
-      for(let i=0;i<route.length;i++){
-        const nm = normMapName(route[i]);
-        if(isNameMatch(nm, curName)) curMatches.push(i);
-        if(isNameMatch(nm, tgtName)) tgtMatches.push(i);
-      }
-      if(!tgtMatches.length) return null;
-
-      // Gdy stoimy poza specjalną trasą (np. Czeluść Ognistej Pożogi),
-      // najpierw dojedź do jej końcówki przy expowisku (np. Wioska Gnolli),
-      // a dopiero potem skorzystaj ze specjalnego przejścia do miasta.
-      if(!curMatches.length){
-        const anchor = route[route.length - 1];
-        if(anchor && !isNameMatch(normMapName(anchor), curName)){
-          return __adi_routeToNamedMap(anchor);
-        }
-        return null;
-      }
-
-      let curIdx = curMatches[0];
-      if(curMatches.length > 1){
-        let best = curMatches[0], bestScore = Infinity;
-        for(const idx of curMatches){
-          const score = Math.min.apply(null, tgtMatches.map(t=>Math.abs(t-idx)));
-          if(score < bestScore){ best = idx; bestScore = score; }
-        }
-        curIdx = best;
-      }
-
-      let tgtIdx = tgtMatches[0], bestTargetScore = Infinity;
-      for(const idx of tgtMatches){
-        const score = Math.abs(idx - curIdx);
-        if(score < bestTargetScore){ tgtIdx = idx; bestTargetScore = score; }
-      }
-
-      if(tgtIdx === curIdx) return null;
-      const step = tgtIdx > curIdx ? 1 : -1;
-      const nextIdx = curIdx + step;
-      const nextMap = route[nextIdx];
-      return nextMap ? __adi_routeToNamedMap(nextMap) : null;
-    }catch(_){ return null; }
   }
 
   // ===== MAP GRAPH (expowisko routing to the first map) =====
@@ -2706,13 +2625,6 @@ function __adiAutoHealTick(){
         if(via) return via;
       }
 
-      // Pozwól używać specjalnych tras także w drugą stronę / do punktów pośrednich
-      // (np. Gnolle -> Ithan po mikstury, a potem z Ithan znów na Gnolle).
-      if(__specialRoute){
-        const viaSpecialTransit = __adi_followSpecialTransitRoute(window.ADI_TEMP_TARGET_MAP);
-        if(viaSpecialTransit) return viaSpecialTransit;
-      }
-
       if(cur !== tgt){
         const via = followGraphTo(window.ADI_TEMP_TARGET_MAP);
         if(via) return {x: via.x, y: via.y};
@@ -2737,8 +2649,10 @@ function __adiAutoHealTick(){
     const curName = normMapName(map.name);
 
     // If we are currently on one of the listed maps, sync the pointer to that position.
-    // Obsługuje poprawnie duplikaty map na trasie (ping-pong / skróty przez tę samą mapę).
-    const curIdx = __adi_pickRouteIndex(txt, curName, inc, dir);
+    let curIdx = -1;
+    for(let i=0;i<txt.length;i++){
+      if(isNameMatch(normMapName(txt[i]), curName)){ curIdx=i; break; }
+    }
     if(curIdx>=0) inc = curIdx;
 
     // Ping-pong advance if we're already at the current target.
