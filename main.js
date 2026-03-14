@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Bot na exp (iframe-aware exhaustion + throttling + captcha->Discord + ping-pong trasy + only-selected-maps + elite toggle + group-size filter + heros->Discord + obrazki + fixy map/lvl/wt/grupy + FOW cache)
-// @version      2.17.7-vari-returnfix
+// @version      2.17.5-customroutes
 // @description  Bot z przechodzeniem map, anty-spam ataku, captcha->Discord, START/STOP, zbijanie wyczerpania, atak tylko na wybranych mapach, elity toggle, filtr grup, powiadomienia o herosach (bez Namiotu Tropicieli Herosów), normalizacja nazw map, odporne parsowanie lvli, poprawki 'wt', stabilny wybór grup przy mgle (cache max rozmiaru grupy)
 // @match        *://*/
 // @match        *://www.margonem.pl/*
@@ -1227,122 +1227,40 @@ Lvl: **${n.lvl ?? "?"}**`,
 
     const routeSig = route.map(s=>normMapName(s)).join('>');
     const sigKey = 'adi-bot_route_sig';
-    const stateKey = 'adi-bot_route_state_v2';
     const savedSig = localStorage.getItem(sigKey) || '';
-
-    function clampIdx(v){
-      v = parseInt(v, 10);
-      if(!Number.isFinite(v)) v = 0;
-      return Math.max(0, Math.min(route.length - 1, v));
-    }
-    function loadState(){
-      try{
-        const raw = localStorage.getItem(stateKey);
-        const st = raw ? JSON.parse(raw) : {};
-        return {
-          idx: clampIdx(st && st.idx),
-          dir: (Number(st && st.dir) === -1 ? -1 : 1),
-          lastMap: normMapName(st && st.lastMap || ''),
-          lastTarget: normMapName(st && st.lastTarget || '')
-        };
-      }catch(_){
-        return { idx: 0, dir: 1, lastMap: '', lastTarget: '' };
-      }
-    }
-    function saveState(idx, dir, lastMap, lastTarget){
-      idx = clampIdx(idx);
-      dir = (Number(dir) === -1 ? -1 : 1);
-      try{
-        localStorage.setItem(sigKey, routeSig);
-        localStorage.setItem('alksjd', String(idx));
-        localStorage.setItem('adi-bot_dir', String(dir));
-        localStorage.setItem(stateKey, JSON.stringify({
-          idx,
-          dir,
-          lastMap: String(lastMap || ''),
-          lastTarget: String(lastTarget || '')
-        }));
-      }catch(_){ }
-    }
-
     if(savedSig !== routeSig){
-      saveState(0, 1, '', '');
+      localStorage.setItem(sigKey, routeSig);
+      localStorage.setItem('alksjd', '0');
+      localStorage.setItem('adi-bot_dir', '1');
     }
 
-    let state = loadState();
-    let inc = clampIdx(state.idx);
-    let dir = state.dir;
+    if(!localStorage.getItem('adi-bot_dir')) localStorage.setItem('adi-bot_dir','1');
+    let inc=parseInt(localStorage.getItem('alksjd'),10); if(!Number.isFinite(inc)) inc=0;
+    let dir=parseInt(localStorage.getItem('adi-bot_dir'),10); if(!Number.isFinite(dir)||dir===0) dir=1;
 
     const curName = normMapName(map.name);
-    const matches = [];
+    let curIdx = -1;
     for(let i=0;i<route.length;i++){
-      if(isNameMatch(normMapName(route[i]), curName)) matches.push(i);
+      if(isNameMatch(normMapName(route[i]), curName)){ curIdx=i; break; }
     }
 
-    if(matches.length === 1){
-      inc = matches[0];
-    }else if(matches.length > 1){
-      // duplicate maps in route (e.g. Ithan appears twice on the way to Vari Kruger).
-      // Pick the occurrence closest to the current route progress instead of always the first one.
-      let picked = matches.includes(inc) ? inc : -1;
-
-      if(picked === -1 && dir >= 0){
-        picked = matches.find(i => i >= inc);
-      }
-      if((picked === -1 || picked == null) && dir < 0){
-        for(let i=matches.length-1;i>=0;i--){
-          if(matches[i] <= inc){ picked = matches[i]; break; }
-        }
-      }
-      if((picked === -1 || picked == null) && state.lastTarget){
-        const lt = state.lastTarget;
-        if(dir >= 0){
-          picked = matches.find(i => i > 0 && isNameMatch(normMapName(route[i-1]), lt));
-        }else{
-          picked = matches.find(i => i < route.length-1 && isNameMatch(normMapName(route[i+1]), lt));
-        }
-      }
-      if((picked === -1 || picked == null)){
-        picked = matches.slice().sort((a,b)=>Math.abs(a-inc)-Math.abs(b-inc))[0];
-      }
-      inc = clampIdx(picked);
-    }
+    if(curIdx >= 0) inc = curIdx;
+    else inc = 0;
 
     if(route[inc] && isNameMatch(normMapName(route[inc]), curName)){
       inc += dir;
       if(inc>=route.length){ inc=Math.max(0, route.length-2); dir=-1; }
       else if(inc<0){ inc=Math.min(1, route.length-1); dir=1; }
+      localStorage.setItem('alksjd', String(inc));
+      localStorage.setItem('adi-bot_dir', String(dir));
+    }else{
+      localStorage.setItem('alksjd', String(Math.max(0, Math.min(route.length-1, inc))));
+      localStorage.setItem('adi-bot_dir', String(dir));
     }
 
-    inc = clampIdx(inc);
-    const target = route[inc];
-    saveState(inc, dir, curName, normMapName(target));
+    const target = route[Math.max(0, Math.min(route.length-1, inc))];
     return __adi_routeToNamedMap(target);
   }
-
-  function __adi_followSpecialRouteToTarget(target){
-    try{
-      if(!target) return null;
-      const route = __adi_getSpecialRouteMaps();
-      if(!Array.isArray(route) || route.length < 2) return null;
-
-      const cur = normMapName(map && map.name);
-      const tgt = normMapName(target);
-      const onRoute = route.some(name => isNameMatch(normMapName(name), cur));
-      if(!onRoute) return null;
-
-      if(isNameMatch(normMapName(route[0]), tgt)){
-        return __adi_followNamedRoute(route.slice().reverse());
-      }
-      if(isNameMatch(normMapName(route[route.length - 1]), tgt)){
-        return __adi_followNamedRoute(route.slice());
-      }
-      return null;
-    }catch(_){
-      return null;
-    }
-  }
-
 
   // ===== MAP GRAPH (expowisko routing to the first map) =====
 
@@ -2702,9 +2620,9 @@ function __adiAutoHealTick(){
       const tgt = normMapName(window.ADI_TEMP_TARGET_MAP);
       const cur = normMapName(map.name);
 
-      if(__specialRoute){
-        const viaSpecial = __adi_followSpecialRouteToTarget(window.ADI_TEMP_TARGET_MAP);
-        if(viaSpecial) return viaSpecial;
+      if(__specialRoute && normMapName(__specialRoute[__specialRoute.length - 1]) === tgt){
+        const via = __adi_followNamedRoute(__specialRoute);
+        if(via) return via;
       }
 
       if(cur !== tgt){
@@ -3106,9 +3024,8 @@ function apOpenDialogShop(){
             apSetInfo('Podchodzę do kapłanki...', true);
             task.stage='toStand'; saveBuyTask(task);
           }else{
-            // first try hard special-route return/entry (handles duplicated maps like Ithan)
-            const viaSpecial = __adi_followSpecialRouteToTarget(v.map);
-            const via = viaSpecial || followGraphTo(v.map);
+            // move along the graph towards vendor map
+            const via = followGraphTo(v.map);
             if(via){
               if(hero.x===via.x && hero.y===via.y){ _g('walk'); }
               else { a_goTo(via.x, via.y); }
@@ -4275,8 +4192,7 @@ try{
           eqSetInfo('Wyznaczam trasę do '+task.map+'...', true);
           // Move one step of the route here (do not depend on main bot loop)
           try{
-            var stepSpecial = (typeof __adi_followSpecialRouteToTarget==='function') ? __adi_followSpecialRouteToTarget(task.map) : null;
-            var step = stepSpecial || ((typeof followGraphTo==='function') ? followGraphTo(task.map) : null);
+            var step = (typeof followGraphTo==='function') ? followGraphTo(task.map) : null;
             if(step && typeof step.x!=='undefined') a_goTo(step.x, step.y);
           }catch(_){}
         }
