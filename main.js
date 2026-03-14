@@ -1222,6 +1222,37 @@ Lvl: **${n.lvl ?? "?"}**`,
     return null;
   }
 
+  function __adi_pickRouteIndex(route, curName, inc, dir){
+    try{
+      if(!Array.isArray(route) || route.length===0) return -1;
+      const matches=[];
+      for(let i=0;i<route.length;i++){
+        if(isNameMatch(normMapName(route[i]), curName)) matches.push(i);
+      }
+      if(matches.length===0) return -1;
+
+      inc = Number.isFinite(inc) ? inc : 0;
+      dir = Number.isFinite(dir) && dir !== 0 ? dir : 1;
+      inc = Math.max(0, Math.min(route.length-1, inc));
+
+      // Najważniejsze przy mapach powtarzających się w trasie (np. Ithan na Gnollach):
+      // jeśli zapisany indeks już wskazuje na bieżącą mapę, nie cofaj się do pierwszego wystąpienia.
+      if(matches.includes(inc)) return inc;
+
+      // Preferuj wystąpienie "przed nami" zgodnie z kierunkiem ping-pong.
+      if(dir > 0){
+        const ahead = matches.filter(i => i >= inc).sort((a,b)=>a-b);
+        if(ahead.length) return ahead[0];
+      }else{
+        const behind = matches.filter(i => i <= inc).sort((a,b)=>b-a);
+        if(behind.length) return behind[0];
+      }
+
+      // Fallback: najbliższe wystąpienie do aktualnego indeksu.
+      return matches.sort((a,b)=>Math.abs(a-inc)-Math.abs(b-inc))[0];
+    }catch(_){ return -1; }
+  }
+
   function __adi_followNamedRoute(route){
     if(!Array.isArray(route) || route.length===0) return null;
 
@@ -1239,10 +1270,7 @@ Lvl: **${n.lvl ?? "?"}**`,
     let dir=parseInt(localStorage.getItem('adi-bot_dir'),10); if(!Number.isFinite(dir)||dir===0) dir=1;
 
     const curName = normMapName(map.name);
-    let curIdx = -1;
-    for(let i=0;i<route.length;i++){
-      if(isNameMatch(normMapName(route[i]), curName)){ curIdx=i; break; }
-    }
+    const curIdx = __adi_pickRouteIndex(route, curName, inc, dir);
 
     if(curIdx >= 0) inc = curIdx;
     else inc = 0;
@@ -2649,10 +2677,8 @@ function __adiAutoHealTick(){
     const curName = normMapName(map.name);
 
     // If we are currently on one of the listed maps, sync the pointer to that position.
-    let curIdx = -1;
-    for(let i=0;i<txt.length;i++){
-      if(isNameMatch(normMapName(txt[i]), curName)){ curIdx=i; break; }
-    }
+    // Obsługuje poprawnie duplikaty map na trasie (ping-pong / skróty przez tę samą mapę).
+    const curIdx = __adi_pickRouteIndex(txt, curName, inc, dir);
     if(curIdx>=0) inc = curIdx;
 
     // Ping-pong advance if we're already at the current target.
