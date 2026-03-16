@@ -756,6 +756,73 @@ const HERO_DISCORD_WEBHOOK = "https://discord.com/api/webhooks/14711759854948884
   })();
   // === /AUTO RELOG ===
 
+  // === LOADER STUCK WATCHDOG (czarny ekran / zawieszone ładowanie gry) ===
+  (function(){
+    const CHECK_EVERY_MS = 1000;
+    const STUCK_AFTER_MS = 15000;
+
+    let lastProgressChangeAt = Date.now();
+    let lastProgressValue = null;
+    let reloadTriggered = false;
+
+    function q(sel){
+      try{ return document.querySelector(sel); }catch(_){ return null; }
+    }
+
+    function isLoadingVisible(){
+      try{
+        const el = q('#loading');
+        if(!el) return false;
+        const st = getComputedStyle(el);
+        return st.display !== 'none' && st.visibility !== 'hidden' && st.opacity !== '0';
+      }catch(_){ return false; }
+    }
+
+    function getProgressValue(){
+      try{
+        const loading = q('#loading');
+        if(!loading) return null;
+
+        const bar = loading.querySelector('.progressbar .bar');
+        const info = loading.querySelector('.progressInfo');
+
+        const barStyle = bar ? getComputedStyle(bar) : null;
+        const barWidth = barStyle ? barStyle.width : '';
+        const infoText = info ? String(info.textContent || '').trim() : '';
+
+        return barWidth + '__' + infoText;
+      }catch(_){ return null; }
+    }
+
+    function tick(){
+      try{
+        if(reloadTriggered) return;
+        if(!isLoadingVisible()){
+          lastProgressValue = null;
+          lastProgressChangeAt = Date.now();
+          return;
+        }
+
+        const current = getProgressValue();
+        if(current !== lastProgressValue){
+          lastProgressValue = current;
+          lastProgressChangeAt = Date.now();
+          return;
+        }
+
+        if(Date.now() - lastProgressChangeAt < STUCK_AFTER_MS) return;
+
+        reloadTriggered = true;
+        console.warn('[adi-bot] Loader utknął na ponad 15s - odświeżam stronę.');
+        try{ location.reload(); }catch(_){ try{ history.go(0); }catch(__){} }
+      }catch(_){ }
+    }
+
+    setInterval(tick, CHECK_EVERY_MS);
+    setTimeout(tick, 1200);
+  })();
+  // === /LOADER STUCK WATCHDOG ===
+
   // === NIGHT LOGOUT GUARD (23:59-06:00) ===
   (function(){
     const CHECK_MS = 1000;
