@@ -115,30 +115,57 @@
       if(!doc || !doc.documentElement || !doc.body) return false;
 
       const body = doc.body;
-      const txt = String(body.innerText || body.textContent || '').replace(/[\s\u00A0]+/g, '');
-      if(txt) return false;
+      const html = doc.documentElement;
+      const getStyle = function(el){
+        try{ return (doc.defaultView && doc.defaultView.getComputedStyle) ? doc.defaultView.getComputedStyle(el) : null; }catch(_){ return null; }
+      };
+      const isIgnorableTag = function(tag){
+        return tag === 'SCRIPT' || tag === 'STYLE' || tag === 'LINK' || tag === 'META' || tag === 'NOSCRIPT';
+      };
+      const hasMeaningfulText = function(node){
+        try{
+          const txt = String((node && (node.innerText || node.textContent)) || '').replace(/[\s\u00A0]+/g, '');
+          return !!txt;
+        }catch(_){ return false; }
+      };
 
-      const visibleNodes = Array.from(body.children || []).filter(function(el){
+      if(hasMeaningfulText(body)) return false;
+
+      const visibleBodyNodes = Array.from(body.children || []).filter(function(el){
         try{
           if(!el) return false;
           const tag = String(el.tagName || '').toUpperCase();
-          if(tag === 'SCRIPT' || tag === 'STYLE' || tag === 'LINK' || tag === 'META' || tag === 'NOSCRIPT') return false;
-          const st = window.getComputedStyle ? getComputedStyle(el) : null;
-          if(st && (st.display === 'none' || st.visibility === 'hidden' || Number(st.opacity||'1') === 0)) return false;
+          if(isIgnorableTag(tag)) return false;
+          const st = getStyle(el);
+          if(st && (st.display === 'none' || st.visibility === 'hidden' || Number(st.opacity || '1') === 0)) return false;
           const rect = el.getBoundingClientRect ? el.getBoundingClientRect() : null;
           if(rect && rect.width <= 2 && rect.height <= 2) return false;
           return true;
         }catch(_){ return false; }
       });
-      if(visibleNodes.length > 0) return false;
+      if(visibleBodyNodes.length > 0) return false;
 
-      const bgBody = String((window.getComputedStyle && getComputedStyle(body).backgroundColor) || body.style.backgroundColor || '').toLowerCase();
-      const bgHtml = String((window.getComputedStyle && getComputedStyle(doc.documentElement).backgroundColor) || doc.documentElement.style.backgroundColor || '').toLowerCase();
+      const bodyStyle = getStyle(body);
+      const htmlStyle = getStyle(html);
+      const bgBody = String((bodyStyle && bodyStyle.backgroundColor) || body.style.backgroundColor || '').toLowerCase();
+      const bgHtml = String((htmlStyle && htmlStyle.backgroundColor) || html.style.backgroundColor || '').toLowerCase();
       const looksWhite = !bgBody || /rgba?\(255,\s*255,\s*255(?:,\s*(?:1|0?\.\d+))?\)|white/.test(bgBody) || /rgba?\(255,\s*255,\s*255(?:,\s*(?:1|0?\.\d+))?\)|white/.test(bgHtml);
       if(!looksWhite) return false;
 
-      const scripts = doc.scripts ? doc.scripts.length : 0;
-      return scripts >= 1;
+      const bodyChildrenCount = Array.from(body.children || []).filter(function(el){
+        try{ return el && !isIgnorableTag(String(el.tagName || '').toUpperCase()); }catch(_){ return false; }
+      }).length;
+      const headChildrenCount = doc.head ? Array.from(doc.head.children || []).filter(function(el){
+        try{ return el && !isIgnorableTag(String(el.tagName || '').toUpperCase()); }catch(_){ return false; }
+      }).length : 0;
+      const scriptsCount = doc.scripts ? doc.scripts.length : 0;
+      const hasCanvasOrRoot = !!doc.querySelector('canvas, #app, #game, #root, #content');
+
+      // Biały ekran po wylogowaniu z dołączonego HTML-a ma pusty body,
+      // skrypty w <head> i brak właściwego UI gry.
+      if(bodyChildrenCount === 0 && !hasCanvasOrRoot && (scriptsCount >= 1 || headChildrenCount >= 1)) return true;
+
+      return false;
     }catch(_){ return false; }
   }
 
