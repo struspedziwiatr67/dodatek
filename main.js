@@ -5947,28 +5947,45 @@ if (typeof window.window.__adi_equipByNameSequence !== 'function') {
   }
 
   function adiGetTotalBagSpace(){
-    try{
-      let used = 0;
-      let total = 0;
-      for(const id of ['bs0','bs1','bs2']){
-        const el = document.querySelector(`small#${id}`) || document.getElementById(id);
-        if(!el) continue;
+  try{
+    let free = 0;
+    let bagCount = 0;
 
-        const t = String(el.textContent || el.innerText || '').trim();
-        if(!t) continue;
+    for(const id of ['bs0','bs1','bs2']){
+      const el = document.querySelector(`small#${id}`) || document.getElementById(id);
+      if(!el) continue;
 
-        const m = t.match(/(\d+)\/(\d+)/);
-        if(m){
-          used += Number(m[1] || 0);
-          total += Number(m[2] || 0);
-        }else{
-          const n = parseInt(t, 10);
-          if(!isNaN(n)){
-            used += n;
-            total += 30;
-          }
+      const t = String(el.textContent || el.innerText || '').trim();
+      if(!t) continue;
+
+      const m = t.match(/(\d+)\s*\/\s*(\d+)/);
+      if(m){
+        // jeśli kiedyś klient zwróci format np. "5/30",
+        // to pierwszy człon traktujemy jako wolne
+        free += Number(m[1] || 0);
+        bagCount += 1;
+      }else{
+        const n = parseInt(t, 10);
+        if(!isNaN(n)){
+          free += n;
+          bagCount += 1;
         }
       }
+    }
+
+    if(bagCount <= 0) return null;
+
+    const total = bagCount * 30;
+    const used = Math.max(0, total - free);
+
+    return {
+      used,
+      total,
+      free,
+      text: `${free}`
+    };
+  }catch(_){ return null; }
+}
 
       if(total <= 0) return null;
       const free = Math.max(0, total - used);
