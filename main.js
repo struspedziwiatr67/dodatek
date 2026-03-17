@@ -3504,6 +3504,11 @@ box.appendChild(autoHealRow);
       tabTest.id = 'adi-tab-test';
       tabTest.className = 'adi-tab-content';
 
+      const tabAuction = document.createElement('div');
+      tabAuction.id = 'adi-tab-auction';
+      tabAuction.className = 'adi-tab-content';
+      tabAuction.innerHTML = '<div style="font-size:13px;margin:6px 0;">Aukcja – ustawienia w przygotowaniu.</div>';
+
       const tabStart = document.createElement('div');
       tabStart.id = 'adi-tab-start';
       tabStart.className = 'adi-tab-content';
@@ -3621,16 +3626,18 @@ try{
       }
 
       const t1 = mkTab('Exp','exp');
+      const tA = mkTab('Aukcja','auction');
       const t2 = mkTab('E2','e2');
       const t3 = mkTab('Test','test');
       const t4 = mkTab('Wioska startowa','start');
       t1.classList.add('active');
 
-      tabs.appendChild(t1); tabs.appendChild(t2); tabs.appendChild(t3); tabs.appendChild(t4);
+      tabs.appendChild(t1); tabs.appendChild(tA); tabs.appendChild(t2); tabs.appendChild(t3); tabs.appendChild(t4);
 
       const contentWrap = document.createElement('div');
       contentWrap.className = 'adi-tabwrap';
       contentWrap.appendChild(tabExp);
+      contentWrap.appendChild(tabAuction);
       contentWrap.appendChild(tabE2);
       contentWrap.appendChild(tabTest);
 
@@ -3656,7 +3663,7 @@ try{
       // restore last active tab
       try{
         const saved = (localStorage.getItem('adi-bot_active_tab')||'exp').trim();
-        if(saved==='e2' || saved==='test' || saved==='exp' || saved==='start') activateTab(saved);
+        if(saved==='auction' || saved==='e2' || saved==='test' || saved==='exp' || saved==='start') activateTab(saved);
       }catch(_){}
     }catch(e){ console.warn('[adi-bot] tabs init failed', e); }
 
