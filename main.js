@@ -1283,6 +1283,134 @@ Lvl: **${n.lvl ?? "?"}**`,
     return E2_TARGETS.find(e=>String(e.name).trim()===name) || null;
   }
 
+  const AUCTIONEERS = {
+    torneg: { key:'torneg', map:'Torneg', npc:'Aukcjoner', stand:{ x:57, y:52 } },
+    werbin: { key:'werbin', map:'Werbin', npc:'Aukcjoner', stand:{ x:34, y:24 } },
+    eder: { key:'eder', map:'Eder', npc:'Aukcjoner', stand:{ x:32, y:49 } },
+    karkahan: { key:'karkahan', map:'Karka-han', npc:'Aukcjoner', stand:{ x:61, y:26 } },
+    thuzal: { key:'thuzal', map:'Thuzal', npc:'Aukcjoner', stand:{ x:58, y:50 } },
+    mythar: { key:'mythar', map:'Mythar', npc:'Aukcjoner', stand:{ x:63, y:37 } },
+    nithal: { key:'nithal', map:'Nithal', npc:'Aukcjoner', stand:{ x:21, y:43 } },
+    tuzmer: { key:'tuzmer', map:'Tuzmer', npc:'Aukcjoner', stand:{ x:44, y:33 } },
+    domaukcyjny: { key:'domaukcyjny', map:'Dom Aukcyjny', npc:'Aukcjoner', stand:{ x:20, y:6 } },
+  };
+
+  function adiLoadAuctionCfg(){
+    try{
+      return {
+        enabled: localStorage.getItem('adi-bot_auction_enabled') === '1',
+        heroicPrice: String(localStorage.getItem('adi-bot_auction_price_heroic') || '').trim(),
+        uniquePrice: String(localStorage.getItem('adi-bot_auction_price_unique') || '').trim(),
+        commonPrice: String(localStorage.getItem('adi-bot_auction_price_common') || '').trim(),
+      };
+    }catch(_){ return { enabled:false, heroicPrice:'', uniquePrice:'', commonPrice:'' }; }
+  }
+
+  function adiAuctionPriceForRarity(rarity, cfg){
+    try{
+      const c = cfg || adiLoadAuctionCfg();
+      if(rarity === 'heroic') return String(c.heroicPrice || '').trim();
+      if(rarity === 'unique') return String(c.uniquePrice || '').trim();
+      return String(c.commonPrice || '').trim();
+    }catch(_){ return ''; }
+  }
+
+  function adiFindNearestAuctioneer(){
+    try{
+      const cur = normMapName(map?.name || '');
+      let best = null, bestSteps = Infinity;
+      for(const k in AUCTIONEERS){
+        const a = AUCTIONEERS[k];
+        const s = stepsToMap(a.map);
+        if(cur && normMapName(a.map) === cur) return a;
+        if(s < bestSteps){ bestSteps = s; best = a; }
+      }
+      return best || AUCTIONEERS.torneg;
+    }catch(_){ return AUCTIONEERS.torneg; }
+  }
+
+  function adiAuctionFindNpcByName(name){
+    try{
+      if(!window.g || !g.npc) return null;
+      const want = String(name || '').trim().toLowerCase();
+      for(const id in g.npc){
+        const n = g.npc[id];
+        if(!n) continue;
+        const nm = String(n.nick || n.name || '').trim().toLowerCase();
+        if(nm === want) return n;
+      }
+    }catch(_){ }
+    return null;
+  }
+
+  function adiAuctionClickNpc(npc){
+    try{
+      if(!npc) return false;
+      if(typeof _npcs === 'function'){
+        _npcs(npc.id);
+        return true;
+      }
+    }catch(_){ }
+    try{
+      if(typeof _g === 'function' && npc && npc.id != null){
+        _g('talk&id=' + npc.id);
+        return true;
+      }
+    }catch(_){ }
+    return false;
+  }
+
+  function adiAuctionCollectItems(){
+    try{
+      if(!window.g || !g.item) return [];
+      const cfg = adiLoadAuctionCfg();
+      const out = [];
+      for(const id in g.item){
+        const it = g.item[id];
+        if(!it) continue;
+        if(String(it.loc || '') !== 'g') continue;
+        const rarity = (typeof adiDetectLootRarity === 'function') ? adiDetectLootRarity(it) : '';
+        if(!rarity) continue;
+        if(!['heroic','unique','common'].includes(rarity)) continue;
+        const price = adiAuctionPriceForRarity(rarity, cfg);
+        if(!price) continue;
+        out.push({
+          id: String(it.id != null ? it.id : id),
+          slot: String(id),
+          name: String(it.name || it.nick || 'Przedmiot'),
+          rarity,
+          price,
+        });
+      }
+      return out;
+    }catch(_){ return []; }
+  }
+
+  function adiAuctionEnsureTask(force){
+    try{
+      const cfg = adiLoadAuctionCfg();
+      if(!cfg.enabled && !force) return null;
+      const bag = (typeof adiGetTotalBagSpace === 'function') ? adiGetTotalBagSpace() : null;
+      if(!force){
+        if(!bag || typeof bag.free !== 'number' || bag.free > 3) return null;
+      }
+      const items = adiAuctionCollectItems();
+      if(!items.length) return null;
+      const auc = adiFindNearestAuctioneer();
+      const task = {
+        active: true,
+        stage: 'toMap',
+        createdAt: Date.now(),
+        auctioneer: auc,
+        items,
+        bagFree: bag && typeof bag.free === 'number' ? bag.free : null,
+        clickedAt: 0,
+      };
+      try{ localStorage.setItem('adi-bot_auction_task', JSON.stringify(task)); }catch(_){ }
+      return task;
+    }catch(_){ return null; }
+  }
+
 
   // ===== AUTO EXPOWISKO (po lvl) =====
   function getAutoExpowiskoByLevel(lvl){
@@ -2095,6 +2223,68 @@ function setTempTarget(val){
         }
         message("[BOT] Wyczerpanie = 0 min – wznowiono expienie.");
       }
+
+      try{
+        const auctionCfg = adiLoadAuctionCfg();
+        let auctionRaw = null;
+        let auctionTask = null;
+        try{ auctionRaw = localStorage.getItem('adi-bot_auction_task'); }catch(_){ }
+        try{ auctionTask = auctionRaw ? JSON.parse(auctionRaw) : null; }catch(_){ auctionTask = null; }
+
+        if(!auctionTask && auctionCfg.enabled){
+          auctionTask = adiAuctionEnsureTask(false);
+          if(auctionTask){
+            try{ message('[BOT] Mało miejsca w torbie — idę do Aukcjonera.'); }catch(_){ }
+          }
+        }
+
+        if(auctionTask && auctionTask.active && auctionTask.auctioneer && auctionTask.auctioneer.map){
+          try{ setTempTarget(auctionTask.auctioneer.map); }catch(_){ }
+          $m_id = undefined;
+          clearTargetLock(); blokada = false; blokada2 = false;
+
+          const cur = normMapName(map.name);
+          const tgt = normMapName(auctionTask.auctioneer.map);
+
+          if(cur !== tgt){
+            $map_cords = self.findBestGw();
+            if($map_cords && !bolcka){
+              if(hero.x == $map_cords.x && hero.y == $map_cords.y){
+                _g('walk');
+              }else{
+                a_goTo($map_cords.x, $map_cords.y);
+                bolcka = true;
+                setTimeout(()=>bolcka=false, 2000);
+              }
+            }
+            return ret;
+          }
+
+          const sx = Number(auctionTask.auctioneer.stand && auctionTask.auctioneer.stand.x);
+          const sy = Number(auctionTask.auctioneer.stand && auctionTask.auctioneer.stand.y);
+          if(Number.isFinite(sx) && Number.isFinite(sy) && (hero.x != sx || hero.y != sy)){
+            if(!bolcka){
+              a_goTo(sx, sy);
+              bolcka = true;
+              setTimeout(()=>bolcka=false, 1200);
+            }
+            return ret;
+          }
+
+          const now = Date.now();
+          if(!auctionTask.clickedAt || now - auctionTask.clickedAt > 3000){
+            const npc = adiAuctionFindNpcByName(auctionTask.auctioneer.npc || 'Aukcjoner');
+            if(npc){
+              adiAuctionClickNpc(npc);
+              auctionTask.stage = 'atNpc';
+              auctionTask.clickedAt = now;
+              try{ localStorage.setItem('adi-bot_auction_task', JSON.stringify(auctionTask)); }catch(_){ }
+              try{ message('[BOT] Dotarłem do Aukcjonera. Kolejny krok zrobimy po dodaniu obsługi dialogów.'); }catch(_){ }
+            }
+          }
+          return ret;
+        }
+      }catch(_){ }
 
       // normalna praca bota
       refreshGroupSizeCache();
@@ -3490,7 +3680,7 @@ box.appendChild(autoHealRow);
     toggleBtn.setAttribute("tip","Włącz lub wyłącz bota"); box.appendChild(toggleBtn);
 
 
-    // ===== Tabs (Exp | E2 | Test) =====
+    // ===== Tabs (Exp | E2 | Test | Aukcja) =====
     try{
       const tabExp = document.createElement('div');
       tabExp.id = 'adi-tab-exp';
@@ -3503,6 +3693,10 @@ box.appendChild(autoHealRow);
       const tabTest = document.createElement('div');
       tabTest.id = 'adi-tab-test';
       tabTest.className = 'adi-tab-content';
+
+      const tabAuction = document.createElement('div');
+      tabAuction.id = 'adi-tab-aukcja';
+      tabAuction.className = 'adi-tab-content';
 
       const tabStart = document.createElement('div');
       tabStart.id = 'adi-tab-start';
@@ -3609,6 +3803,97 @@ try{
 }catch(e){ console.warn('[adi-bot] exhaustion 5:30 ui failed', e); }
 
 
+// 6) Zakładka Aukcja
+try{
+  const auctionWrap = document.createElement('div');
+  auctionWrap.style.display = 'grid';
+  auctionWrap.style.gridTemplateColumns = '1fr';
+  auctionWrap.style.gap = '8px';
+  auctionWrap.style.margin = '6px 0';
+
+  const mkAuctionRow = (id, labelText, placeholder)=>{
+    const row = document.createElement('div');
+    row.style.display = 'flex';
+    row.style.alignItems = 'center';
+    row.style.justifyContent = 'space-between';
+    row.style.gap = '8px';
+
+    const inp = document.createElement('input');
+    inp.type = 'text';
+    inp.id = id;
+    inp.className = 'adi-bot_inputs';
+    inp.style.margin = '0';
+    inp.style.width = '140px';
+    inp.placeholder = placeholder || '';
+
+    const lbl = document.createElement('label');
+    lbl.htmlFor = id;
+    lbl.textContent = labelText;
+    lbl.style.flex = '1';
+    lbl.style.textAlign = 'left';
+    lbl.style.color = '#111';
+
+    row.appendChild(inp);
+    row.appendChild(lbl);
+    return { row, inp, lbl };
+  };
+
+  const auctionEnableRow = document.createElement('div');
+  auctionEnableRow.style.display = 'flex';
+  auctionEnableRow.style.alignItems = 'center';
+  auctionEnableRow.style.justifyContent = 'space-between';
+  auctionEnableRow.style.gap = '8px';
+
+  const auctionChk = document.createElement('input');
+  auctionChk.type = 'checkbox';
+  auctionChk.id = 'adi-bot_auction_enabled';
+  auctionChk.checked = localStorage.getItem('adi-bot_auction_enabled') === '1';
+
+  const auctionLbl = document.createElement('label');
+  auctionLbl.htmlFor = 'adi-bot_auction_enabled';
+  auctionLbl.textContent = 'Wystawiaj itemy na aukcje';
+  auctionLbl.style.flex = '1';
+  auctionLbl.style.textAlign = 'left';
+  auctionLbl.style.color = '#111';
+
+  auctionEnableRow.appendChild(auctionChk);
+  auctionEnableRow.appendChild(auctionLbl);
+  auctionWrap.appendChild(auctionEnableRow);
+
+  const heroicRow = mkAuctionRow('adi-bot_auction_price_heroic', 'Heroiczne', 'np. 500000');
+  const uniqueRow = mkAuctionRow('adi-bot_auction_price_unique', 'Unikatowe', 'np. 250000');
+  const commonRow = mkAuctionRow('adi-bot_auction_price_common', 'Pospolite', 'np. 5000');
+
+  heroicRow.inp.value = localStorage.getItem('adi-bot_auction_price_heroic') || '';
+  uniqueRow.inp.value = localStorage.getItem('adi-bot_auction_price_unique') || '';
+  commonRow.inp.value = localStorage.getItem('adi-bot_auction_price_common') || '';
+
+  heroicRow.inp.addEventListener('input', ()=>{ try{ localStorage.setItem('adi-bot_auction_price_heroic', heroicRow.inp.value.trim()); }catch(_){ } });
+  uniqueRow.inp.addEventListener('input', ()=>{ try{ localStorage.setItem('adi-bot_auction_price_unique', uniqueRow.inp.value.trim()); }catch(_){ } });
+  commonRow.inp.addEventListener('input', ()=>{ try{ localStorage.setItem('adi-bot_auction_price_common', commonRow.inp.value.trim()); }catch(_){ } });
+  auctionChk.addEventListener('change', ()=>{
+    try{ localStorage.setItem('adi-bot_auction_enabled', auctionChk.checked ? '1' : '0'); }catch(_){ }
+    if(!auctionChk.checked){
+      try{ localStorage.removeItem('adi-bot_auction_task'); }catch(_){ }
+      try{ setTempTarget(null); }catch(_){ }
+    }
+    try{ message(auctionChk.checked ? 'Aukcja: WŁ' : 'Aukcja: WYŁ'); }catch(_){ }
+  });
+
+  auctionWrap.appendChild(heroicRow.row);
+  auctionWrap.appendChild(uniqueRow.row);
+  auctionWrap.appendChild(commonRow.row);
+
+  const auctionInfo = document.createElement('div');
+  auctionInfo.style.fontSize = '12px';
+  auctionInfo.style.color = '#111';
+  auctionInfo.style.textAlign = 'left';
+  auctionInfo.textContent = 'Gdy zostaną 3 miejsca w torbie lub mniej, bot pójdzie do najbliższego Aukcjonera.';
+  auctionWrap.appendChild(auctionInfo);
+
+  tabAuction.appendChild(auctionWrap);
+}catch(e){ console.warn('[adi-bot] auction ui failed', e); }
+
       const tabs = document.createElement('div');
       tabs.className = 'adi-tabs';
 
@@ -3623,16 +3908,18 @@ try{
       const t1 = mkTab('Exp','exp');
       const t2 = mkTab('E2','e2');
       const t3 = mkTab('Test','test');
-      const t4 = mkTab('Wioska startowa','start');
+      const t4 = mkTab('Aukcja','aukcja');
+      const t5 = mkTab('Wioska startowa','start');
       t1.classList.add('active');
 
-      tabs.appendChild(t1); tabs.appendChild(t2); tabs.appendChild(t3); tabs.appendChild(t4);
+      tabs.appendChild(t1); tabs.appendChild(t2); tabs.appendChild(t3); tabs.appendChild(t4); tabs.appendChild(t5);
 
       const contentWrap = document.createElement('div');
       contentWrap.className = 'adi-tabwrap';
       contentWrap.appendChild(tabExp);
       contentWrap.appendChild(tabE2);
       contentWrap.appendChild(tabTest);
+      contentWrap.appendChild(tabAuction);
 
       contentWrap.appendChild(tabStart);
 
@@ -3656,7 +3943,7 @@ try{
       // restore last active tab
       try{
         const saved = (localStorage.getItem('adi-bot_active_tab')||'exp').trim();
-        if(saved==='e2' || saved==='test' || saved==='exp' || saved==='start') activateTab(saved);
+        if(saved==='e2' || saved==='test' || saved==='exp' || saved==='start' || saved==='aukcja') activateTab(saved);
       }catch(_){}
     }catch(e){ console.warn('[adi-bot] tabs init failed', e); }
 
@@ -6359,431 +6646,3 @@ if (typeof window.window.__adi_equipByNameSequence !== 'function') {
   setTimeout(function(){ e2WrapBattleMsg(); e2WrapLootItem(); }, 300);
 })();
 // ===== /E2 COUNTER =====
-
-// ===== AUKCJA: UI + dojazd do Aukcjonera при <=3 wolnych miejscach =====
-(function(){
-  const AUCTION_CFG_KEY = 'adi-bot_auction_cfg';
-  const AUCTION_TASK_KEY = 'adi-bot_auction_task';
-  const AUCTION_STATUS_KEY = 'adi-bot_auction_status';
-  const AUCTION_CHECK_MS = 1200;
-
-  const AUCTIONEERS = [
-    { npc: 'Aukcjoner', map: 'Torneg', x: 57, y: 52 },
-    { npc: 'Aukcjoner', map: 'Werbin', x: 34, y: 24 },
-    { npc: 'Aukcjoner', map: 'Eder', x: 32, y: 49 },
-    { npc: 'Aukcjoner', map: 'Karka-han', x: 61, y: 26 },
-    { npc: 'Aukcjoner', map: 'Thuzal', x: 58, y: 50 },
-    { npc: 'Aukcjoner', map: 'Mythar', x: 63, y: 37 },
-    { npc: 'Aukcjoner', map: 'Nithal', x: 21, y: 43 },
-    { npc: 'Aukcjoner', map: 'Tuzmer', x: 44, y: 33 },
-    { npc: 'Aukcjoner', map: 'Dom Aukcyjny', x: 20, y: 6 }
-  ];
-
-  function auctionNorm(s){
-    try{
-      return String(s||'').toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g,'').replace(/\u00A0/g,' ').replace(/[^a-z0-9]+/g,' ').replace(/\s+/g,' ').trim();
-    }catch(_){ return String(s||'').toLowerCase().trim(); }
-  }
-
-  function auctionLoadCfg(){
-    try{
-      const raw = localStorage.getItem(AUCTION_CFG_KEY);
-      const cfg = raw ? JSON.parse(raw) : {};
-      return {
-        enabled: cfg.enabled === true,
-        heroicPrice: String(cfg.heroicPrice || ''),
-        uniquePrice: String(cfg.uniquePrice || ''),
-        commonPrice: String(cfg.commonPrice || ''),
-        freeSlotsThreshold: Number.isFinite(Number(cfg.freeSlotsThreshold)) ? Math.max(0, Number(cfg.freeSlotsThreshold)) : 3
-      };
-    }catch(_){
-      return { enabled:false, heroicPrice:'', uniquePrice:'', commonPrice:'', freeSlotsThreshold:3 };
-    }
-  }
-
-  function auctionSaveCfg(cfg){
-    try{ localStorage.setItem(AUCTION_CFG_KEY, JSON.stringify(cfg||{})); }catch(_){ }
-  }
-
-  function auctionLoadTask(){
-    try{
-      const raw = localStorage.getItem(AUCTION_TASK_KEY);
-      return raw ? JSON.parse(raw) : null;
-    }catch(_){ return null; }
-  }
-
-  function auctionSaveTask(task){
-    try{ localStorage.setItem(AUCTION_TASK_KEY, JSON.stringify(task)); }catch(_){ }
-  }
-
-  function auctionClearTask(){
-    try{ localStorage.removeItem(AUCTION_TASK_KEY); }catch(_){ }
-  }
-
-  function auctionSetStatus(text, ok){
-    try{ localStorage.setItem(AUCTION_STATUS_KEY, JSON.stringify({ text:String(text||''), ok:!!ok, ts:Date.now() })); }catch(_){ }
-    try{
-      const el = document.getElementById('adi-auction-status');
-      if(el){
-        el.textContent = String(text||'');
-        el.style.color = ok ? '#3cb371' : '#e57373';
-      }
-    }catch(_){ }
-  }
-
-  function auctionRefreshStatusFromStorage(){
-    try{
-      const el = document.getElementById('adi-auction-status');
-      if(!el) return;
-      const raw = localStorage.getItem(AUCTION_STATUS_KEY);
-      const obj = raw ? JSON.parse(raw) : null;
-      el.textContent = obj && obj.text ? String(obj.text) : '';
-      el.style.color = obj && obj.ok ? '#3cb371' : '#e57373';
-    }catch(_){ }
-  }
-
-  function auctionGetBagSpace(){
-    try{
-      if(typeof adiGetTotalBagSpace === 'function') return adiGetTotalBagSpace();
-    }catch(_){ }
-    try{
-      let used = 0, total = 0;
-      for(const id of ['bs0','bs1','bs2']){
-        const el = document.getElementById(id);
-        if(!el) continue;
-        const t = String(el.textContent || el.innerText || '').trim();
-        const m = t.match(/(\d+)\/(\d+)/);
-        if(m){ used += Number(m[1]||0); total += Number(m[2]||0); }
-      }
-      if(total <= 0) return null;
-      return { used, total, free: Math.max(0, total-used), text: String(used) };
-    }catch(_){ return null; }
-  }
-
-  function auctionIsWalkable(x, y){
-    try{
-      x = Number(x); y = Number(y);
-      if(!Number.isFinite(x) || !Number.isFinite(y) || x < 0 || y < 0) return false;
-      if(!window.map || typeof map.x === 'undefined' || typeof map.y === 'undefined' || !map.col) return true;
-      if(x >= Number(map.x) || y >= Number(map.y)) return false;
-      const idx = x + y * Number(map.x);
-      return String(map.col).charAt(idx) !== '1';
-    }catch(_){ return true; }
-  }
-
-  function auctionPickStand(x, y){
-    const spots = [
-      { x: x, y: y + 1 },
-      { x: x + 1, y: y },
-      { x: x, y: y - 1 },
-      { x: x - 1, y: y }
-    ];
-    for(const s of spots){ if(auctionIsWalkable(s.x, s.y)) return s; }
-    return { x:x, y:y+1 };
-  }
-
-  function auctionFindNpcByName(name){
-    try{
-      const all = Array.from(document.querySelectorAll('div.npc[ctip="t_npc"]'));
-      const needle = auctionNorm(name);
-      for(const el of all){
-        const tip = String(el.getAttribute('tip') || '').replace(/<[^>]*>/g, ' ');
-        if(auctionNorm(tip).includes(needle)) return el;
-      }
-    }catch(_){ }
-    return null;
-  }
-
-  function auctionClick(el){
-    try{ el.dispatchEvent(new MouseEvent('mousedown', { bubbles:true })); }catch(_){ }
-    try{ el.click(); }catch(_){ }
-    try{ el.dispatchEvent(new MouseEvent('mouseup', { bubbles:true })); }catch(_){ }
-  }
-
-  function auctionCurrentMap(){
-    try{ return String((window.map && map.name) || ''); }catch(_){ return ''; }
-  }
-
-  function auctionGetRouteLen(targetMap){
-    try{
-      if(typeof buildGraphRouteTo === 'function'){
-        const route = buildGraphRouteTo(targetMap);
-        if(Array.isArray(route)) return route.length;
-      }
-    }catch(_){ }
-    return 999999;
-  }
-
-  function auctionPickBestAuctioneer(){
-    try{
-      const cur = auctionNorm(auctionCurrentMap());
-      for(const a of AUCTIONEERS){
-        if(auctionNorm(a.map) === cur) return a;
-      }
-      let best = null;
-      let bestLen = 999999;
-      for(const a of AUCTIONEERS){
-        const len = auctionGetRouteLen(a.map);
-        if(len < bestLen){ bestLen = len; best = a; }
-      }
-      return best || AUCTIONEERS[0];
-    }catch(_){ return AUCTIONEERS[0]; }
-  }
-
-  function auctionCreateTask(){
-    const target = auctionPickBestAuctioneer();
-    if(!target) return null;
-    const stand = auctionPickStand(target.x, target.y);
-    const cfg = auctionLoadCfg();
-    return {
-      kind: 'auction',
-      npc: target.npc,
-      map: target.map,
-      pos: { x: target.x, y: target.y },
-      stand,
-      stage: auctionNorm(auctionCurrentMap()) === auctionNorm(target.map) ? 'toStand' : 'toCity',
-      createdAt: Date.now(),
-      heroicPrice: cfg.heroicPrice,
-      uniquePrice: cfg.uniquePrice,
-      commonPrice: cfg.commonPrice
-    };
-  }
-
-  function auctionHasBlockingTask(){
-    try{
-      if(localStorage.getItem('adi-bot_equip_task')) return true;
-      if(localStorage.getItem('adi-bot_exh_task')) return true;
-    }catch(_){ }
-    return false;
-  }
-
-  function auctionShouldStart(){
-    try{
-      const cfg = auctionLoadCfg();
-      if(!cfg.enabled) return false;
-      if(!window.hero || !window.map || !window.g) return false;
-      if(g.dead || g.resp || g.reload || g.battle) return false;
-      if(auctionLoadTask()) return false;
-      if(auctionHasBlockingTask()) return false;
-      const bag = auctionGetBagSpace();
-      if(!bag || !Number.isFinite(Number(bag.free))) return false;
-      return Number(bag.free) <= Number(cfg.freeSlotsThreshold || 3);
-    }catch(_){ return false; }
-  }
-
-  function auctionStepToCity(task){
-    try{
-      if(auctionNorm(auctionCurrentMap()) === auctionNorm(task.map)){
-        task.stage = 'toStand';
-        auctionSaveTask(task);
-        return;
-      }
-      if(typeof setTempTarget === 'function') setTempTarget(task.map);
-      auctionSetStatus('Wyznaczam trasę do Aukcjonera: ' + task.map + '...', true);
-      if(typeof followGraphTo === 'function'){
-        const step = followGraphTo(task.map);
-        if(step && typeof a_goTo === 'function') a_goTo(step.x, step.y);
-      }
-    }catch(_){ }
-  }
-
-  function auctionStepToStand(task){
-    try{
-      if(auctionNorm(auctionCurrentMap()) !== auctionNorm(task.map)){
-        task.stage = 'toCity';
-        auctionSaveTask(task);
-        return;
-      }
-      const sx = Number(task.stand && task.stand.x);
-      const sy = Number(task.stand && task.stand.y);
-      if(window.hero && Number(hero.x) === sx && Number(hero.y) === sy){
-        task.stage = 'toNpc';
-        auctionSaveTask(task);
-        return;
-      }
-      auctionSetStatus('Idę pod Aukcjonera na mapie ' + task.map + '...', true);
-      if(typeof a_goTo === 'function') a_goTo(sx, sy);
-    }catch(_){ }
-  }
-
-  function auctionStepToNpc(task){
-    try{
-      const npc = auctionFindNpcByName(task.npc);
-      if(!npc){
-        auctionSetStatus('Szukam NPC: ' + task.npc + '...', false);
-        return;
-      }
-      auctionClick(npc);
-      task.stage = 'dialog';
-      task.dialogOpenedAt = Date.now();
-      auctionSaveTask(task);
-      auctionSetStatus('Jestem u Aukcjonera. Następny krok to klikanie dialogów i wystawianie itemów.', true);
-    }catch(_){ }
-  }
-
-  function auctionStepDialog(task){
-    try{
-      if(typeof setTempTarget === 'function') setTempTarget(null);
-    }catch(_){ }
-    try{
-      window.__tempRoute = null;
-      window.__tempRouteTarget = null;
-    }catch(_){ }
-    auctionSetStatus(
-      'Aukcjoner otwarty. Czekam na kolejną wersję klikania dialogów. Ceny: Heroiczne=' + String(task.heroicPrice||'') + ', Unikatowe=' + String(task.uniquePrice||'') + ', Pospolite=' + String(task.commonPrice||''),
-      true
-    );
-  }
-
-  function auctionTickTask(){
-    try{
-      const task = auctionLoadTask();
-      if(!task) return;
-      if(!window.hero || !window.map || !window.g) return;
-      if(g.dead || g.resp || g.reload || g.battle) return;
-      if(task.stage === 'toCity') return auctionStepToCity(task);
-      if(task.stage === 'toStand') return auctionStepToStand(task);
-      if(task.stage === 'toNpc') return auctionStepToNpc(task);
-      if(task.stage === 'dialog') return auctionStepDialog(task);
-    }catch(e){ console.warn('[adi-auction] task tick failed', e); }
-  }
-
-  function auctionEnsureStarted(){
-    try{
-      if(!auctionShouldStart()) return;
-      const task = auctionCreateTask();
-      if(!task) return;
-      auctionSaveTask(task);
-      auctionSetStatus('Mało miejsca w torbie. Startuję dojazd do Aukcjonera...', true);
-    }catch(e){ console.warn('[adi-auction] start failed', e); }
-  }
-
-  function auctionBindUi(panel){
-    try{
-      const cfg = auctionLoadCfg();
-      const enabled = panel.querySelector('#adi-auction-enabled');
-      const heroic = panel.querySelector('#adi-auction-price-heroic');
-      const unique = panel.querySelector('#adi-auction-price-unique');
-      const common = panel.querySelector('#adi-auction-price-common');
-      const resetBtn = panel.querySelector('#adi-auction-reset-task');
-      if(enabled && !enabled.__adiBound){
-        enabled.__adiBound = true;
-        enabled.checked = !!cfg.enabled;
-        enabled.addEventListener('change', ()=>{
-          const cur = auctionLoadCfg();
-          cur.enabled = !!enabled.checked;
-          auctionSaveCfg(cur);
-          auctionSetStatus(enabled.checked ? 'Auto-aukcja włączona.' : 'Auto-aukcja wyłączona.', enabled.checked);
-          if(!enabled.checked){
-            auctionClearTask();
-            try{ if(typeof setTempTarget === 'function') setTempTarget(null); }catch(_){ }
-          }
-        });
-      }
-      const bindInput = (el, key)=>{
-        if(!el || el.__adiBound) return;
-        el.__adiBound = true;
-        el.value = String(cfg[key] || '');
-        const save = ()=>{
-          const cur = auctionLoadCfg();
-          cur[key] = String(el.value || '').trim();
-          auctionSaveCfg(cur);
-        };
-        el.addEventListener('change', save);
-        el.addEventListener('keyup', save);
-      };
-      bindInput(heroic, 'heroicPrice');
-      bindInput(unique, 'uniquePrice');
-      bindInput(common, 'commonPrice');
-      if(resetBtn && !resetBtn.__adiBound){
-        resetBtn.__adiBound = true;
-        resetBtn.addEventListener('click', ()=>{
-          auctionClearTask();
-          try{ if(typeof setTempTarget === 'function') setTempTarget(null); }catch(_){ }
-          auctionSetStatus('Wyczyszczono task aukcji.', true);
-        });
-      }
-      auctionRefreshStatusFromStorage();
-    }catch(e){ console.warn('[adi-auction] bind ui failed', e); }
-  }
-
-  function auctionEnsureTab(){
-    try{
-      const box = document.getElementById('adi-bot_box');
-      if(!box) return false;
-      const tabs = box.querySelector('.adi-tabs');
-      const wrap = box.querySelector('.adi-tabwrap');
-      if(!tabs || !wrap) return false;
-
-      let btn = Array.from(tabs.querySelectorAll('.adi-tab')).find(x => x.dataset.tab === 'auction');
-      if(!btn){
-        btn = document.createElement('div');
-        btn.className = 'adi-tab';
-        btn.dataset.tab = 'auction';
-        btn.textContent = 'Aukcja';
-        const settingsBtn = Array.from(tabs.querySelectorAll('.adi-tab')).find(x => x.dataset.tab === 'settings');
-        if(settingsBtn) tabs.insertBefore(btn, settingsBtn);
-        else tabs.appendChild(btn);
-      }
-
-      let panel = document.getElementById('adi-tab-auction');
-      if(!panel){
-        panel = document.createElement('div');
-        panel.id = 'adi-tab-auction';
-        panel.className = 'adi-tab-content';
-        wrap.appendChild(panel);
-      }
-
-      panel.innerHTML = `
-        <div style="font-size:13px;margin:4px 0 8px;">Gdy w torbie zostaną <b>3 miejsca lub mniej</b>, bot pojedzie do najbliższego Aukcjonera i przygotuje się do wystawiania itemów.</div>
-        <label style="display:flex;align-items:center;gap:8px;justify-content:flex-start;margin:6px 0;">
-          <input type="checkbox" id="adi-auction-enabled">
-          <span>Wystawiaj itemy na aukcje</span>
-        </label>
-
-        <label style="display:flex;align-items:center;gap:8px;margin:8px 0;">
-          <input type="number" min="0" step="1" id="adi-auction-price-heroic" class="adi-bot_inputs" style="width:120px;">
-          <span>Heroiczne</span>
-        </label>
-        <label style="display:flex;align-items:center;gap:8px;margin:8px 0;">
-          <input type="number" min="0" step="1" id="adi-auction-price-unique" class="adi-bot_inputs" style="width:120px;">
-          <span>Unikatowe</span>
-        </label>
-        <label style="display:flex;align-items:center;gap:8px;margin:8px 0;">
-          <input type="number" min="0" step="1" id="adi-auction-price-common" class="adi-bot_inputs" style="width:120px;">
-          <span>Pospolite</span>
-        </label>
-
-        <div id="adi-auction-status" style="font-size:12px;margin:10px 0 6px;"></div>
-        <button id="adi-auction-reset-task" class="adi-bot_inputs" style="width:auto;padding:4px 8px;">Wyczyść task aukcji</button>
-      `;
-
-      auctionBindUi(panel);
-
-      try{
-        const saved = (localStorage.getItem('adi-bot_active_tab') || '').trim();
-        if(saved === 'auction'){
-          const allTabs = box.querySelectorAll('.adi-tab');
-          const allPanels = box.querySelectorAll('.adi-tab-content');
-          allTabs.forEach(x=>x.classList.toggle('active', x.dataset.tab === 'auction'));
-          allPanels.forEach(p=>p.classList.toggle('active', p.id === 'adi-tab-auction'));
-        }
-      }catch(_){ }
-
-      return true;
-    }catch(e){ console.warn('[adi-auction] ensure tab failed', e); return false; }
-  }
-
-  setInterval(function(){
-    try{ auctionEnsureTab(); }catch(_){ }
-    try{ auctionRefreshStatusFromStorage(); }catch(_){ }
-    try{ auctionEnsureStarted(); }catch(_){ }
-    try{ auctionTickTask(); }catch(_){ }
-  }, AUCTION_CHECK_MS);
-
-  setTimeout(function(){
-    try{ auctionEnsureTab(); }catch(_){ }
-    try{ auctionRefreshStatusFromStorage(); }catch(_){ }
-  }, 800);
-})();
-// ===== /AUKCJA =====
