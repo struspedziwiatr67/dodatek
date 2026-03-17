@@ -3684,7 +3684,7 @@ try{
   aucInfo.style.fontSize = '12px';
   aucInfo.style.marginTop = '4px';
   aucInfo.style.lineHeight = '1.35';
-  aucInfo.textContent = 'Aukcja: wyłączona';
+  aucInfo.textContent = 'Aukcja: wyłączona | Wolne miejsca: ...';
   aucWrap.appendChild(aucInfo);
 
   const aucNpcInfo = document.createElement('div');
@@ -3697,17 +3697,16 @@ try{
   aucNpcInfo.textContent = 'Najbliższy aukcjoner: wybierany automatycznie z listy.';
   aucWrap.appendChild(aucNpcInfo);
 
-  function __adi_syncAuctionEnabled(){
-    try{ localStorage.setItem('adi-bot_auction_enabled', aucChk.checked ? '1' : '0'); }catch(_){ }
+  function __adi_renderAuctionInfo(enabled){
     try{
       const info = document.querySelector('#adi-bot_auction_info');
       const bag = adiGetTotalBagSpace();
       const free = bag ? Number(bag.free || 0) : null;
       if(!info) return;
-      if(!aucChk.checked){
-        info.textContent = 'Aukcja: wyłączona';
-      }else if(free === null){
-        info.textContent = 'Aukcja: włączona | Brak odczytu miejsc w torbie';
+      if(free === null){
+        info.textContent = enabled ? 'Aukcja: włączona | Brak odczytu miejsc w torbie' : 'Aukcja: wyłączona | Brak odczytu miejsc w torbie';
+      }else if(!enabled){
+        info.textContent = `Aukcja: wyłączona | Wolne miejsca: ${free}`;
       }else if(free <= 3){
         info.textContent = `Aukcja: aktywna | Wolne miejsca: ${free} | Próg osiągnięty (<= 3)`;
       }else{
@@ -3716,8 +3715,12 @@ try{
     }catch(_){ }
   }
 
+  function __adi_syncAuctionEnabled(){
+    try{ localStorage.setItem('adi-bot_auction_enabled', aucChk.checked ? '1' : '0'); }catch(_){ }
+    __adi_renderAuctionInfo(!!aucChk.checked);
+  }
+
   aucChk.addEventListener('change', __adi_syncAuctionEnabled);
-  aucLbl.addEventListener('click', ()=>{ setTimeout(__adi_syncAuctionEnabled, 0); });
   setTimeout(__adi_syncAuctionEnabled, 0);
 
   tabAuction.appendChild(aucWrap);
@@ -3782,24 +3785,9 @@ try{
       if(window.__adiAuctionUiTimer) clearInterval(window.__adiAuctionUiTimer);
       window.__adiAuctionUiTimer = setInterval(()=>{
         try{
-          const info = document.querySelector('#adi-bot_auction_info');
-          if(!info) return;
-          const enabled = localStorage.getItem('adi-bot_auction_enabled') === '1';
-          const bag = adiGetTotalBagSpace();
-          const free = bag ? Number(bag.free || 0) : null;
-          if(!enabled){
-            info.textContent = 'Aukcja: wyłączona';
-            return;
-          }
-          if(free === null){
-            info.textContent = 'Aukcja: brak odczytu miejsc w torbie';
-            return;
-          }
-          if(free <= 3){
-            info.textContent = `Aukcja: aktywna | Wolne miejsca: ${free} | Próg osiągnięty (<= 3)`;
-          }else{
-            info.textContent = `Aukcja: aktywna | Wolne miejsca: ${free} | Oczekiwanie na próg <= 3`;
-          }
+          const chk = document.querySelector('#adi-bot_auction_enabled');
+          const enabled = chk ? !!chk.checked : (localStorage.getItem('adi-bot_auction_enabled') === '1');
+          __adi_renderAuctionInfo(enabled);
         }catch(_){ }
       }, 1000);
     }catch(_){ }
