@@ -3584,7 +3584,7 @@ box.appendChild(autoHealRow);
         auctionInfo.style.lineHeight = '1.3';
         auctionInfo.style.color = '#111';
         auctionInfo.style.marginTop = '4px';
-        auctionInfo.textContent = 'Gdy w torbie zostaną 3 wolne miejsca lub mniej, bot przygotuje task aukcyjny.';
+        auctionInfo.textContent = 'Gdy w torbie zostaną 3 miejsca lub mniej, bot przygotuje task aukcyjny.';
         auctionWrap.appendChild(auctionInfo);
 
         try{
@@ -5971,11 +5971,13 @@ if (typeof window.window.__adi_equipByNameSequence !== 'function') {
       }
 
       if(total <= 0) return null;
+      const free = Math.max(0, total - used);
       return {
         used,
         total,
-        free: Math.max(0, total - used),
-        text: `${Math.max(0, total - used)}`
+        free,
+        occupied: used,
+        text: `${free}`
       };
     }catch(_){ return null; }
   }
@@ -6049,7 +6051,7 @@ if (typeof window.window.__adi_equipByNameSequence !== 'function') {
     const desc = [
       `Postać: **${heroName}**`,
       `Rzadkość: **${adiLootRarityLabel(rarity)}**`,
-      bagSpace ? `Wolne miejsca w torbie: **${bagSpace.text}**` : null,
+      bagSpace ? `Wolne miejsca w torbie: **${bagSpace.free}**` : null,
       gold ? `Złoto: **${gold}**` : null
     ].filter(Boolean).join('\n');
 
