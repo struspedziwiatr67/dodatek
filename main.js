@@ -6225,3 +6225,87 @@ if (typeof window.window.__adi_equipByNameSequence !== 'function') {
   setTimeout(function(){ e2WrapBattleMsg(); e2WrapLootItem(); }, 300);
 })();
 // ===== /E2 COUNTER =====
+
+
+// ===== EXHAUSTION LOGOUT + AUTO LOGIN 5:30 =====
+
+function getExhaustion() {
+  const stats = window?.hero?.statsval;
+  if (!stats) return 0;
+
+  for (const val of stats) {
+    if (typeof val === "string" && val.includes("Limit 6h")) {
+      const match = val.match(/>(\d+)</);
+      if (match) return parseInt(match[1], 10);
+    }
+  }
+  return 0;
+}
+
+function addExhaustionCheckbox() {
+  const testTab = document.querySelector('#test') || document.body;
+
+  const container = document.createElement('div');
+  container.style.marginTop = '10px';
+
+  const checkbox = document.createElement('input');
+  checkbox.type = 'checkbox';
+  checkbox.id = 'exhLogout';
+
+  const label = document.createElement('label');
+  label.htmlFor = 'exhLogout';
+  label.textContent = ' Logaj jak brak wyczerpania i zaloguje o 5:30';
+
+  container.appendChild(checkbox);
+  container.appendChild(label);
+  testTab.appendChild(container);
+}
+
+addExhaustionCheckbox();
+
+setInterval(() => {
+  const cb = document.getElementById('exhLogout');
+  if (!cb || !cb.checked) return;
+
+  const exh = getExhaustion();
+  console.log('[BOT] Wyczerpanie:', exh);
+
+  if (exh <= 0) {
+    console.log('[BOT] Brak wyczerpania -> logout + zaplanowanie 5:30');
+    localStorage.setItem('autoLogin530', 'true');
+    window.location.href = 'https://www.margonem.pl/';
+  }
+}, 30000);
+
+// ===== AUTO LOGIN 5:30 =====
+
+async function autoLogin530() {
+  function sleep(ms){ return new Promise(r=>setTimeout(r,ms)); }
+
+  const now = new Date();
+  if (now.getHours() === 5 && now.getMinutes() === 30) {
+
+    console.log('[BOT] 5:30 -> logowanie');
+
+    const closeBtn = document.querySelector('.close, .btn-close, [class*="close"]');
+    if (closeBtn) {
+      closeBtn.click();
+      await sleep(1000); // 1s delay
+    }
+
+    const playBtn = Array.from(document.querySelectorAll('button, a, div'))
+      .find(el => el.textContent && el.textContent.includes('Wejdź do gry'));
+
+    if (playBtn) {
+      playBtn.click();
+      localStorage.removeItem('autoLogin530');
+    }
+  }
+}
+
+setInterval(() => {
+  if (localStorage.getItem('autoLogin530') === 'true') {
+    autoLogin530();
+  }
+}, 60000);
+
