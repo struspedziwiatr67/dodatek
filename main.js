@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Bot na exp (iframe-aware exhaustion + throttling + captcha->Discord + ping-pong trasy + only-selected-maps + elite toggle + group-size filter + heros->Discord + obrazki + fixy map/lvl/wt/grupy + FOW cache)
-// @version      2.17.6-customroutes-exh0530fix
+// @version      2.17.7-superdetector
 // @description  Bot z przechodzeniem map, anty-spam ataku, captcha->Discord, START/STOP, zbijanie wyczerpania, atak tylko na wybranych mapach, elity toggle, filtr grup, powiadomienia o herosach (bez Namiotu Tropicieli Herosów), normalizacja nazw map, odporne parsowanie lvli, poprawki 'wt', stabilny wybór grup przy mgle (cache max rozmiaru grupy)
 // @match        *://*/
 // @match        *://www.margonem.pl/*
@@ -77,11 +77,15 @@
   }, 500);
 })();
 
-// ===== Auto refresh: Too Many Requests + biały ekran po wylogowaniu =====
+// ===== SUPER DETECTOR: 404 + Too Many Requests + biały ekran + loader stuck =====
 (function(){
   const CHECK_MS = 300;
   const RELOAD_DELAY_MS = 1000;
   const RELOAD_COOLDOWN_MS = 15000;
+  const LOADER_STUCK_AFTER_MS = 15000;
+
+  let __adiLastLoaderProgressAt = Date.now();
+  let __adiLastLoaderProgressValue = null;
 
   function isMargonemHost(){
     try{ return /(?:^|\.)margonem\.pl$/i.test(String(location.hostname||'')); }catch(_){ return false; }
@@ -92,21 +96,52 @@
   }
 
   function getLastReloadAt(){
-    try{ return parseInt(sessionStorage.getItem('adi-bot_auto_reload_last_at') || '0', 10) || 0; }catch(_){ return 0; }
+    try{ return parseInt(sessionStorage.getItem('adi-bot_super_detector_last_reload_at') || '0', 10) || 0; }catch(_){ return 0; }
   }
 
   function setLastReloadAt(ts){
-    try{ sessionStorage.setItem('adi-bot_auto_reload_last_at', String(ts || getNow())); }catch(_){ }
+    try{ sessionStorage.setItem('adi-bot_super_detector_last_reload_at', String(ts || getNow())); }catch(_){ }
+  }
+
+  function getAllDocs(){
+    const docs = [];
+    try{ docs.push(document); }catch(_){}
+
+    try{
+      const iframes = document.querySelectorAll('iframe');
+      for(const fr of iframes){
+        try{
+          const d = fr.contentDocument || (fr.contentWindow && fr.contentWindow.document);
+          if(d) docs.push(d);
+        }catch(_){ }
+      }
+    }catch(_){}
+
+    return docs;
+  }
+
+  function getDocText(doc){
+    try{
+      if(!doc || !doc.body) return '';
+      const pre = doc.querySelector('body > pre, pre');
+      return String((pre && pre.textContent) || doc.body.innerText || doc.body.textContent || '').trim();
+    }catch(_){ return ''; }
   }
 
   function isTooManyRequestsScreen(doc){
     try{
-      if(!doc || !doc.body) return false;
-      const pre = doc.querySelector('body > pre, pre');
-      const txt = String((pre && pre.textContent) || doc.body.innerText || doc.body.textContent || '').trim();
+      const txt = getDocText(doc);
       if(!txt) return false;
       if(/^Too Many Requests$/i.test(txt)) return true;
       return /^Too Many Requests\b/i.test(txt);
+    }catch(_){ return false; }
+  }
+
+  function is404PageNotFoundScreen(doc){
+    try{
+      const txt = getDocText(doc).toLowerCase();
+      if(!txt) return false;
+      return txt.includes('404 page not found') || txt.includes('404 not found');
     }catch(_){ return false; }
   }
 
@@ -116,8 +151,52 @@
         doc &&
         doc.body &&
         doc.body.children.length === 0 &&
-        !(String(doc.body.innerText || '').trim())
+        !(String(doc.body.innerText || doc.body.textContent || '').trim())
       );
+    }catch(_){ return false; }
+  }
+
+  function isLoadingVisible(){
+    try{
+      const el = document.querySelector('#loading');
+      if(!el) return false;
+      const st = getComputedStyle(el);
+      return st.display !== 'none' && st.visibility !== 'hidden' && st.opacity !== '0';
+    }catch(_){ return false; }
+  }
+
+  function getLoaderProgressValue(){
+    try{
+      const loading = document.querySelector('#loading');
+      if(!loading) return null;
+
+      const bar = loading.querySelector('.progressbar .bar');
+      const info = loading.querySelector('.progressInfo');
+
+      const barStyle = bar ? getComputedStyle(bar) : null;
+      const barWidth = barStyle ? barStyle.width : '';
+      const infoText = info ? String(info.textContent || '').trim() : '';
+
+      return barWidth + '__' + infoText;
+    }catch(_){ return null; }
+  }
+
+  function isLoaderStuck(){
+    try{
+      if(!isLoadingVisible()){
+        __adiLastLoaderProgressValue = null;
+        __adiLastLoaderProgressAt = getNow();
+        return false;
+      }
+
+      const current = getLoaderProgressValue();
+      if(current !== __adiLastLoaderProgressValue){
+        __adiLastLoaderProgressValue = current;
+        __adiLastLoaderProgressAt = getNow();
+        return false;
+      }
+
+      return (getNow() - __adiLastLoaderProgressAt) >= LOADER_STUCK_AFTER_MS;
     }catch(_){ return false; }
   }
 
@@ -130,22 +209,36 @@
     try{
       const last = getLastReloadAt();
       const now = getNow();
-      if(now - last < RELOAD_COOLDOWN_MS) return;
+      if(now - last < RELOAD_COOLDOWN_MS) return false;
       setLastReloadAt(now);
-      console.warn('[adi-bot] Wykryto ' + reason + ' -> odświeżam za 1s');
+      console.warn('[adi-bot] Super detector: ' + reason + ' -> odświeżam za 1s');
       setTimeout(doReload, RELOAD_DELAY_MS);
-    }catch(_){ }
+      return true;
+    }catch(_){ return false; }
   }
 
   function tick(){
     try{
       if(!isMargonemHost()) return;
-      if(isTooManyRequestsScreen(document)){
-        scheduleReload('ekran "Too Many Requests"');
-        return;
+
+      const docs = getAllDocs();
+      for(const doc of docs){
+        if(isTooManyRequestsScreen(doc)){
+          scheduleReload('ekran "Too Many Requests"');
+          return;
+        }
+        if(is404PageNotFoundScreen(doc)){
+          scheduleReload('ekran "404 page not found"');
+          return;
+        }
+        if(isBlankWhiteScreen(doc)){
+          scheduleReload('biały ekran po wylogowaniu');
+          return;
+        }
       }
-      if(isBlankWhiteScreen(document)){
-        scheduleReload('biały ekran po wylogowaniu');
+
+      if(isLoaderStuck()){
+        scheduleReload('loader utknął na ponad 15s');
       }
     }catch(_){ }
   }
@@ -153,6 +246,7 @@
   setInterval(tick, CHECK_MS);
   setTimeout(tick, 250);
 })();
+
 
 // ===== UI GUARD: auto-switch to OLD interface when NEW interface is detected =====
 // Działa niezależnie od START/STOP bota (sprawdza cały czas i klika tylko, gdy przycisk jest widoczny w DOM).
@@ -763,74 +857,6 @@ const HERO_DISCORD_WEBHOOK = "https://discord.com/api/webhooks/14711759854948884
     setTimeout(tick, 800);
   })();
   // === /AUTO RELOG ===
-  // === LOADER STUCK WATCHDOG (czarny ekran / zawieszone ładowanie gry) ===
-  (function(){
-    const CHECK_EVERY_MS = 1000;
-    const STUCK_AFTER_MS = 15000;
-
-    let lastProgressChangeAt = Date.now();
-    let lastProgressValue = null;
-    let reloadTriggered = false;
-
-    function q(sel){
-      try{ return document.querySelector(sel); }catch(_){ return null; }
-    }
-
-    function isLoadingVisible(){
-      try{
-        const el = q('#loading');
-        if(!el) return false;
-        const st = getComputedStyle(el);
-        return st.display !== 'none' && st.visibility !== 'hidden' && st.opacity !== '0';
-      }catch(_){ return false; }
-    }
-
-    function getProgressValue(){
-      try{
-        const loading = q('#loading');
-        if(!loading) return null;
-
-        const bar = loading.querySelector('.progressbar .bar');
-        const info = loading.querySelector('.progressInfo');
-
-        const barStyle = bar ? getComputedStyle(bar) : null;
-        const barWidth = barStyle ? barStyle.width : '';
-        const infoText = info ? String(info.textContent || '').trim() : '';
-
-        return barWidth + '__' + infoText;
-      }catch(_){ return null; }
-    }
-
-    function tick(){
-      try{
-        if(reloadTriggered) return;
-        if(!isLoadingVisible()){
-          lastProgressValue = null;
-          lastProgressChangeAt = Date.now();
-          return;
-        }
-
-        const current = getProgressValue();
-        if(current !== lastProgressValue){
-          lastProgressValue = current;
-          lastProgressChangeAt = Date.now();
-          return;
-        }
-
-        if(Date.now() - lastProgressChangeAt < STUCK_AFTER_MS) return;
-
-        reloadTriggered = true;
-        console.warn('[adi-bot] Loader utknął na ponad 15s - odświeżam stronę.');
-        try{ location.reload(); }catch(_){ try{ history.go(0); }catch(__){} }
-      }catch(_){ }
-    }
-
-    setInterval(tick, CHECK_EVERY_MS);
-    setTimeout(tick, 1200);
-  })();
-  // === /LOADER STUCK WATCHDOG ===
-
-
   // === NIGHT LOGOUT GUARD (23:59-06:00) ===
   (function(){
     const CHECK_MS = 1000;
@@ -3496,10 +3522,6 @@ box.appendChild(autoHealRow);
       tabExp.id = 'adi-tab-exp';
       tabExp.className = 'adi-tab-content active';
 
-      const tabAuction = document.createElement('div');
-      tabAuction.id = 'adi-tab-auction';
-      tabAuction.className = 'adi-tab-content';
-
       const tabE2 = document.createElement('div');
       tabE2.id = 'adi-tab-e2';
       tabE2.className = 'adi-tab-content';
@@ -3613,119 +3635,6 @@ try{
 }catch(e){ console.warn('[adi-bot] exhaustion 5:30 ui failed', e); }
 
 
-// 6) Zakładka Aukcja
-try{
-  tabAuction.innerHTML = '';
-
-  const aucWrap = document.createElement('div');
-  aucWrap.style.display = 'flex';
-  aucWrap.style.flexDirection = 'column';
-  aucWrap.style.gap = '8px';
-  aucWrap.style.padding = '2px 0';
-
-  const aucRow = document.createElement('div');
-  aucRow.style.display = 'flex';
-  aucRow.style.alignItems = 'center';
-  aucRow.style.gap = '8px';
-  aucRow.style.margin = '4px 0';
-
-  const aucChk = document.createElement('input');
-  aucChk.type = 'checkbox';
-  aucChk.id = 'adi-bot_auction_enabled';
-  aucChk.checked = localStorage.getItem('adi-bot_auction_enabled') === '1';
-
-  const aucLbl = document.createElement('label');
-  aucLbl.htmlFor = 'adi-bot_auction_enabled';
-  aucLbl.style.cursor = 'pointer';
-  aucLbl.textContent = 'Wystawiaj itemy na aukcje';
-
-  aucRow.appendChild(aucChk);
-  aucRow.appendChild(aucLbl);
-  aucWrap.appendChild(aucRow);
-
-  function __adi_makeAuctionPriceRow(id, label, placeholder){
-    const row = document.createElement('div');
-    row.style.display = 'flex';
-    row.style.alignItems = 'center';
-    row.style.gap = '8px';
-    row.style.margin = '2px 0';
-
-    const inp = document.createElement('input');
-    inp.type = 'number';
-    inp.min = '0';
-    inp.step = '1';
-    inp.id = id;
-    inp.classList.add('adi-bot_inputs');
-    inp.style.flex = '1 1 auto';
-    inp.placeholder = placeholder || '0';
-
-    const saved = localStorage.getItem(id);
-    if(saved !== null) inp.value = saved;
-
-    const txt = document.createElement('span');
-    txt.textContent = label;
-    txt.style.whiteSpace = 'nowrap';
-
-    inp.addEventListener('input', ()=>{
-      try{ localStorage.setItem(id, String(inp.value || '')); }catch(_){ }
-    });
-
-    row.appendChild(inp);
-    row.appendChild(txt);
-    return row;
-  }
-
-  aucWrap.appendChild(__adi_makeAuctionPriceRow('adi-bot_auction_price_heroic', 'Heroiczne', 'np. 50000'));
-  aucWrap.appendChild(__adi_makeAuctionPriceRow('adi-bot_auction_price_unique', 'Unikatowe', 'np. 15000'));
-  aucWrap.appendChild(__adi_makeAuctionPriceRow('adi-bot_auction_price_common', 'Pospolite', 'np. 1000'));
-
-  const aucInfo = document.createElement('div');
-  aucInfo.id = 'adi-bot_auction_info';
-  aucInfo.style.fontSize = '12px';
-  aucInfo.style.marginTop = '4px';
-  aucInfo.style.lineHeight = '1.35';
-  aucInfo.textContent = 'Aukcja: wyłączona | Wolne miejsca: ...';
-  aucWrap.appendChild(aucInfo);
-
-  const aucNpcInfo = document.createElement('div');
-  aucNpcInfo.id = 'adi-bot_auction_npc_info';
-  aucNpcInfo.style.fontSize = '12px';
-  aucNpcInfo.style.lineHeight = '1.35';
-  aucNpcInfo.style.maxWidth = '260px';
-  aucNpcInfo.style.whiteSpace = 'normal';
-  aucNpcInfo.style.wordBreak = 'break-word';
-  aucNpcInfo.textContent = 'Najbliższy aukcjoner: wybierany automatycznie z listy.';
-  aucWrap.appendChild(aucNpcInfo);
-
-  function __adi_renderAuctionInfo(enabled){
-    try{
-      const info = document.querySelector('#adi-bot_auction_info');
-      const bag = adiGetTotalBagSpace();
-      const free = bag ? Number(bag.free || 0) : null;
-      if(!info) return;
-      if(free === null){
-        info.textContent = enabled ? 'Aukcja: włączona | Brak odczytu miejsc w torbie' : 'Aukcja: wyłączona | Brak odczytu miejsc w torbie';
-      }else if(!enabled){
-        info.textContent = `Aukcja: wyłączona | Wolne miejsca: ${free}`;
-      }else if(free <= 3){
-        info.textContent = `Aukcja: aktywna | Wolne miejsca: ${free} | Próg osiągnięty (<= 3)`;
-      }else{
-        info.textContent = `Aukcja: aktywna | Wolne miejsca: ${free} | Oczekiwanie na próg <= 3`;
-      }
-    }catch(_){ }
-  }
-
-  function __adi_syncAuctionEnabled(){
-    try{ localStorage.setItem('adi-bot_auction_enabled', aucChk.checked ? '1' : '0'); }catch(_){ }
-    __adi_renderAuctionInfo(!!aucChk.checked);
-  }
-
-  aucChk.addEventListener('change', __adi_syncAuctionEnabled);
-  setTimeout(__adi_syncAuctionEnabled, 0);
-
-  tabAuction.appendChild(aucWrap);
-}catch(e){ console.warn('[adi-bot] auction ui failed', e); }
-
       const tabs = document.createElement('div');
       tabs.className = 'adi-tabs';
 
@@ -3738,18 +3647,16 @@ try{
       }
 
       const t1 = mkTab('Exp','exp');
-      const tA = mkTab('Aukcja','auction');
       const t2 = mkTab('E2','e2');
       const t3 = mkTab('Test','test');
       const t4 = mkTab('Wioska startowa','start');
       t1.classList.add('active');
 
-      tabs.appendChild(t1); tabs.appendChild(tA); tabs.appendChild(t2); tabs.appendChild(t3); tabs.appendChild(t4);
+      tabs.appendChild(t1); tabs.appendChild(t2); tabs.appendChild(t3); tabs.appendChild(t4);
 
       const contentWrap = document.createElement('div');
       contentWrap.className = 'adi-tabwrap';
       contentWrap.appendChild(tabExp);
-      contentWrap.appendChild(tabAuction);
       contentWrap.appendChild(tabE2);
       contentWrap.appendChild(tabTest);
 
@@ -3775,26 +3682,15 @@ try{
       // restore last active tab
       try{
         const saved = (localStorage.getItem('adi-bot_active_tab')||'exp').trim();
-        if(saved==='auction' || saved==='e2' || saved==='test' || saved==='exp' || saved==='start') activateTab(saved);
+        if(saved==='e2' || saved==='test' || saved==='exp' || saved==='start') activateTab(saved);
       }catch(_){}
     }catch(e){ console.warn('[adi-bot] tabs init failed', e); }
 
     document.body.appendChild(box);
 
-    try{
-      if(window.__adiAuctionUiTimer) clearInterval(window.__adiAuctionUiTimer);
-      window.__adiAuctionUiTimer = setInterval(()=>{
-        try{
-          const chk = document.querySelector('#adi-bot_auction_enabled');
-          const enabled = chk ? !!chk.checked : (localStorage.getItem('adi-bot_auction_enabled') === '1');
-          __adi_renderAuctionInfo(enabled);
-        }catch(_){ }
-      }, 1000);
-    }catch(_){ }
-
     let style=document.createElement(`style`); style.type=`text/css`;
     style.appendChild(document.createTextNode(`
-      #adi-bot_box{position:absolute;border:3px solid lime;padding:5px;text-align:center;background:url(http://i.imgur.com/iQISZHL.png);cursor:grab;left:${position.x}px;top:${position.y}px;width:auto;max-width:320px;height:auto;z-index:390;}
+      #adi-bot_box{position:absolute;border:3px solid lime;padding:5px;text-align:center;background:url(http://i.imgur.com/iQISZHL.png);cursor:grab;left:${position.x}px;top:${position.y}px;width:auto;height:auto;z-index:390;}
       .adi-bot_inputs{box-sizing:content-box;margin:0 auto 3px;padding:2px;cursor:pointer;border:2px solid lime;border-radius:5px;font:normal 16px/normal "Comic Sans MS", Times, serif;color:#000;background:rgba(234,227,227,1);box-shadow:2px 2px 2px 0 rgba(0,0,0,0.2) inset;text-shadow:1px 1px 0 rgba(255,255,255,0.66);display:block;}
       input#adi-bot_mobs{text-align:center;}
       #adi-bot_toggle{background-color:#c9f7c9;font-weight:bold;}
@@ -5976,8 +5872,8 @@ if (typeof window.window.__adi_equipByNameSequence !== 'function') {
 
   function adiGetTotalBagSpace(){
     try{
-      let free = 0;
-      let bagCount = 0;
+      let used = 0;
+      let total = 0;
       for(const id of ['bs0','bs1','bs2']){
         const el = document.querySelector(`small#${id}`) || document.getElementById(id);
         if(!el) continue;
@@ -5987,25 +5883,23 @@ if (typeof window.window.__adi_equipByNameSequence !== 'function') {
 
         const m = t.match(/(\d+)\/(\d+)/);
         if(m){
-          free += Number(m[1] || 0);
-          bagCount += 1;
+          used += Number(m[1] || 0);
+          total += Number(m[2] || 0);
         }else{
           const n = parseInt(t, 10);
           if(!isNaN(n)){
-            free += n;
-            bagCount += 1;
+            used += n;
+            total += 30;
           }
         }
       }
 
-      if(bagCount <= 0) return null;
-      const total = bagCount * 30;
-      const used = Math.max(0, total - free);
+      if(total <= 0) return null;
       return {
         used,
         total,
-        free,
-        text: `${free}`
+        free: Math.max(0, total - used),
+        text: `${used}`
       };
     }catch(_){ return null; }
   }
