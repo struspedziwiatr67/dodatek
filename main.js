@@ -6243,22 +6243,52 @@ function getExhaustion() {
 }
 
 function addExhaustionCheckbox() {
-  const testTab = document.querySelector('#test') || document.body;
+  // Dodaj checkbox dokładnie do zawartości zakładki Test, na sam dół.
+  // UI bota buduje się chwilę później, więc próbujemy do skutku aż panel Test powstanie.
+  const tryAttach = () => {
+    const testTab = document.querySelector('#adi-tab-test');
+    if (!testTab) return false;
 
-  const container = document.createElement('div');
-  container.style.marginTop = '10px';
+    // Usuń ewentualny stary checkbox dodany poza zakładką Test.
+    try {
+      document.querySelectorAll('#exhLogout, label[for="exhLogout"], [data-adi-exh-logout-wrap="1"]').forEach(el => {
+        const wrap = el.closest('[data-adi-exh-logout-wrap="1"]');
+        if (wrap) wrap.remove();
+        else if (el.id === 'exhLogout') el.remove();
+        else el.remove();
+      });
+    } catch(_) {}
 
-  const checkbox = document.createElement('input');
-  checkbox.type = 'checkbox';
-  checkbox.id = 'exhLogout';
+    if (testTab.querySelector('#exhLogout')) return true;
 
-  const label = document.createElement('label');
-  label.htmlFor = 'exhLogout';
-  label.textContent = ' Logaj jak brak wyczerpania i zaloguje o 5:30';
+    const container = document.createElement('label');
+    container.setAttribute('data-adi-exh-logout-wrap', '1');
+    container.style.display = 'block';
+    container.style.margin = '10px 0 0';
+    container.style.cursor = 'pointer';
 
-  container.appendChild(checkbox);
-  container.appendChild(label);
-  testTab.appendChild(container);
+    const checkbox = document.createElement('input');
+    checkbox.type = 'checkbox';
+    checkbox.id = 'exhLogout';
+    checkbox.checked = false; // standardowo odznaczony
+    checkbox.style.marginRight = '6px';
+
+    container.appendChild(checkbox);
+    container.appendChild(document.createTextNode('Logaj jak brak wyczerpania i zaloguje o 5:30'));
+    testTab.appendChild(container);
+    return true;
+  };
+
+  if (tryAttach()) return;
+
+  const timer = setInterval(() => {
+    if (tryAttach()) clearInterval(timer);
+  }, 500);
+
+  setTimeout(() => {
+    try { clearInterval(timer); } catch(_) {}
+    tryAttach();
+  }, 15000);
 }
 
 addExhaustionCheckbox();
