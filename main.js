@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Bot na exp (iframe-aware exhaustion + throttling + captcha->Discord + ping-pong trasy + only-selected-maps + elite toggle + group-size filter + heros->Discord + obrazki + fixy map/lvl/wt/grupy + FOW cache)
-// @version      2.17.5-customroutes
+// @version      2.17.6-customroutes-exh0530fix
 // @description  Bot z przechodzeniem map, anty-spam ataku, captcha->Discord, START/STOP, zbijanie wyczerpania, atak tylko na wybranych mapach, elity toggle, filtr grup, powiadomienia o herosach (bez Namiotu Tropicieli Herosów), normalizacja nazw map, odporne parsowanie lvli, poprawki 'wt', stabilny wybór grup przy mgle (cache max rozmiaru grupy)
 // @match        *://*/
 // @match        *://www.margonem.pl/*
@@ -561,8 +561,23 @@ const HERO_DISCORD_WEBHOOK = "https://discord.com/api/webhooks/14711759854948884
     }catch(_){ return false; }
   }
 
-  function __adi_planRelogAt0600(){
+  function __adi_hasPendingExhaustion0530Relog(){
     try{
+      const reason = String(__adi_getCookie('adi_relog_for') || '');
+      if(reason !== 'exhaustion-0530') return false;
+      const atSec = parseInt(__adi_getCookie('adi_relog_at_sec') || '0', 10) || 0;
+      if(!atSec) return false;
+      const done = String(__adi_getCookie('adi_relog_done') || '') === '1';
+      if(done) return false;
+      return atSec >= Math.floor(Date.now() / 1000);
+    }catch(_){ return false; }
+  }
+
+  function __adi_planRelogAt0600(force){
+    try{
+      if(!force && __adi_hasPendingExhaustion0530Relog()){
+        return parseInt(__adi_getCookie('adi_relog_at_sec') || '0', 10) || 0;
+      }
       const tsMs = __adi_getNext0600TsMs(Date.now());
       const tsSec = Math.floor(tsMs / 1000);
       __adi_setCookie('adi_relog_at_sec', String(tsSec), 24*60*60);
@@ -627,7 +642,7 @@ const HERO_DISCORD_WEBHOOK = "https://discord.com/api/webhooks/14711759854948884
       const last=parseInt(localStorage.getItem(k)||'0',10)||0;
       if(Date.now()-last < 15000) return true;
       localStorage.setItem(k, String(Date.now()));
-      __adi_planRelogAt0600();
+      if(!__adi_hasPendingExhaustion0530Relog()) __adi_planRelogAt0600();
       setTimeout(()=>{ __adi_clickLogout(); }, 250);
       return true;
     }catch(_){ return false; }
