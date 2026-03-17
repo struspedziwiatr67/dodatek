@@ -3623,7 +3623,7 @@ try{
   aucWrap.style.gap = '8px';
   aucWrap.style.padding = '2px 0';
 
-  const aucRow = document.createElement('label');
+  const aucRow = document.createElement('div');
   aucRow.style.display = 'flex';
   aucRow.style.alignItems = 'center';
   aucRow.style.gap = '8px';
@@ -3634,7 +3634,9 @@ try{
   aucChk.id = 'adi-bot_auction_enabled';
   aucChk.checked = localStorage.getItem('adi-bot_auction_enabled') === '1';
 
-  const aucLbl = document.createElement('span');
+  const aucLbl = document.createElement('label');
+  aucLbl.htmlFor = 'adi-bot_auction_enabled';
+  aucLbl.style.cursor = 'pointer';
   aucLbl.textContent = 'Wystawiaj itemy na aukcje';
 
   aucRow.appendChild(aucChk);
@@ -3689,12 +3691,34 @@ try{
   aucNpcInfo.id = 'adi-bot_auction_npc_info';
   aucNpcInfo.style.fontSize = '12px';
   aucNpcInfo.style.lineHeight = '1.35';
-  aucNpcInfo.textContent = 'Najbliższy aukcjoner: Torneg (57,52), Werbin (34,24), Eder (32,49), Karka-han (61,26), Thuzal (58,50), Mythar (63,37), Nithal (21,43), Tuzmer (44,33), Dom Aukcyjny (20,6)';
+  aucNpcInfo.style.maxWidth = '260px';
+  aucNpcInfo.style.whiteSpace = 'normal';
+  aucNpcInfo.style.wordBreak = 'break-word';
+  aucNpcInfo.textContent = 'Najbliższy aukcjoner: wybierany automatycznie z listy.';
   aucWrap.appendChild(aucNpcInfo);
 
-  aucChk.addEventListener('change', ()=>{
+  function __adi_syncAuctionEnabled(){
     try{ localStorage.setItem('adi-bot_auction_enabled', aucChk.checked ? '1' : '0'); }catch(_){ }
-  });
+    try{
+      const info = document.querySelector('#adi-bot_auction_info');
+      const bag = adiGetTotalBagSpace();
+      const free = bag ? Number(bag.free || 0) : null;
+      if(!info) return;
+      if(!aucChk.checked){
+        info.textContent = 'Aukcja: wyłączona';
+      }else if(free === null){
+        info.textContent = 'Aukcja: włączona | Brak odczytu miejsc w torbie';
+      }else if(free <= 3){
+        info.textContent = `Aukcja: aktywna | Wolne miejsca: ${free} | Próg osiągnięty (<= 3)`;
+      }else{
+        info.textContent = `Aukcja: aktywna | Wolne miejsca: ${free} | Oczekiwanie na próg <= 3`;
+      }
+    }catch(_){ }
+  }
+
+  aucChk.addEventListener('change', __adi_syncAuctionEnabled);
+  aucLbl.addEventListener('click', ()=>{ setTimeout(__adi_syncAuctionEnabled, 0); });
+  setTimeout(__adi_syncAuctionEnabled, 0);
 
   tabAuction.appendChild(aucWrap);
 }catch(e){ console.warn('[adi-bot] auction ui failed', e); }
@@ -3782,7 +3806,7 @@ try{
 
     let style=document.createElement(`style`); style.type=`text/css`;
     style.appendChild(document.createTextNode(`
-      #adi-bot_box{position:absolute;border:3px solid lime;padding:5px;text-align:center;background:url(http://i.imgur.com/iQISZHL.png);cursor:grab;left:${position.x}px;top:${position.y}px;width:auto;height:auto;z-index:390;}
+      #adi-bot_box{position:absolute;border:3px solid lime;padding:5px;text-align:center;background:url(http://i.imgur.com/iQISZHL.png);cursor:grab;left:${position.x}px;top:${position.y}px;width:auto;max-width:320px;height:auto;z-index:390;}
       .adi-bot_inputs{box-sizing:content-box;margin:0 auto 3px;padding:2px;cursor:pointer;border:2px solid lime;border-radius:5px;font:normal 16px/normal "Comic Sans MS", Times, serif;color:#000;background:rgba(234,227,227,1);box-shadow:2px 2px 2px 0 rgba(0,0,0,0.2) inset;text-shadow:1px 1px 0 rgba(255,255,255,0.66);display:block;}
       input#adi-bot_mobs{text-align:center;}
       #adi-bot_toggle{background-color:#c9f7c9;font-weight:bold;}
