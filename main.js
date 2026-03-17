@@ -573,6 +573,47 @@ const HERO_DISCORD_WEBHOOK = "https://discord.com/api/webhooks/14711759854948884
     }catch(_){ return 0; }
   }
 
+  function __adi_getNext0530TsMs(nowMs){
+    try{
+      const d = new Date(nowMs || Date.now());
+      const next = new Date(d);
+      next.setSeconds(0,0);
+      next.setHours(5,30,0,0);
+      if(d.getHours() > 5 || (d.getHours() === 5 && d.getMinutes() > 30) || (d.getHours() === 5 && d.getMinutes() === 30 && d.getSeconds() > 0)){
+        next.setDate(next.getDate() + 1);
+      }
+      return next.getTime();
+    }catch(_){ return Date.now() + 60*60*1000; }
+  }
+
+  function __adi_planRelogAt0530ForExhaustion(){
+    try{
+      const tsMs = __adi_getNext0530TsMs(Date.now());
+      const tsSec = Math.floor(tsMs / 1000);
+      __adi_setCookie('adi_relog_at_sec', String(tsSec), 24*60*60);
+      __adi_setCookie('adi_relog_for', 'exhaustion-0530', 24*60*60);
+      __adi_setCookie('adi_relog_timer_id', 'exhaustion-0530', 24*60*60);
+      __adi_delCookie('adi_relog_done');
+      __adi_delCookie('adi_relog_cd_until');
+      try{ localStorage.setItem('adi-bot_exhaustion_relog_target', String(tsSec)); }catch(_){}
+      return tsSec;
+    }catch(_){ return 0; }
+  }
+
+  function __adi_shouldBypassNightBlockForScheduled0530(){
+    try{
+      const reason = String(__adi_getCookie('adi_relog_for') || '');
+      if(reason !== 'exhaustion-0530') return false;
+      const atSec = parseInt(__adi_getCookie('adi_relog_at_sec')||'0',10) || 0;
+      if(!atSec) return false;
+      return Math.floor(Date.now()/1000) >= atSec;
+    }catch(_){ return false; }
+  }
+
+  function __adi_isExhaustionRelogEnabled(){
+    try{ return localStorage.getItem('adi-bot_exhaustion_logout_530') === '1'; }catch(_){ return false; }
+  }
+
   function __adi_shouldBlockLoginNow(){
     try{
       return __adi_isNightLogoutEnabled() && __adi_isWithinNightLogoutWindow(Date.now());
@@ -642,7 +683,7 @@ const HERO_DISCORD_WEBHOOK = "https://discord.com/api/webhooks/14711759854948884
     const CHECK_MS = 250;
     const CLICK_COOLDOWN_MS = 8000;   // lokalny cooldown na tick
     const LOGIN_COOLDOWN_MS = 20000;  // twarda blokada, żeby nie spamować logowania (429)
-    const AFTER_CLOSE_WAIT_MS = 2500; // po kliknięciu X odczekaj zanim klikniesz "Wejdź do gry"
+    const AFTER_CLOSE_WAIT_MS = 1000; // po kliknięciu X odczekaj 1s zanim klikniesz "Wejdź do gry"
 
     function q(sel){
       try{ return document.querySelector(sel); }catch(_){ return null; }
@@ -663,7 +704,7 @@ const HERO_DISCORD_WEBHOOK = "https://discord.com/api/webhooks/14711759854948884
         if(!isLoginPage()) return;
 
         // ciche godziny 23:59-06:00: w tym czasie nie logujemy w ogóle
-        if(__adi_shouldBlockLoginNow()){
+        if(__adi_shouldBlockLoginNow() && !__adi_shouldBypassNightBlockForScheduled0530()){
           __adi_planRelogAt0600();
           return;
         }
@@ -1059,6 +1100,22 @@ Lvl: **${n.lvl ?? "?"}**`,
     const now=Date.now();
     if(throttle && now-__lastExhCheck<EXH_CHECK_EVERY_MS && __exhCached!==null) return __exhCached;
     __lastExhCheck=now;
+
+    try{
+      const stats = window?.hero?.statsval;
+      if(stats && typeof stats.length === 'number'){
+        for(const val of stats){
+          if(typeof val === 'string' && val.includes('Limit 6h')){
+            const m = val.match(/>(\d+)</);
+            if(m){
+              __exhCached = parseInt(m[1], 10) || 0;
+              return __exhCached;
+            }
+          }
+        }
+      }
+    }catch(_){}
+
     const el=findExhaustionElement(); if(!el) return __exhCached;
     const val=parseExhaustionFromText((el.innerText||el.textContent||"").trim());
     if(typeof val==="number" && !Number.isNaN(val)) __exhCached=val;
@@ -3503,6 +3560,40 @@ try{
 }catch(e){ console.warn('[adi-bot] skill test ui failed', e); }
 
 
+// 5) Logaj przy 0 wyczerpania i zaloguj o 5:30
+try{
+  const exh530Row = document.createElement('div');
+  exh530Row.style.display = 'flex';
+  exh530Row.style.alignItems = 'center';
+  exh530Row.style.justifyContent = 'flex-start';
+  exh530Row.style.gap = '6px';
+  exh530Row.style.margin = '10px 0 0';
+  exh530Row.style.width = '100%';
+
+  const exh530Chk = document.createElement('input');
+  exh530Chk.type = 'checkbox';
+  exh530Chk.id = 'adi-bot_exhaustion_logout_530';
+  exh530Chk.style.marginRight = '4px';
+
+  const exh530Lbl = document.createElement('label');
+  exh530Lbl.htmlFor = 'adi-bot_exhaustion_logout_530';
+  exh530Lbl.textContent = 'Logaj jak brak wyczerpania i zaloguje o 5:30';
+
+  try{
+    exh530Chk.checked = localStorage.getItem('adi-bot_exhaustion_logout_530') === '1';
+  }catch(_){ exh530Chk.checked = false; }
+
+  exh530Chk.addEventListener('change', ()=>{
+    try{ localStorage.setItem('adi-bot_exhaustion_logout_530', exh530Chk.checked ? '1' : '0'); }catch(_){}
+    try{ message(exh530Chk.checked ? 'Relog przy 0 wyczerpania: WŁ (logowanie o 5:30)' : 'Relog przy 0 wyczerpania: WYŁ'); }catch(_){}
+  });
+
+  exh530Row.appendChild(exh530Chk);
+  exh530Row.appendChild(exh530Lbl);
+  tabTest.appendChild(exh530Row);
+}catch(e){ console.warn('[adi-bot] exhaustion 5:30 ui failed', e); }
+
+
       const tabs = document.createElement('div');
       tabs.className = 'adi-tabs';
 
@@ -3616,6 +3707,7 @@ try{
     // default: zachowaj dotychczasowe zachowanie (logowanie po zbiciu E2 włączone)
     if(localStorage.getItem("adi-bot_relog_after_e2")==null){ localStorage.setItem("adi-bot_relog_after_e2","1"); }
     if(localStorage.getItem("adi-bot_night_logout")==null){ localStorage.setItem("adi-bot_night_logout","0"); }
+    if(localStorage.getItem("adi-bot_exhaustion_logout_530")==null){ localStorage.setItem("adi-bot_exhaustion_logout_530","0"); }
     try{ chkRelogAfterE2.checked = localStorage.getItem("adi-bot_relog_after_e2")==="1"; }catch(_){ }
 
     const autoSkillsOn = localStorage.getItem("adi-bot_auto_skills")==="1"; try{ chkAutoSkills.checked = autoSkillsOn; }catch(_){ }
@@ -3747,6 +3839,33 @@ try{
     exhSel.addEventListener("keyup", ()=>{ localStorage.setItem("adi-bot_exh_selector", exhSel.value.trim()); });
 
     exhTest.addEventListener("click", ()=>{ const v=getExhaustionMinutes(false); message(`[BOT] Wykryte wyczerpanie: ${v===null?"brak":v+" min"}`); });
+
+    // ===== Relog przy 0 wyczerpania -> logowanie o 5:30 =====
+    (function(){
+      const CHECK_MS = 30000;
+      function tick(){
+        try{
+          if(!window.hero || !window.map || !window.g) return;
+          if(!__adi_isExhaustionRelogEnabled()) return;
+          if(g.dead || g.resp || g.reload) return;
+
+          const exh = getExhaustionMinutes(false);
+          if(exh === null || typeof exh === 'undefined') return;
+          if(exh > 0) return;
+
+          const onceKey = 'adi-bot_exhaustion_logout_once';
+          const last = parseInt(localStorage.getItem(onceKey) || '0', 10) || 0;
+          if(Date.now() - last < 15000) return;
+          localStorage.setItem(onceKey, String(Date.now()));
+
+          const tsSec = __adi_planRelogAt0530ForExhaustion();
+          try{ message(`[BOT] Brak wyczerpania -> logout i logowanie o 5:30 (${new Date(tsSec*1000).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})})`); }catch(_){}
+          setTimeout(()=>{ window.location.href = 'https://www.margonem.pl/'; }, 250);
+        }catch(e){ console.warn('[adi-bot] exhaustion 5:30 tick error', e); }
+      }
+      setInterval(tick, CHECK_MS);
+      setTimeout(tick, 4000);
+    })();
 
     // ===== Test umiejętności =====
     (function(){
@@ -6225,117 +6344,3 @@ if (typeof window.window.__adi_equipByNameSequence !== 'function') {
   setTimeout(function(){ e2WrapBattleMsg(); e2WrapLootItem(); }, 300);
 })();
 // ===== /E2 COUNTER =====
-
-
-// ===== EXHAUSTION LOGOUT + AUTO LOGIN 5:30 =====
-
-function getExhaustion() {
-  const stats = window?.hero?.statsval;
-  if (!stats) return 0;
-
-  for (const val of stats) {
-    if (typeof val === "string" && val.includes("Limit 6h")) {
-      const match = val.match(/>(\d+)</);
-      if (match) return parseInt(match[1], 10);
-    }
-  }
-  return 0;
-}
-
-function addExhaustionCheckbox() {
-  // Dodaj checkbox dokładnie do zawartości zakładki Test, na sam dół.
-  // UI bota buduje się chwilę później, więc próbujemy do skutku aż panel Test powstanie.
-  const tryAttach = () => {
-    const testTab = document.querySelector('#adi-tab-test');
-    if (!testTab) return false;
-
-    // Usuń ewentualny stary checkbox dodany poza zakładką Test.
-    try {
-      document.querySelectorAll('#exhLogout, label[for="exhLogout"], [data-adi-exh-logout-wrap="1"]').forEach(el => {
-        const wrap = el.closest('[data-adi-exh-logout-wrap="1"]');
-        if (wrap) wrap.remove();
-        else if (el.id === 'exhLogout') el.remove();
-        else el.remove();
-      });
-    } catch(_) {}
-
-    if (testTab.querySelector('#exhLogout')) return true;
-
-    const container = document.createElement('label');
-    container.setAttribute('data-adi-exh-logout-wrap', '1');
-    container.style.display = 'block';
-    container.style.margin = '10px 0 0';
-    container.style.cursor = 'pointer';
-
-    const checkbox = document.createElement('input');
-    checkbox.type = 'checkbox';
-    checkbox.id = 'exhLogout';
-    checkbox.checked = false; // standardowo odznaczony
-    checkbox.style.marginRight = '6px';
-
-    container.appendChild(checkbox);
-    container.appendChild(document.createTextNode('Logaj jak brak wyczerpania i zaloguje o 5:30'));
-    testTab.appendChild(container);
-    return true;
-  };
-
-  if (tryAttach()) return;
-
-  const timer = setInterval(() => {
-    if (tryAttach()) clearInterval(timer);
-  }, 500);
-
-  setTimeout(() => {
-    try { clearInterval(timer); } catch(_) {}
-    tryAttach();
-  }, 15000);
-}
-
-addExhaustionCheckbox();
-
-setInterval(() => {
-  const cb = document.getElementById('exhLogout');
-  if (!cb || !cb.checked) return;
-
-  const exh = getExhaustion();
-  console.log('[BOT] Wyczerpanie:', exh);
-
-  if (exh <= 0) {
-    console.log('[BOT] Brak wyczerpania -> logout + zaplanowanie 5:30');
-    localStorage.setItem('autoLogin530', 'true');
-    window.location.href = 'https://www.margonem.pl/';
-  }
-}, 30000);
-
-// ===== AUTO LOGIN 5:30 =====
-
-async function autoLogin530() {
-  function sleep(ms){ return new Promise(r=>setTimeout(r,ms)); }
-
-  const now = new Date();
-  if (now.getHours() === 5 && now.getMinutes() === 30) {
-
-    console.log('[BOT] 5:30 -> logowanie');
-
-    const closeBtn = document.querySelector('.close, .btn-close, [class*="close"]');
-    if (closeBtn) {
-      closeBtn.click();
-      await sleep(1000); // 1s delay
-    }
-
-    const playBtn = Array.from(document.querySelectorAll('button, a, div'))
-      .find(el => el.textContent && el.textContent.includes('Wejdź do gry'));
-
-    if (playBtn) {
-      playBtn.click();
-      localStorage.removeItem('autoLogin530');
-    }
-  }
-}
-
-setInterval(() => {
-  if (localStorage.getItem('autoLogin530') === 'true') {
-    autoLogin530();
-  }
-}, 60000);
-
