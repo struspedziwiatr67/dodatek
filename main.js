@@ -6564,15 +6564,15 @@ if (typeof window.window.__adi_equipByNameSequence !== 'function') {
   const AUCTION_NEAR_FULL_FREE_SLOTS = 3;
 
   const AUCTIONEERS = {
-    torneg: { key:'torneg', map:'Torneg', npc:'Aukcjoner', stand:{x:57,y:52} },
-    werbin: { key:'werbin', map:'Werbin', npc:'Aukcjoner', stand:{x:34,y:24} },
-    eder: { key:'eder', map:'Eder', npc:'Aukcjoner', stand:{x:32,y:49} },
-    karkahan: { key:'karkahan', map:'Karka-han', npc:'Aukcjoner', stand:{x:61,y:26} },
-    thuzal: { key:'thuzal', map:'Thuzal', npc:'Aukcjoner', stand:{x:58,y:50} },
-    mythar: { key:'mythar', map:'Mythar', npc:'Aukcjoner', stand:{x:63,y:37} },
-    nithal: { key:'nithal', map:'Nithal', npc:'Aukcjoner', stand:{x:21,y:43} },
-    tuzmer: { key:'tuzmer', map:'Tuzmer', npc:'Aukcjoner', stand:{x:44,y:33} },
-    domaukcyjny: { key:'domaukcyjny', map:'Dom Aukcyjny', npc:'Aukcjoner', stand:{x:20,y:6} }
+    torneg: { key:'torneg', map:'Torneg', npc:'Aukcjoner', stand:{x:57,y:53} },
+    werbin: { key:'werbin', map:'Werbin', npc:'Aukcjoner', stand:{x:34,y:25} },
+    eder: { key:'eder', map:'Eder', npc:'Aukcjoner', stand:{x:32,y:50} },
+    karkahan: { key:'karkahan', map:'Karka-han', npc:'Aukcjoner', stand:{x:61,y:27} },
+    thuzal: { key:'thuzal', map:'Thuzal', npc:'Aukcjoner', stand:{x:58,y:51} },
+    mythar: { key:'mythar', map:'Mythar', npc:'Aukcjoner', stand:{x:63,y:38} },
+    nithal: { key:'nithal', map:'Nithal', npc:'Aukcjoner', stand:{x:21,y:44} },
+    tuzmer: { key:'tuzmer', map:'Tuzmer', npc:'Aukcjoner', stand:{x:44,y:34} },
+    domaukcyjny: { key:'domaukcyjny', map:'Dom Aukcyjny', npc:'Aukcjoner', stand:{x:20,y:7} }
   };
 
   function adiAuctionLoadCfg(){
