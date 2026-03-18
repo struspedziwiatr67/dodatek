@@ -6738,7 +6738,7 @@ if (typeof window.window.__adi_equipByNameSequence !== 'function') {
             }catch(_){ }
           }
 
-          
+          adiAuctionInfo('Idę do najbliższego aukcjonera: ' + v.map, moved);
         }
         return;
       }
@@ -6870,10 +6870,50 @@ window.adiAuctionGetBagSpace = function(){
   }
 };
 
-// === TORNEG STAND FIX ===
 
-      if(task.stage === 'toStand'){
-        if(here === 'torneg'){
-          if(typeof a_goTo === 'function') a_goTo(57,53);
+// === AUCTION FIX: stand + stage ===
+(function(){
+  const origTick = window.__adiAuctionTick;
+  if(!origTick) return;
+
+  window.__adiAuctionTick = function(){
+    try{
+      const raw = localStorage.getItem('adi-bot_auction_task');
+      let task = raw ? JSON.parse(raw) : null;
+      if(task && task.vendor && task.vendor.map){
+        const here = String(window.map?.name || '').toLowerCase().trim();
+        const target = String(task.vendor.map || '').toLowerCase().trim();
+
+        // jeśli jesteśmy już na mapie → wymuś przejście do toStand
+        if(task.stage === 'toMap' && here === target){
+          task.stage = 'toStand';
+          task.standX = 57;
+          task.standY = 53;
+          localStorage.setItem('adi-bot_auction_task', JSON.stringify(task));
+        }
+
+        // ruch do stand
+        if(task.stage === 'toStand' && here === target){
+          try{
+            const x = task.standX || 57;
+            const y = task.standY || 53;
+
+            if(typeof window._g === 'function' && window.hero){
+              if(hero.x === x && hero.y === y){
+                // już stoi → nic
+              } else {
+                if(typeof window.a_goTo === 'function'){
+                  window.a_goTo(x,y);
+                } else if(typeof window.findBestGw === 'function'){
+                  const p = window.findBestGw();
+                  if(p) _g('walk');
+                }
+              }
+            }
+          }catch(e){}
         }
       }
+    }catch(e){}
+    return origTick.apply(this, arguments);
+  };
+})();
