@@ -5785,7 +5785,7 @@ if (typeof window.window.__adi_equipByNameSequence !== 'function') {
         if(!out) return;
         const bagSpace = adiGetTotalBagSpace();
         out.textContent = bagSpace
-          ? `Aktualna ilość wolnych miejsc w torbach: ${bagSpace.free} / ${bagSpace.total}`
+          ? `Aktualna ilość wolnych miejsc w torbach: ${bagSpace.free}`
           : 'Aktualna ilość wolnych miejsc w torbach: —';
       };
       updateBagSpace();
@@ -6047,31 +6047,26 @@ if (typeof window.window.__adi_equipByNameSequence !== 'function') {
 
         const m = t.match(/(\d+)\/(\d+)/);
         if(m){
-          const first = Number(m[1] || 0);
-          const second = Number(m[2] || 0);
-
-          // W praktyce licznik bsX pokazuje zajęte/łączne miejsca.
-          // Przykład: 30/30 = torba pełna, 29/30 = jedno wolne miejsce.
-          // Dlatego wolne liczymy jako total - used.
-          const used = Math.max(0, Math.min(second, first));
-          free += Math.max(0, second - used);
-          total += second;
+          const freeSlots = Math.max(0, Number(m[1] || 0));
+          const capacity = Math.max(0, Number(m[2] || 0));
+          free += Math.min(freeSlots, capacity);
+          total += capacity;
         }else{
           const n = parseInt(t, 10);
           if(!isNaN(n)){
-            const used = Math.max(0, Math.min(30, n));
-            free += Math.max(0, 30 - used);
+            free += Math.max(0, Math.min(30, n));
             total += 30;
           }
         }
       }
 
       if(total <= 0) return null;
+      const freeSafe = Math.max(0, Math.min(free, total));
       return {
-        free: Math.max(0, free),
+        free: freeSafe,
         total,
-        used: Math.max(0, total - free),
-        text: `${Math.max(0, free)} / ${total}`
+        used: Math.max(0, total - freeSafe),
+        text: `${freeSafe}`
       };
     }catch(_){ return null; }
   }
@@ -6604,13 +6599,13 @@ if (typeof window.window.__adi_equipByNameSequence !== 'function') {
         if(!t) continue;
         const m = t.match(/(\d+)\/(\d+)/);
         if(m){
-          const used = Math.max(0, Math.min(Number(m[2]||0), Number(m[1]||0)));
-          const cap = Number(m[2]||0);
+          const cap = Math.max(0, Number(m[2]||0));
+          const freeSlots = Math.max(0, Number(m[1]||0));
           total += cap;
-          free += Math.max(0, cap - used);
+          free += Math.min(freeSlots, cap);
         }
       }
-      return total > 0 ? { free, total } : null;
+      return total > 0 ? { free: Math.max(0, Math.min(free, total)), total } : null;
     }catch(_){ return null; }
   }
 
