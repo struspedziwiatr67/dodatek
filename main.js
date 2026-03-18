@@ -6597,15 +6597,25 @@ if (typeof window.window.__adi_equipByNameSequence !== 'function') {
         if(!el) continue;
         const t = String(el.textContent || el.innerText || '').trim();
         if(!t) continue;
-        const m = t.match(/(\d+)\/(\d+)/);
+
+        // Format A: "1/30" => w tym kliencie 1 oznacza wolne miejsca
+        const m = t.match(/(\d+)\s*\/\s*(\d+)/);
         if(m){
-          const cap = Math.max(0, Number(m[2]||0));
           const freeSlots = Math.max(0, Number(m[1]||0));
+          const cap = Math.max(0, Number(m[2]||0));
           total += cap;
           free += Math.min(freeSlots, cap);
+          continue;
+        }
+
+        // Format B: samo "1", "0", "0" => każda torba ma 30 slotów
+        const n = parseInt(t, 10);
+        if(!isNaN(n)){
+          total += 30;
+          free += Math.max(0, Math.min(30, n));
         }
       }
-      return total > 0 ? { free: Math.max(0, Math.min(free, total)), total } : null;
+      return total > 0 ? { free: Math.max(0, Math.min(free, total)), total, used: Math.max(0, total - free) } : null;
     }catch(_){ return null; }
   }
 
@@ -6706,14 +6716,29 @@ if (typeof window.window.__adi_equipByNameSequence !== 'function') {
           adiAuctionSaveTask(task);
           adiAuctionInfo('Doszedłem na mapę aukcjonera, podchodzę do NPC...', true);
         }else{
+          let moved = false;
           try{
             const via = (typeof followGraphTo === 'function') ? followGraphTo(v.map) : null;
             if(via){
+              moved = true;
               if(window.hero && hero.x === via.x && hero.y === via.y) _g('walk');
               else if(typeof a_goTo === 'function') a_goTo(via.x, via.y);
             }
           }catch(_){ }
-          adiAuctionInfo('Idę do najbliższego aukcjonera: ' + v.map, true);
+
+          // fallback 1: użyj tej samej logiki co kupowanie mikstur / normalne przejścia
+          if(!moved){
+            try{
+              $map_cords = self.findBestGw();
+              if($map_cords){
+                moved = true;
+                if(hero.x == $map_cords.x && hero.y == $map_cords.y) _g('walk');
+                else if(typeof a_goTo === 'function') a_goTo($map_cords.x, $map_cords.y);
+              }
+            }catch(_){ }
+          }
+
+          adiAuctionInfo('Idę do najbliższego aukcjonera: ' + v.map, moved);
         }
         return;
       }
