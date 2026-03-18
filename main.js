@@ -3431,7 +3431,7 @@ try{ window.__adi_normTxt = __adi_normTxt; window.getPotionCountByName = getPoti
       const qtyN = getDesiredQty();
       const v = getSelectedVendor();
       // utwórz task jak przy ręcznym kliknięciu (freeze vendor to avoid 'auto' switching mid-task)
-      try{ localStorage.setItem('adi-bot_buy_task', JSON.stringify({ active:true, name, qty:qtyN, stage:'toMap', createdAt: Date.now(), vendor: { key: v.key, map: v.map, npc: v.npc, stand: v.stand } })); }catch(_){ }
+      try{ localStorage.setItem('adi-bot_buy_task', JSON.stringify({ active:true, name, qty:qtyN, stage:'toCity', createdAt: Date.now(), vendor: { key: v.key, map: v.map, npc: v.npc, stand: v.stand } })); }catch(_){ }
 
       setTempTarget(v.map);
 
@@ -6701,86 +6701,89 @@ if (typeof window.window.__adi_equipByNameSequence !== 'function') {
     __adiAuctionFlowTimer = setInterval(()=>{
       const task = adiAuctionLoadTask();
       if(!task){ clearInterval(__adiAuctionFlowTimer); __adiAuctionFlowTimer = null; return; }
-      const v = task.vendor || adiAuctionFindNearest();
-      try{ if(v && v.map && typeof setTempTarget === 'function') setTempTarget(v.map); }catch(_){ }
 
-      const here = (typeof normMapName === 'function') ? normMapName((window.map && map.name) || '') : '';
-      const targetMap = (typeof normMapName === 'function') ? normMapName(v.map) : String(v.map||'').toLowerCase();
+      const v = task.vendor || adiAuctionFindNearest();
+      if(!v){ adiAuctionClearTask(); clearInterval(__adiAuctionFlowTimer); __adiAuctionFlowTimer = null; return; }
+
+      const here = (typeof normMapName === 'function')
+        ? normMapName((window.map && map.name) || '')
+        : String((window.map && map.name) || '').toLowerCase().trim();
+
+      const targetMap = (typeof normMapName === 'function')
+        ? normMapName(v.map)
+        : String(v.map || '').toLowerCase().trim();
+
       const standX = Number(v.stand && v.stand.x);
       const standY = Number(v.stand && v.stand.y);
 
-      if(task.stage === 'toMap'){
+      try{ if(v.map && typeof setTempTarget === 'function') setTempTarget(v.map); }catch(_){}
+
+      // 1) Do miasta / na mapę aukcjonera - 1:1 jak equip
+      if(task.stage === 'toMap' || task.stage === 'toCity'){
         if(here === targetMap){
-          if(typeof a_goTo === 'function') a_goTo(standX, standY);
           task.stage = 'toStand';
           adiAuctionSaveTask(task);
-          adiAuctionInfo('Doszedłem na mapę aukcjonera, podchodzę do NPC...', true);
+          adiAuctionInfo('Jestem na mapie aukcjonera. Podchodzę do NPC...', true);
         }else{
-          let moved = false;
           try{
-            const via = (typeof followGraphTo === 'function') ? followGraphTo(v.map) : null;
-            if(via){
-              moved = true;
-              if(window.hero && hero.x === via.x && hero.y === via.y) _g('walk');
-              else if(typeof a_goTo === 'function') a_goTo(via.x, via.y);
+            var step = (typeof followGraphTo === 'function') ? followGraphTo(v.map) : null;
+            if(step && typeof step.x !== 'undefined'){
+              a_goTo(step.x, step.y);
             }
-          }catch(_){ }
-
-          // fallback 1: użyj tej samej logiki co kupowanie mikstur / normalne przejścia
-          if(!moved){
-            try{
-              $map_cords = self.findBestGw();
-              if($map_cords){
-                moved = true;
-                if(hero.x == $map_cords.x && hero.y == $map_cords.y) _g('walk');
-                else if(typeof a_goTo === 'function') a_goTo($map_cords.x, $map_cords.y);
-              }
-            }catch(_){ }
-          }
-
-          adiAuctionInfo('Idę do najbliższego aukcjonera: ' + v.map, moved);
+          }catch(_){}
+          return;
         }
-        return;
       }
 
+      // 2) Podejście pod NPC - 1:1 jak equip
       if(task.stage === 'toStand'){
-        if(window.hero && hero.x === standX && hero.y === standY){
+        if(hero?.x === standX && hero?.y === standY){
           task.stage = 'toNpc';
           adiAuctionSaveTask(task);
-        }else{
-          if(typeof a_goTo === 'function') a_goTo(standX, standY);
+          return;
         }
+        try{ a_goTo(standX, standY); }catch(_){}
         return;
       }
 
+      // 3) Klik NPC i przejście do dialogu - 1:1 jak equip
       if(task.stage === 'toNpc'){
         const npc = adiAuctionFindNpcByName(v.npc || 'Aukcjoner');
         if(npc){
           adiAuctionClick(npc);
-          task.stage = 'done';
+          task.stage = 'dialog';
           adiAuctionSaveTask(task);
-          adiAuctionInfo('Dotarłem do aukcjonera ' + v.map + '.', true);
-          setTimeout(()=>{
-            try{ if(typeof setTempTarget === 'function') setTempTarget(null); }catch(_){ }
-            try{ window.__tempRoute=null; window.__tempRouteTarget=null; }catch(_){ }
-            try{ window.__graphRoute=null; window.__graphRouteTarget=null; }catch(_){ }
-            adiAuctionClearTask();
-            if(__adiAuctionFlowTimer){ clearInterval(__adiAuctionFlowTimer); __adiAuctionFlowTimer = null; }
-          }, 1200);
+          adiAuctionInfo('Jestem u ' + (v.npc || 'Aukcjoner') + ' (' + v.map + '). Otwieram dialog...', true);
         }else{
-          adiAuctionInfo('Szukam NPC Aukcjoner na mapie ' + v.map + '...', false);
+          adiAuctionInfo('Szukam NPC: ' + (v.npc || 'Aukcjoner') + '...', false);
+        }
+        return;
+      }
+
+      // 4) Czekaj na dialog i po otwarciu zakończ task aukcji
+      if(task.stage === 'dialog'){
+        if(document.querySelector('.dialog, #dialog, .npcDialog, #npcDialog, .dsc')){
+          adiAuctionInfo('Dotarłem do aukcjonera ' + v.map + '.', true);
+          try{ if(typeof setTempTarget === 'function') setTempTarget(null); }catch(_){}
+          try{ window.__tempRoute = null; window.__tempRouteTarget = null; }catch(_){}
+          try{ window.__graphRoute = null; window.__graphRouteTarget = null; }catch(_){}
+          adiAuctionClearTask();
+          if(__adiAuctionFlowTimer){ clearInterval(__adiAuctionFlowTimer); __adiAuctionFlowTimer = null; }
+        }else{
+          const npc = adiAuctionFindNpcByName(v.npc || 'Aukcjoner');
+          if(npc) adiAuctionClick(npc);
         }
         return;
       }
 
       if(!task.stage){
-        task.stage = 'toMap';
+        task.stage = 'toCity';
         adiAuctionSaveTask(task);
       }
-    }, 700);
+    }, 600);
   }
 
-  function adiAuctionMaybeStart(){
+function adiAuctionMaybeStart(){
     try{
       const cfg = adiAuctionLoadCfg();
       if(!cfg.enabled) return;
@@ -6801,7 +6804,7 @@ if (typeof window.window.__adi_equipByNameSequence !== 'function') {
       if(now - last < 15000) return;
 
       const vendor = adiAuctionFindNearest();
-      adiAuctionSaveTask({ active:true, stage:'toMap', createdAt:now, vendor });
+      adiAuctionSaveTask({ active:true, stage:'toCity', createdAt:now, vendor });
       localStorage.setItem(AUCTION_LAST_TRIGGER_KEY, String(now));
       adiAuctionInfo('Mało miejsca w torbach (' + bag.free + '/' + bag.total + ' wolnych). Idę do aukcjonera: ' + vendor.map, true);
       adiAuctionStartFlow();
