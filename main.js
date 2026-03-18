@@ -5776,6 +5776,9 @@ if (typeof window.window.__adi_equipByNameSequence !== 'function') {
             <span class="adi-settings-label">Auto-podejście do Aukcjonera poniżej tylu wolnych miejsc</span>
           </label>
           <div id="adi-auction-bag-space" class="adi-auction-space">Aktualna ilość wolnych miejsc w torbach: —</div>
+          <div class="adi-settings-line" style="margin-top:12px;justify-content:flex-start;">
+            <button id="adi-auction-go-now" class="adi-bot_inputs" type="button" style="width:auto;min-width:180px;cursor:pointer;">Wystaw itemy teraz</button>
+          </div>
         </div>
       `;
 
@@ -5815,6 +5818,22 @@ if (typeof window.window.__adi_equipByNameSequence !== 'function') {
       bindInput('adi-auction-unique-price', 'uniquePrice', 'unikatowe');
       bindInput('adi-auction-common-price', 'commonPrice', 'pospolite');
       bindInput('adi-auction-free-threshold', 'freeSlotsThreshold', 'progu wolnych miejsc');
+
+      const goNowBtn = auctionPanel.querySelector('#adi-auction-go-now');
+      if(goNowBtn && !goNowBtn.__adiBound){
+        goNowBtn.__adiBound = true;
+        goNowBtn.addEventListener('click', ()=>{
+          try{
+            const ok = (typeof window.__adiStartAuctionWalk === 'function')
+              ? window.__adiStartAuctionWalk('manual-button')
+              : false;
+            if(ok) adiLootMessage('Aukcja: ręcznie idę do Aukcjonera.');
+            else adiLootMessage('Aukcja: nie mogę ruszyć teraz do Aukcjonera.');
+          }catch(_){
+            adiLootMessage('Aukcja: błąd przy starcie dojścia do Aukcjonera.');
+          }
+        });
+      }
 
       const updateBagSpace = ()=>{
         const out = auctionPanel.querySelector('#adi-auction-bag-space');
