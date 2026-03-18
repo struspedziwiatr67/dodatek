@@ -5748,7 +5748,7 @@ if (typeof window.window.__adi_equipByNameSequence !== 'function') {
         if(!out) return;
         const bagSpace = adiGetTotalBagSpace();
         out.textContent = bagSpace
-          ? `Aktualna ilość wolnych miejsc w torbach: ${bagSpace.free} / ${bagSpace.total}`
+          ? `Aktualna ilość wolnych miejsc w torbach: ${bagSpace.free}`
           : 'Aktualna ilość wolnych miejsc w torbach: —';
       };
       updateBagSpace();
