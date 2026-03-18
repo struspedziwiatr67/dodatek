@@ -2107,19 +2107,21 @@ function setTempTarget(val){
         const eqRaw = localStorage.getItem('adi-bot_equip_task');
         const eqTask = eqRaw ? JSON.parse(eqRaw) : null;
 
-        if(eqTask && eqTask.kind === 'equip' && eqTask.map){
-          // STALE GUARD: jeśli task dotyczy niższego lvla niż aktualny (np. po śmierci/reload) -> czyść
-          const curLvl = Number(hero?.lvl) || 0;
-          const taskLvl = Number(eqTask?.level) || 0;
-          if(taskLvl > 0 && curLvl > 0 && taskLvl < curLvl){
-            console.warn('[adi-bot] Stary equip_task wykryty -> czyszczę', {taskLvl, curLvl, eqTask});
-            try{ localStorage.removeItem('adi-bot_equip_task'); }catch(_){ }
-            try{ localStorage.setItem('adi-bot_equip_task_queue', JSON.stringify([])); }catch(_){ }
-            try{ setTempTarget(null); }catch(_){ }
-            return ret;
+        if(eqTask && eqTask.map && (eqTask.kind === 'equip' || eqTask.kind === 'auction')){
+          // STALE GUARD tylko dla zakupów ekwipunku: jeśli task dotyczy niższego lvla niż aktualny (np. po śmierci/reload) -> czyść
+          if(eqTask.kind === 'equip'){
+            const curLvl = Number(hero?.lvl) || 0;
+            const taskLvl = Number(eqTask?.level) || 0;
+            if(taskLvl > 0 && curLvl > 0 && taskLvl < curLvl){
+              console.warn('[adi-bot] Stary equip_task wykryty -> czyszczę', {taskLvl, curLvl, eqTask});
+              try{ localStorage.removeItem('adi-bot_equip_task'); }catch(_){ }
+              try{ localStorage.setItem('adi-bot_equip_task_queue', JSON.stringify([])); }catch(_){ }
+              try{ setTempTarget(null); }catch(_){ }
+              return ret;
+            }
           }
 
-          // zawsze utrzymuj temp target na miasto od ekwipunku
+          // zawsze utrzymuj temp target na miasto od taska (ekwipunek / aukcja)
           setTempTarget(eqTask.map);
 
           // nie wybieraj mobów, nie wracaj na expowisko
@@ -2127,7 +2129,7 @@ function setTempTarget(val){
            clearTargetLock();blokada = false;
           blokada2 = false;
 
-          // jeśli jesteśmy poza miastem -> jedziemy tylko po GW (findBestGw ma już logikę ADI_TEMP_TARGET_MAP)
+          // jeśli jesteśmy poza mapą docelową -> jedziemy tylko po GW (findBestGw ma już logikę ADI_TEMP_TARGET_MAP)
           const cur = normMapName(map.name);
           const tgt = normMapName(eqTask.map);
 
