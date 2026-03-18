@@ -3496,10 +3496,6 @@ box.appendChild(autoHealRow);
       tabExp.id = 'adi-tab-exp';
       tabExp.className = 'adi-tab-content active';
 
-      const tabAuction = document.createElement('div');
-      tabAuction.id = 'adi-tab-auction';
-      tabAuction.className = 'adi-tab-content';
-
       const tabE2 = document.createElement('div');
       tabE2.id = 'adi-tab-e2';
       tabE2.className = 'adi-tab-content';
@@ -3507,6 +3503,10 @@ box.appendChild(autoHealRow);
       const tabTest = document.createElement('div');
       tabTest.id = 'adi-tab-test';
       tabTest.className = 'adi-tab-content';
+
+      const tabAuction = document.createElement('div');
+      tabAuction.id = 'adi-tab-aukcja';
+      tabAuction.className = 'adi-tab-content';
 
       const tabStart = document.createElement('div');
       tabStart.id = 'adi-tab-start';
@@ -3625,19 +3625,19 @@ try{
       }
 
       const t1 = mkTab('Exp','exp');
-      const tA = mkTab('Aukcja','auction');
       const t2 = mkTab('E2','e2');
+      const tA = mkTab('Aukcja','aukcja');
       const t3 = mkTab('Test','test');
       const t4 = mkTab('Wioska startowa','start');
       t1.classList.add('active');
 
-      tabs.appendChild(t1); tabs.appendChild(tA); tabs.appendChild(t2); tabs.appendChild(t3); tabs.appendChild(t4);
+      tabs.appendChild(t1); tabs.appendChild(t2); tabs.appendChild(tA); tabs.appendChild(t3); tabs.appendChild(t4);
 
       const contentWrap = document.createElement('div');
       contentWrap.className = 'adi-tabwrap';
       contentWrap.appendChild(tabExp);
-      contentWrap.appendChild(tabAuction);
       contentWrap.appendChild(tabE2);
+      contentWrap.appendChild(tabAuction);
       contentWrap.appendChild(tabTest);
 
       contentWrap.appendChild(tabStart);
@@ -3662,7 +3662,7 @@ try{
       // restore last active tab
       try{
         const saved = (localStorage.getItem('adi-bot_active_tab')||'exp').trim();
-        if(saved==='auction' || saved==='e2' || saved==='test' || saved==='exp' || saved==='start') activateTab(saved);
+        if(saved==='e2' || saved==='test' || saved==='exp' || saved==='start' || saved==='aukcja') activateTab(saved);
       }catch(_){}
     }catch(e){ console.warn('[adi-bot] tabs init failed', e); }
 
@@ -4308,140 +4308,6 @@ const EQUIP_AUTO_PLAN = {"Łowca":[{"lvl":20,"vendor":"Umbar","items":["Kask my�
       return EQUIP_VENDORS[k] || findNearestEquipVendor();
     }
 
-    const AUCTIONEERS = {
-      'torneg-aukcjoner': { key:'torneg-aukcjoner', map:'Torneg', npc:'Aukcjoner', pos:{x:57,y:52}, stand:{x:57,y:53} },
-      'werbin-aukcjoner': { key:'werbin-aukcjoner', map:'Werbin', npc:'Aukcjoner', pos:{x:34,y:24}, stand:{x:34,y:25} },
-      'eder-aukcjoner': { key:'eder-aukcjoner', map:'Eder', npc:'Aukcjoner', pos:{x:32,y:49}, stand:{x:32,y:50} },
-      'karka-han-aukcjoner': { key:'karka-han-aukcjoner', map:'Karka-han', npc:'Aukcjoner', pos:{x:61,y:26}, stand:{x:61,y:27} },
-      'thuzal-aukcjoner': { key:'thuzal-aukcjoner', map:'Thuzal', npc:'Aukcjoner', pos:{x:58,y:50}, stand:{x:58,y:51} },
-      'mythar-aukcjoner': { key:'mythar-aukcjoner', map:'Mythar', npc:'Aukcjoner', pos:{x:63,y:37}, stand:{x:63,y:38} },
-      'nithal-aukcjoner': { key:'nithal-aukcjoner', map:'Nithal', npc:'Aukcjoner', pos:{x:21,y:43}, stand:{x:21,y:44} },
-      'tuzmer-aukcjoner': { key:'tuzmer-aukcjoner', map:'Tuzmer', npc:'Aukcjoner', pos:{x:44,y:33}, stand:{x:44,y:34} },
-      'dom-aukcyjny-aukcjoner': { key:'dom-aukcyjny-aukcjoner', map:'Dom Aukcyjny', npc:'Aukcjoner', pos:{x:20,y:6}, stand:{x:20,y:7} }
-    };
-
-    function auctionSetInfo(msg, ok){
-      try{
-        const el = document.querySelector('#adi-bot_auction_info');
-        if(!el) return;
-        el.textContent = msg;
-        el.style.color = ok ? '#3cb371' : '#e57373';
-      }catch(_){ }
-    }
-    function auctionStepsToMap(name){ return stepsToMap ? stepsToMap(name) : 99999; }
-    function findNearestAuctioneer(){
-      try{
-        const cur = norm(map?.name||'');
-        let best = null, bestSteps = Infinity;
-        for(const k in AUCTIONEERS){
-          const v = AUCTIONEERS[k];
-          if(norm(v.map) === cur) return v;
-          const s = auctionStepsToMap(v.map);
-          if(s < bestSteps){ bestSteps = s; best = v; }
-        }
-        return best || Object.values(AUCTIONEERS)[0];
-      }catch(_){ return Object.values(AUCTIONEERS)[0]; }
-    }
-    function adiAuctionEnabled(){ try{ return localStorage.getItem('adi-bot_auction_enabled') === '1'; }catch(_){ return false; } }
-    function adiAuctionPrices(){
-      return {
-        heroic: parseInt(localStorage.getItem('adi-bot_auction_price_heroic') || '0', 10) || 0,
-        unique: parseInt(localStorage.getItem('adi-bot_auction_price_unique') || '0', 10) || 0,
-        common: parseInt(localStorage.getItem('adi-bot_auction_price_common') || '0', 10) || 0
-      };
-    }
-    const AUCTION_TASK_KEY = 'adi-bot_auction_task';
-    function saveAuctionTask(t){ try{ localStorage.setItem(AUCTION_TASK_KEY, JSON.stringify(t)); }catch(_){ } }
-    function loadAuctionTask(){ try{ const r = localStorage.getItem(AUCTION_TASK_KEY); return r ? JSON.parse(r) : null; }catch(_){ return null; } }
-    function clearAuctionTask(){ try{ localStorage.removeItem(AUCTION_TASK_KEY); }catch(_){ } }
-    function startAuctionFlow(){
-      let timer = window.__adiAuctionTimer;
-      if(timer) clearInterval(timer);
-      window.__adiAuctionTimer = setInterval(()=>{
-        const task = loadAuctionTask();
-        if(!task) return clearInterval(window.__adiAuctionTimer);
-
-        if(task.stage==='toCity'){
-          if(norm(map?.name||'')===norm(task.map)){
-            task.stage='toStand';
-            saveAuctionTask(task);
-          }else{
-            setTempTarget(task.map);
-            auctionSetInfo('Wyznaczam trasę do aukcjonera: '+task.map+'...', true);
-            try{
-              var step = (typeof followGraphTo==='function') ? followGraphTo(task.map) : null;
-              if(step && typeof step.x!=='undefined') a_goTo(step.x, step.y);
-            }catch(_){ }
-          }
-          return;
-        }
-
-        if(task.stage==='toStand'){
-          const s = task.stand || {};
-          if(hero?.x===s.x && hero?.y===s.y){
-            task.stage='toNpc';
-            saveAuctionTask(task);
-            return;
-          }
-          if(typeof s.x !== 'undefined' && typeof s.y !== 'undefined') a_goTo(s.x, s.y);
-          return;
-        }
-
-        if(task.stage==='toNpc'){
-          const npc = eqFindNpcByName(task.npc || 'Aukcjoner');
-          if(npc){
-            eqClick(npc);
-            task.stage='dialog';
-            saveAuctionTask(task);
-            auctionSetInfo('Jestem u aukcjonera ('+task.map+'). Czekam na dalszą obsługę dialogów.', true);
-          }else{
-            auctionSetInfo('Szukam NPC: '+(task.npc||'Aukcjoner')+'...', false);
-          }
-          return;
-        }
-
-        if(task.stage==='dialog'){
-          auctionSetInfo('Bot doszedł do aukcjonera. Dialogi i wystawianie dopniemy w następnym kroku.', true);
-          return;
-        }
-      }, 400);
-    }
-    function maybeStartAuctionFlow(){
-      try{
-        if(!adiAuctionEnabled()) return false;
-        if(loadAuctionTask()) return true;
-        if(loadBuyTask && loadBuyTask()) return false;
-        if(loadEquipTask && loadEquipTask()) return false;
-        if(window.g && (g.dead || g.battle || g.transport || g.lock)) return false;
-        const bag = adiGetTotalBagSpace();
-        if(!bag || typeof bag.free !== 'number') return false;
-        if(bag.free > 3) return false;
-        const a = findNearestAuctioneer();
-        if(!a) return false;
-        const task = {
-          kind: 'auction',
-          stage: 'toCity',
-          map: a.map,
-          npc: a.npc,
-          stand: a.stand,
-          pos: a.pos,
-          prices: adiAuctionPrices(),
-          free: bag.free,
-          createdAt: Date.now()
-        };
-        saveAuctionTask(task);
-        setTempTarget(a.map);
-        startAuctionFlow();
-        auctionSetInfo('Mało miejsca w torbie ('+bag.free+'). Idę do aukcjonera: '+a.map+'.', true);
-        const btn=document.querySelector('#adi-bot_toggle'); if(btn && btn.innerText==='START') btn.click();
-        return true;
-      }catch(_){ return false; }
-    }
-    setInterval(()=>{
-      try{ maybeStartAuctionFlow(); }catch(_){ }
-    }, 2000);
-    if(loadAuctionTask()) startAuctionFlow();
-
     const equipSel = document.createElement('select'); equipSel.id='adi-bot_equip_vendor'; equipSel.className='adi-bot_inputs';
     (function(){var o=document.createElement('option'); o.value='auto'; o.textContent='Auto (najbliższy – graf)'; equipSel.appendChild(o);})();
     (function(){var o=document.createElement('option'); o.value='torneg-umbar'; o.textContent='Torneg – Umbar'; equipSel.appendChild(o);})();
@@ -4670,10 +4536,8 @@ if(task.stage==='equip'){
         console.warn('[adi-bot] Śmierć wykryta -> abort equip/buy tasków');
         try{ localStorage.removeItem('adi-bot_equip_task'); }catch(_){ }
         try{ localStorage.setItem('adi-bot_equip_task_queue', JSON.stringify([])); }catch(_){ }
-        try{ localStorage.removeItem('adi-bot_auction_task'); }catch(_){ }
         try{ setTempTarget(null); }catch(_){ }
         try{ if(window.__adiEquipTimer) clearInterval(window.__adiEquipTimer); }catch(_){ }
-        try{ if(window.__adiAuctionTimer) clearInterval(window.__adiAuctionTimer); }catch(_){ }
       }
 
       // dead -> alive
@@ -5546,6 +5410,7 @@ if (typeof window.window.__adi_equipByNameSequence !== 'function') {
    ======================================================= */
 (function(){
   const ADI_LOOT_CFG_KEY = 'adi-bot_loot_cfg_v1';
+  const ADI_AUCTION_CFG_KEY = 'adi-bot_auction_cfg_v1';
   const ADI_LOOT_NOTIFY_SEEN_KEY = 'adi-bot_loot_notify_seen_v1';
   const ADI_LOOT_UI_STYLE_ID = 'adi-bot-loot-style';
   let __adiLootFlushTimer = null;
@@ -5596,6 +5461,37 @@ if (typeof window.window.__adi_equipByNameSequence !== 'function') {
     try{ localStorage.setItem(ADI_LOOT_CFG_KEY, JSON.stringify(next || adiLootDefaults())); }catch(_){ }
   }
 
+  function adiAuctionDefaults(){
+    return {
+      enabled: false,
+      heroicPrice: 0,
+      uniquePrice: 0,
+      commonPrice: 0
+    };
+  }
+
+  function adiLoadAuctionCfg(){
+    try{
+      const raw = localStorage.getItem(ADI_AUCTION_CFG_KEY);
+      const cfg = raw ? JSON.parse(raw) : {};
+      const def = adiAuctionDefaults();
+      const num = (v, d=0) => {
+        const n = parseInt(v ?? d, 10);
+        return Number.isFinite(n) && n >= 0 ? n : d;
+      };
+      return {
+        enabled: cfg.enabled ?? def.enabled,
+        heroicPrice: num(cfg.heroicPrice, def.heroicPrice),
+        uniquePrice: num(cfg.uniquePrice, def.uniquePrice),
+        commonPrice: num(cfg.commonPrice, def.commonPrice)
+      };
+    }catch(_){ return adiAuctionDefaults(); }
+  }
+
+  function adiSaveAuctionCfg(next){
+    try{ localStorage.setItem(ADI_AUCTION_CFG_KEY, JSON.stringify(next || adiAuctionDefaults())); }catch(_){ }
+  }
+
   function adiLootMessage(txt){
     try{ if(typeof message === 'function') message(txt); }catch(_){ }
   }
@@ -5606,20 +5502,21 @@ if (typeof window.window.__adi_equipByNameSequence !== 'function') {
       const st = document.createElement('style');
       st.id = ADI_LOOT_UI_STYLE_ID;
       st.textContent = `
-        #adi-tab-settings .adi-settings-section{border:1px solid rgba(0,0,0,.45);border-radius:8px;padding:8px;margin:6px 0;background:rgba(234,227,227,.88);color:#000;text-align:left}
-        #adi-tab-settings .adi-settings-title{font-weight:700;font-size:13px;margin-bottom:8px}
-        #adi-tab-settings .adi-settings-line{display:flex;align-items:center;gap:8px;margin:6px 0;flex-wrap:wrap}
-        #adi-tab-settings .adi-settings-label{font-size:13px;line-height:1.2}
-        #adi-tab-settings .adi-settings-sub{font-size:12px;opacity:.85;margin:2px 0 8px}
-        #adi-tab-settings .adi-switch{position:relative;display:inline-block;width:42px;height:22px;flex:0 0 auto}
-        #adi-tab-settings .adi-switch input{opacity:0;width:0;height:0}
-        #adi-tab-settings .adi-slider{position:absolute;cursor:pointer;inset:0;background:#888;border-radius:999px;transition:.2s}
-        #adi-tab-settings .adi-slider:before{content:'';position:absolute;height:16px;width:16px;left:3px;top:3px;background:#fff;border-radius:50%;transition:.2s}
-        #adi-tab-settings .adi-switch input:checked + .adi-slider{background:#28a745}
-        #adi-tab-settings .adi-switch input:checked + .adi-slider:before{transform:translateX(20px)}
-        #adi-tab-settings input[type="text"], #adi-tab-settings input[type="number"]{box-sizing:border-box;width:100%;max-width:100%;margin:0}
+        #adi-tab-settings .adi-settings-section, #adi-tab-aukcja .adi-settings-section{border:1px solid rgba(0,0,0,.45);border-radius:8px;padding:8px;margin:6px 0;background:rgba(234,227,227,.88);color:#000;text-align:left}
+        #adi-tab-settings .adi-settings-title, #adi-tab-aukcja .adi-settings-title{font-weight:700;font-size:13px;margin-bottom:8px}
+        #adi-tab-settings .adi-settings-line, #adi-tab-aukcja .adi-settings-line{display:flex;align-items:center;gap:8px;margin:6px 0;flex-wrap:wrap}
+        #adi-tab-settings .adi-settings-label, #adi-tab-aukcja .adi-settings-label{font-size:13px;line-height:1.2}
+        #adi-tab-settings .adi-settings-sub, #adi-tab-aukcja .adi-settings-sub{font-size:12px;opacity:.85;margin:2px 0 8px}
+        #adi-tab-settings .adi-switch, #adi-tab-aukcja .adi-switch{position:relative;display:inline-block;width:42px;height:22px;flex:0 0 auto}
+        #adi-tab-settings .adi-switch input, #adi-tab-aukcja .adi-switch input{opacity:0;width:0;height:0}
+        #adi-tab-settings .adi-slider, #adi-tab-aukcja .adi-slider{position:absolute;cursor:pointer;inset:0;background:#888;border-radius:999px;transition:.2s}
+        #adi-tab-settings .adi-slider:before, #adi-tab-aukcja .adi-slider:before{content:'';position:absolute;height:16px;width:16px;left:3px;top:3px;background:#fff;border-radius:50%;transition:.2s}
+        #adi-tab-settings .adi-switch input:checked + .adi-slider, #adi-tab-aukcja .adi-switch input:checked + .adi-slider{background:#28a745}
+        #adi-tab-settings .adi-switch input:checked + .adi-slider:before, #adi-tab-aukcja .adi-switch input:checked + .adi-slider:before{transform:translateX(20px)}
+        #adi-tab-settings input[type="text"], #adi-tab-settings input[type="number"], #adi-tab-aukcja input[type="text"], #adi-tab-aukcja input[type="number"]{box-sizing:border-box;width:100%;max-width:100%;margin:0}
         #adi-tab-settings .adi-webhook-input{font-size:13px}
-        #adi-tab-settings .adi-inline-input{width:120px !important;display:inline-block}
+        #adi-tab-settings .adi-inline-input, #adi-tab-aukcja .adi-inline-input{width:120px !important;display:inline-block}
+        #adi-tab-aukcja .adi-auction-space{margin-top:10px;font-size:13px;font-weight:700}
       `;
       document.head.appendChild(st);
     }catch(_){ }
@@ -5759,6 +5656,119 @@ if (typeof window.window.__adi_equipByNameSequence !== 'function') {
 
       return true;
     }catch(e){ console.warn('[adi-loot-ui] ensure tab failed', e); return false; }
+  }
+
+  function adiEnsureAuctionTab(){
+    try{
+      const box = document.getElementById('adi-bot_box');
+      if(!box) return false;
+      const tabs = box.querySelector('.adi-tabs');
+      const wrap = box.querySelector('.adi-tabwrap');
+      if(!tabs || !wrap) return false;
+      adiEnsureLootStyle();
+
+      let auctionTabBtn = Array.from(tabs.querySelectorAll('.adi-tab')).find(x => x.dataset.tab === 'aukcja');
+      let auctionPanel = document.getElementById('adi-tab-aukcja');
+      if(!auctionTabBtn){
+        auctionTabBtn = document.createElement('div');
+        auctionTabBtn.className = 'adi-tab';
+        auctionTabBtn.dataset.tab = 'aukcja';
+        auctionTabBtn.textContent = 'Aukcja';
+        const e2Btn = Array.from(tabs.querySelectorAll('.adi-tab')).find(x => x.dataset.tab === 'e2');
+        if(e2Btn && e2Btn.nextSibling) tabs.insertBefore(auctionTabBtn, e2Btn.nextSibling);
+        else tabs.appendChild(auctionTabBtn);
+      }
+      if(!auctionPanel){
+        auctionPanel = document.createElement('div');
+        auctionPanel.id = 'adi-tab-aukcja';
+        auctionPanel.className = 'adi-tab-content';
+        const testPanel = document.getElementById('adi-tab-test');
+        if(testPanel) wrap.insertBefore(auctionPanel, testPanel);
+        else wrap.appendChild(auctionPanel);
+      }
+
+      const cfg = adiLoadAuctionCfg();
+      auctionPanel.innerHTML = `
+        <div class="adi-settings-section">
+          ${adiCheckbox('adi-auction-enabled', 'Wystawiaj itemy na aukcje', cfg.enabled)}
+          <label class="adi-settings-line" for="adi-auction-heroic-price">
+            <input type="number" min="0" step="1" id="adi-auction-heroic-price" class="adi-bot_inputs adi-inline-input" value="${cfg.heroicPrice}">
+            <span class="adi-settings-label">Heroiczne</span>
+          </label>
+          <label class="adi-settings-line" for="adi-auction-unique-price">
+            <input type="number" min="0" step="1" id="adi-auction-unique-price" class="adi-bot_inputs adi-inline-input" value="${cfg.uniquePrice}">
+            <span class="adi-settings-label">Unikatowe</span>
+          </label>
+          <label class="adi-settings-line" for="adi-auction-common-price">
+            <input type="number" min="0" step="1" id="adi-auction-common-price" class="adi-bot_inputs adi-inline-input" value="${cfg.commonPrice}">
+            <span class="adi-settings-label">Pospolite</span>
+          </label>
+          <div id="adi-auction-bag-space" class="adi-auction-space">Aktualna ilość wolnych miejsc w torbach: —</div>
+        </div>
+      `;
+
+      const bindCheck = (id, key, textOn, textOff) => {
+        const el = auctionPanel.querySelector('#' + id);
+        if(!el || el.__adiBound) return;
+        el.__adiBound = true;
+        el.addEventListener('change', ()=>{
+          const cur = adiLoadAuctionCfg();
+          cur[key] = !!el.checked;
+          adiSaveAuctionCfg(cur);
+          if(textOn || textOff) adiLootMessage(el.checked ? textOn : textOff);
+        });
+      };
+      const bindInput = (id, key, textLabel) => {
+        const el = auctionPanel.querySelector('#' + id);
+        if(!el || el.__adiBound) return;
+        el.__adiBound = true;
+
+        const save = (normalizeValue = false, showMsg = false)=>{
+          const cur = adiLoadAuctionCfg();
+          let n = parseInt(el.value || '0', 10);
+          if(!Number.isFinite(n) || n < 0) n = 0;
+          if(normalizeValue) el.value = String(n);
+          cur[key] = n;
+          adiSaveAuctionCfg(cur);
+          if(showMsg) adiLootMessage('Aukcja: cena dla ' + textLabel + ' = ' + n);
+        };
+
+        el.addEventListener('change', ()=>save(true, true));
+        el.addEventListener('input', ()=>save(false, false));
+        el.addEventListener('keyup', ()=>save(false, false));
+      };
+
+      bindCheck('adi-auction-enabled', 'enabled', 'Aukcja: WŁ', 'Aukcja: WYŁ');
+      bindInput('adi-auction-heroic-price', 'heroicPrice', 'heroiczne');
+      bindInput('adi-auction-unique-price', 'uniquePrice', 'unikatowe');
+      bindInput('adi-auction-common-price', 'commonPrice', 'pospolite');
+
+      const updateBagSpace = ()=>{
+        const out = auctionPanel.querySelector('#adi-auction-bag-space');
+        if(!out) return;
+        const bagSpace = adiGetTotalBagSpace();
+        out.textContent = bagSpace
+          ? `Aktualna ilość wolnych miejsc w torbach: ${bagSpace.free} / ${bagSpace.total}`
+          : 'Aktualna ilość wolnych miejsc w torbach: —';
+      };
+      updateBagSpace();
+      try{
+        if(auctionPanel.__adiBagSpaceTimer) clearInterval(auctionPanel.__adiBagSpaceTimer);
+        auctionPanel.__adiBagSpaceTimer = setInterval(updateBagSpace, 1000);
+      }catch(_){ }
+
+      try{
+        const saved = (localStorage.getItem('adi-bot_active_tab') || '').trim();
+        if(saved === 'aukcja'){
+          const allTabs = box.querySelectorAll('.adi-tab');
+          const allPanels = box.querySelectorAll('.adi-tab-content');
+          allTabs.forEach(x=>x.classList.toggle('active', x.dataset.tab === 'aukcja'));
+          allPanels.forEach(p=>p.classList.toggle('active', p.id === 'adi-tab-aukcja'));
+        }
+      }catch(_){ }
+
+      return true;
+    }catch(e){ console.warn('[adi-auction-ui] ensure tab failed', e); return false; }
   }
 
   function adiLower(s){ return String(s || '').toLowerCase(); }
@@ -5988,8 +5998,9 @@ if (typeof window.window.__adi_equipByNameSequence !== 'function') {
 
   function adiGetTotalBagSpace(){
     try{
-      let used = 0;
+      let free = 0;
       let total = 0;
+
       for(const id of ['bs0','bs1','bs2']){
         const el = document.querySelector(`small#${id}`) || document.getElementById(id);
         if(!el) continue;
@@ -5999,12 +6010,17 @@ if (typeof window.window.__adi_equipByNameSequence !== 'function') {
 
         const m = t.match(/(\d+)\/(\d+)/);
         if(m){
-          used += Number(m[1] || 0);
-          total += Number(m[2] || 0);
+          const first = Number(m[1] || 0);
+          const second = Number(m[2] || 0);
+
+          // Licznik bsX pokazuje wolne/łączne miejsca.
+          // Przykład: 0/30 = torba pełna, 1/30 = jedno wolne miejsce.
+          free += first;
+          total += second;
         }else{
           const n = parseInt(t, 10);
           if(!isNaN(n)){
-            used += n;
+            free += n;
             total += 30;
           }
         }
@@ -6012,10 +6028,10 @@ if (typeof window.window.__adi_equipByNameSequence !== 'function') {
 
       if(total <= 0) return null;
       return {
-        used,
+        free: Math.max(0, free),
         total,
-        free: Math.max(0, total - used),
-        text: `${used}`
+        used: Math.max(0, total - free),
+        text: `${Math.max(0, free)} / ${total}`
       };
     }catch(_){ return null; }
   }
@@ -6145,6 +6161,7 @@ if (typeof window.window.__adi_equipByNameSequence !== 'function') {
   }
 
   function adiBootLootPatch(){
+    try{ adiEnsureAuctionTab(); }catch(_){ }
     try{ adiEnsureSettingsTab(); }catch(_){ }
     try{ adiPatchLootItem(); }catch(_){ }
   }
