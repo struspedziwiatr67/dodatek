@@ -5410,6 +5410,7 @@ if (typeof window.window.__adi_equipByNameSequence !== 'function') {
    ======================================================= */
 (function(){
   const ADI_LOOT_CFG_KEY = 'adi-bot_loot_cfg_v1';
+  const ADI_AUCTION_CFG_KEY = 'adi-bot_auction_cfg_v1';
   const ADI_LOOT_NOTIFY_SEEN_KEY = 'adi-bot_loot_notify_seen_v1';
   const ADI_LOOT_UI_STYLE_ID = 'adi-bot-loot-style';
   let __adiLootFlushTimer = null;
@@ -5721,23 +5722,20 @@ if (typeof window.window.__adi_equipByNameSequence !== 'function') {
         const el = auctionPanel.querySelector('#' + id);
         if(!el || el.__adiBound) return;
         el.__adiBound = true;
-        const save = ()=>{
+
+        const save = (normalizeValue = false, showMsg = false)=>{
           const cur = adiLoadAuctionCfg();
           let n = parseInt(el.value || '0', 10);
           if(!Number.isFinite(n) || n < 0) n = 0;
-          el.value = String(n);
+          if(normalizeValue) el.value = String(n);
           cur[key] = n;
           adiSaveAuctionCfg(cur);
-          adiLootMessage('Aukcja: cena dla ' + textLabel + ' = ' + n);
+          if(showMsg) adiLootMessage('Aukcja: cena dla ' + textLabel + ' = ' + n);
         };
-        el.addEventListener('change', save);
-        el.addEventListener('keyup', ()=>{
-          const cur = adiLoadAuctionCfg();
-          let n = parseInt(el.value || '0', 10);
-          if(!Number.isFinite(n) || n < 0) n = 0;
-          cur[key] = n;
-          adiSaveAuctionCfg(cur);
-        });
+
+        el.addEventListener('change', ()=>save(true, true));
+        el.addEventListener('input', ()=>save(false, false));
+        el.addEventListener('keyup', ()=>save(false, false));
       };
 
       bindCheck('adi-auction-enabled', 'enabled', 'Aukcja: WŁ', 'Aukcja: WYŁ');
@@ -6000,8 +5998,9 @@ if (typeof window.window.__adi_equipByNameSequence !== 'function') {
 
   function adiGetTotalBagSpace(){
     try{
-      let used = 0;
+      let free = 0;
       let total = 0;
+
       for(const id of ['bs0','bs1','bs2']){
         const el = document.querySelector(`small#${id}`) || document.getElementById(id);
         if(!el) continue;
@@ -6011,12 +6010,17 @@ if (typeof window.window.__adi_equipByNameSequence !== 'function') {
 
         const m = t.match(/(\d+)\/(\d+)/);
         if(m){
-          used += Number(m[1] || 0);
-          total += Number(m[2] || 0);
+          const first = Number(m[1] || 0);
+          const second = Number(m[2] || 0);
+
+          // Licznik bsX pokazuje wolne/łączne miejsca.
+          // Przykład: 0/30 = torba pełna, 1/30 = jedno wolne miejsce.
+          free += first;
+          total += second;
         }else{
           const n = parseInt(t, 10);
           if(!isNaN(n)){
-            used += n;
+            free += n;
             total += 30;
           }
         }
@@ -6024,10 +6028,10 @@ if (typeof window.window.__adi_equipByNameSequence !== 'function') {
 
       if(total <= 0) return null;
       return {
-        used,
+        free: Math.max(0, free),
         total,
-        free: Math.max(0, total - used),
-        text: `${Math.max(0, total - used)} / ${total}`
+        used: Math.max(0, total - free),
+        text: `${Math.max(0, free)} / ${total}`
       };
     }catch(_){ return null; }
   }
