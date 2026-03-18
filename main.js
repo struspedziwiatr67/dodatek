@@ -6747,42 +6747,16 @@ if (typeof window.window.__adi_equipByNameSequence !== 'function') {
         if(typeof hero !== 'undefined' && hero.x === standX && hero.y === standY){
           task.stage = 'toNpc';
           adiAuctionSaveTask(task);
+          const npc = adiAuctionFindNpcByName(v.npc || 'Aukcjoner');
+          if(npc) adiAuctionClick(npc);
         }else{
-          try{ a_goTo(standX, standY); }catch(_){}
+          a_goTo(standX, standY);
         }
         return;
       }
 
       if(task.stage === 'toNpc'){
-        let clicked = false;
-
-        try{
-          const npcEl = Array.from(document.querySelectorAll('div.npc[ctip="t_npc"], div.npc')).find(el=>{
-            const nick = String(el.getAttribute('nick') || el.dataset.nick || '').toLowerCase();
-            const tip = String(el.getAttribute('tip') || el.dataset.tip || el.title || '').toLowerCase();
-            const txt = String(el.textContent || '').toLowerCase();
-            return nick.includes('aukcjoner') || tip.includes('aukcjoner') || txt.includes('aukcjoner');
-          });
-
-          if(npcEl){
-            try{ npcEl.click(); clicked = true; }catch(_){}
-            if(!clicked){
-              try{
-                npcEl.dispatchEvent(new MouseEvent('click', { bubbles:true, cancelable:true, view:window }));
-                clicked = true;
-              }catch(_){}
-            }
-          }
-        }catch(_){}
-
-        if(!clicked){
-          const npc = adiAuctionFindNpcByName(v.npc || 'Aukcjoner');
-          if(npc){
-            try{ adiAuctionClick(npc); clicked = true; }catch(_){}
-          }
-        }
-
-        if(clicked){
+        if(document.querySelector('.dialog, #dialog, .npcDialog, #npcDialog, .dsc')){
           task.stage = 'done';
           adiAuctionSaveTask(task);
           adiAuctionInfo('Dotarłem do aukcjonera ' + v.map + '.', true);
@@ -6793,6 +6767,9 @@ if (typeof window.window.__adi_equipByNameSequence !== 'function') {
             adiAuctionClearTask();
             if(__adiAuctionFlowTimer){ clearInterval(__adiAuctionFlowTimer); __adiAuctionFlowTimer = null; }
           }, 1200);
+        }else{
+          const npc = adiAuctionFindNpcByName(v.npc || 'Aukcjoner');
+          if(npc) adiAuctionClick(npc);
         }
         return;
       }
