@@ -1669,13 +1669,8 @@ window.ADI_TEMP_TARGET_MAP = window.ADI_TEMP_TARGET_MAP || null;
 function setTempTarget(val){
   window.ADI_TEMP_TARGET_MAP = val || null;
   try{
-    if(val){
-      localStorage.setItem('adi-temp-target', String(val));
-      localStorage.setItem('adi-bot_temp_target', String(val));
-    }else{
-      localStorage.removeItem('adi-temp-target');
-      localStorage.removeItem('adi-bot_temp_target');
-    }
+    if(val) localStorage.setItem('adi-temp-target', String(val));
+    else localStorage.removeItem('adi-temp-target');
   }catch(_){}
 }
 // ===== A* =====
@@ -5890,92 +5885,63 @@ if (typeof window.window.__adi_equipByNameSequence !== 'function') {
     return best;
   }
 
-  function adiResolveAuctionStep(targetMap){
-    try{
-      if(!targetMap) return null;
-      let step = null;
-      if(typeof followGraphTo === 'function'){
-        try{ step = followGraphTo(targetMap); }catch(_){ }
-      }
-      if((!step || typeof step.x === 'undefined') && typeof __adi_routeToNamedMap === 'function'){
-        try{ step = __adi_routeToNamedMap(targetMap); }catch(_){ }
-      }
-      if((!step || typeof step.x === 'undefined') && typeof buildGraphRouteTo === 'function'){
-        try{
-          const route = buildGraphRouteTo(targetMap);
-          if(route && route.length && route[0] && route[0].via) step = { x: route[0].via.x, y: route[0].via.y };
-        }catch(_){ }
-      }
-      return (step && typeof step.x !== 'undefined') ? step : null;
-    }catch(_){ return null; }
-  }
-
-  function adiRunAuctionFlowTick(){
-    const task = adiLoadAuctionTask();
-    if(!task){ try{ clearInterval(window.__adiAuctionTimer); }catch(_){ } return; }
-    if(window.g && (g.dead || g.resp || g.reload)) return;
-
-    if(task.stage === 'toCity'){
-      if(normMapName(map?.name||'') === normMapName(task.map)){
-        task.stage = 'toStand';
-        adiSaveAuctionTask(task);
-        return;
-      }
-      try{ setTempTarget(task.map); }catch(_){ }
-      try{
-        const step = adiResolveAuctionStep(task.map);
-        if(step && typeof step.x !== 'undefined'){
-          try{ localStorage.setItem('adi-bot_route_sig', 'auction:' + normMapName(task.map)); }catch(_){ }
-          a_goTo(step.x, step.y);
-        }
-      }catch(_){ }
-      return;
-    }
-
-    if(task.stage === 'toStand'){
-      const x = Number(task?.stand?.x);
-      const y = Number(task?.stand?.y);
-      if(hero?.x === x && hero?.y === y){
-        task.stage = 'toNpc';
-        adiSaveAuctionTask(task);
-        return;
-      }
-      a_goTo(x, y);
-      return;
-    }
-
-    if(task.stage === 'toNpc'){
-      const npc = adiFindAuctionNpc();
-      if(npc){
-        try{ npc.dispatchEvent(new MouseEvent('mousedown',{bubbles:true})); }catch(_){ }
-        try{ npc.click(); }catch(_){ }
-        try{ npc.dispatchEvent(new MouseEvent('mouseup',{bubbles:true})); }catch(_){ }
-        task.stage = 'done';
-        adiSaveAuctionTask(task);
-      }
-      return;
-    }
-
-    if(task.stage === 'done'){
-      try{ setTempTarget(null); }catch(_){ }
-      try{ localStorage.removeItem('adi-bot_route_sig'); }catch(_){ }
-      adiClearAuctionTask();
-      return;
-    }
-  }
-
   function adiStartAuctionFlow(){
     try{ if(window.__adiAuctionTimer) clearInterval(window.__adiAuctionTimer); }catch(_){ }
-    try{ adiRunAuctionFlowTick(); }catch(_){ }
     window.__adiAuctionTimer = setInterval(()=>{
-      try{ adiRunAuctionFlowTick(); }catch(_){ }
+      const task = adiLoadAuctionTask();
+      if(!task){ try{ clearInterval(window.__adiAuctionTimer); }catch(_){ } return; }
+      if(window.g && (g.dead || g.resp || g.reload)) return;
+
+      if(task.stage === 'toCity'){
+        if(normMapName(map?.name||'') === normMapName(task.map)){
+          task.stage = 'toStand';
+          adiSaveAuctionTask(task);
+        }else{
+          try{ setTempTarget(task.map); }catch(_){ }
+          try{
+            let step = null;
+            if(typeof __adi_routeToNamedMap === 'function') step = __adi_routeToNamedMap(task.map);
+            if(!step && typeof followGraphTo === 'function') step = followGraphTo(task.map);
+            if(step && typeof step.x !== 'undefined'){
+              if(hero && Number(hero.x) === Number(step.x) && Number(hero.y) === Number(step.y)) _g('walk');
+              else a_goTo(step.x, step.y);
+            }
+          }catch(_){ }
+        }
+        return;
+      }
+
+      if(task.stage === 'toStand'){
+        const x = Number(task?.stand?.x);
+        const y = Number(task?.stand?.y);
+        if(hero?.x === x && hero?.y === y){
+          task.stage = 'toNpc';
+          adiSaveAuctionTask(task);
+          return;
+        }
+        a_goTo(x, y);
+        return;
+      }
+
+      if(task.stage === 'toNpc'){
+        const npc = adiFindAuctionNpc();
+        if(npc){
+          try{ npc.dispatchEvent(new MouseEvent('mousedown',{bubbles:true})); }catch(_){ }
+          try{ npc.click(); }catch(_){ }
+          try{ npc.dispatchEvent(new MouseEvent('mouseup',{bubbles:true})); }catch(_){ }
+          task.stage = 'done';
+          adiSaveAuctionTask(task);
+        }
+        return;
+      }
+
+      if(task.stage === 'done'){
+        try{ setTempTarget(null); }catch(_){ }
+        adiClearAuctionTask();
+        return;
+      }
     }, 400);
   }
-
-  try{
-    window.startAuctionFlow = adiStartAuctionFlow;
-    window.__adiStartAuctionFlow = adiStartAuctionFlow;
-  }catch(_){ }
 
   function adiMaybeStartAuctionRun(){
     try{
@@ -6005,7 +5971,6 @@ if (typeof window.window.__adi_equipByNameSequence !== 'function') {
 
   (function(){
     try{ window.ADI_AUCTIONEERS = adiGetAuctioneers(); }catch(_){ }
-    try{ if(adiLoadAuctionTask()) adiStartAuctionFlow(); }catch(_){ }
     let wasDead = false;
     setInterval(()=>{
       try{
