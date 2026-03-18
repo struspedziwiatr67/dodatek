@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Bot na exp (iframe-aware exhaustion + throttling + captcha->Discord + ping-pong trasy + only-selected-maps + elite toggle + group-size filter + heros->Discord + obrazki + fixy map/lvl/wt/grupy + FOW cache)
-// @version      2.17.7-superdetector
+// @version      2.17.5-customroutes
 // @description  Bot z przechodzeniem map, anty-spam ataku, captcha->Discord, START/STOP, zbijanie wyczerpania, atak tylko na wybranych mapach, elity toggle, filtr grup, powiadomienia o herosach (bez Namiotu Tropicieli Herosów), normalizacja nazw map, odporne parsowanie lvli, poprawki 'wt', stabilny wybór grup przy mgle (cache max rozmiaru grupy)
 // @match        *://*/
 // @match        *://www.margonem.pl/*
@@ -77,15 +77,11 @@
   }, 500);
 })();
 
-// ===== SUPER DETECTOR: 404 + Too Many Requests + biały ekran + loader stuck =====
+// ===== Auto refresh: Too Many Requests + biały ekran po wylogowaniu =====
 (function(){
   const CHECK_MS = 300;
   const RELOAD_DELAY_MS = 1000;
   const RELOAD_COOLDOWN_MS = 15000;
-  const LOADER_STUCK_AFTER_MS = 15000;
-
-  let __adiLastLoaderProgressAt = Date.now();
-  let __adiLastLoaderProgressValue = null;
 
   function isMargonemHost(){
     try{ return /(?:^|\.)margonem\.pl$/i.test(String(location.hostname||'')); }catch(_){ return false; }
@@ -96,52 +92,21 @@
   }
 
   function getLastReloadAt(){
-    try{ return parseInt(sessionStorage.getItem('adi-bot_super_detector_last_reload_at') || '0', 10) || 0; }catch(_){ return 0; }
+    try{ return parseInt(sessionStorage.getItem('adi-bot_auto_reload_last_at') || '0', 10) || 0; }catch(_){ return 0; }
   }
 
   function setLastReloadAt(ts){
-    try{ sessionStorage.setItem('adi-bot_super_detector_last_reload_at', String(ts || getNow())); }catch(_){ }
-  }
-
-  function getAllDocs(){
-    const docs = [];
-    try{ docs.push(document); }catch(_){}
-
-    try{
-      const iframes = document.querySelectorAll('iframe');
-      for(const fr of iframes){
-        try{
-          const d = fr.contentDocument || (fr.contentWindow && fr.contentWindow.document);
-          if(d) docs.push(d);
-        }catch(_){ }
-      }
-    }catch(_){}
-
-    return docs;
-  }
-
-  function getDocText(doc){
-    try{
-      if(!doc || !doc.body) return '';
-      const pre = doc.querySelector('body > pre, pre');
-      return String((pre && pre.textContent) || doc.body.innerText || doc.body.textContent || '').trim();
-    }catch(_){ return ''; }
+    try{ sessionStorage.setItem('adi-bot_auto_reload_last_at', String(ts || getNow())); }catch(_){ }
   }
 
   function isTooManyRequestsScreen(doc){
     try{
-      const txt = getDocText(doc);
+      if(!doc || !doc.body) return false;
+      const pre = doc.querySelector('body > pre, pre');
+      const txt = String((pre && pre.textContent) || doc.body.innerText || doc.body.textContent || '').trim();
       if(!txt) return false;
       if(/^Too Many Requests$/i.test(txt)) return true;
       return /^Too Many Requests\b/i.test(txt);
-    }catch(_){ return false; }
-  }
-
-  function is404PageNotFoundScreen(doc){
-    try{
-      const txt = getDocText(doc).toLowerCase();
-      if(!txt) return false;
-      return txt.includes('404 page not found') || txt.includes('404 not found');
     }catch(_){ return false; }
   }
 
@@ -151,52 +116,8 @@
         doc &&
         doc.body &&
         doc.body.children.length === 0 &&
-        !(String(doc.body.innerText || doc.body.textContent || '').trim())
+        !(String(doc.body.innerText || '').trim())
       );
-    }catch(_){ return false; }
-  }
-
-  function isLoadingVisible(){
-    try{
-      const el = document.querySelector('#loading');
-      if(!el) return false;
-      const st = getComputedStyle(el);
-      return st.display !== 'none' && st.visibility !== 'hidden' && st.opacity !== '0';
-    }catch(_){ return false; }
-  }
-
-  function getLoaderProgressValue(){
-    try{
-      const loading = document.querySelector('#loading');
-      if(!loading) return null;
-
-      const bar = loading.querySelector('.progressbar .bar');
-      const info = loading.querySelector('.progressInfo');
-
-      const barStyle = bar ? getComputedStyle(bar) : null;
-      const barWidth = barStyle ? barStyle.width : '';
-      const infoText = info ? String(info.textContent || '').trim() : '';
-
-      return barWidth + '__' + infoText;
-    }catch(_){ return null; }
-  }
-
-  function isLoaderStuck(){
-    try{
-      if(!isLoadingVisible()){
-        __adiLastLoaderProgressValue = null;
-        __adiLastLoaderProgressAt = getNow();
-        return false;
-      }
-
-      const current = getLoaderProgressValue();
-      if(current !== __adiLastLoaderProgressValue){
-        __adiLastLoaderProgressValue = current;
-        __adiLastLoaderProgressAt = getNow();
-        return false;
-      }
-
-      return (getNow() - __adiLastLoaderProgressAt) >= LOADER_STUCK_AFTER_MS;
     }catch(_){ return false; }
   }
 
@@ -209,36 +130,22 @@
     try{
       const last = getLastReloadAt();
       const now = getNow();
-      if(now - last < RELOAD_COOLDOWN_MS) return false;
+      if(now - last < RELOAD_COOLDOWN_MS) return;
       setLastReloadAt(now);
-      console.warn('[adi-bot] Super detector: ' + reason + ' -> odświeżam za 1s');
+      console.warn('[adi-bot] Wykryto ' + reason + ' -> odświeżam za 1s');
       setTimeout(doReload, RELOAD_DELAY_MS);
-      return true;
-    }catch(_){ return false; }
+    }catch(_){ }
   }
 
   function tick(){
     try{
       if(!isMargonemHost()) return;
-
-      const docs = getAllDocs();
-      for(const doc of docs){
-        if(isTooManyRequestsScreen(doc)){
-          scheduleReload('ekran "Too Many Requests"');
-          return;
-        }
-        if(is404PageNotFoundScreen(doc)){
-          scheduleReload('ekran "404 page not found"');
-          return;
-        }
-        if(isBlankWhiteScreen(doc)){
-          scheduleReload('biały ekran po wylogowaniu');
-          return;
-        }
+      if(isTooManyRequestsScreen(document)){
+        scheduleReload('ekran "Too Many Requests"');
+        return;
       }
-
-      if(isLoaderStuck()){
-        scheduleReload('loader utknął na ponad 15s');
+      if(isBlankWhiteScreen(document)){
+        scheduleReload('biały ekran po wylogowaniu');
       }
     }catch(_){ }
   }
@@ -246,7 +153,6 @@
   setInterval(tick, CHECK_MS);
   setTimeout(tick, 250);
 })();
-
 
 // ===== UI GUARD: auto-switch to OLD interface when NEW interface is detected =====
 // Działa niezależnie od START/STOP bota (sprawdza cały czas i klika tylko, gdy przycisk jest widoczny w DOM).
@@ -655,23 +561,8 @@ const HERO_DISCORD_WEBHOOK = "https://discord.com/api/webhooks/14711759854948884
     }catch(_){ return false; }
   }
 
-  function __adi_hasPendingExhaustion0530Relog(){
+  function __adi_planRelogAt0600(){
     try{
-      const reason = String(__adi_getCookie('adi_relog_for') || '');
-      if(reason !== 'exhaustion-0530') return false;
-      const atSec = parseInt(__adi_getCookie('adi_relog_at_sec') || '0', 10) || 0;
-      if(!atSec) return false;
-      const done = String(__adi_getCookie('adi_relog_done') || '') === '1';
-      if(done) return false;
-      return atSec >= Math.floor(Date.now() / 1000);
-    }catch(_){ return false; }
-  }
-
-  function __adi_planRelogAt0600(force){
-    try{
-      if(!force && __adi_hasPendingExhaustion0530Relog()){
-        return parseInt(__adi_getCookie('adi_relog_at_sec') || '0', 10) || 0;
-      }
       const tsMs = __adi_getNext0600TsMs(Date.now());
       const tsSec = Math.floor(tsMs / 1000);
       __adi_setCookie('adi_relog_at_sec', String(tsSec), 24*60*60);
@@ -736,7 +627,7 @@ const HERO_DISCORD_WEBHOOK = "https://discord.com/api/webhooks/14711759854948884
       const last=parseInt(localStorage.getItem(k)||'0',10)||0;
       if(Date.now()-last < 15000) return true;
       localStorage.setItem(k, String(Date.now()));
-      if(!__adi_hasPendingExhaustion0530Relog()) __adi_planRelogAt0600();
+      __adi_planRelogAt0600();
       setTimeout(()=>{ __adi_clickLogout(); }, 250);
       return true;
     }catch(_){ return false; }
@@ -857,6 +748,74 @@ const HERO_DISCORD_WEBHOOK = "https://discord.com/api/webhooks/14711759854948884
     setTimeout(tick, 800);
   })();
   // === /AUTO RELOG ===
+  // === LOADER STUCK WATCHDOG (czarny ekran / zawieszone ładowanie gry) ===
+  (function(){
+    const CHECK_EVERY_MS = 1000;
+    const STUCK_AFTER_MS = 15000;
+
+    let lastProgressChangeAt = Date.now();
+    let lastProgressValue = null;
+    let reloadTriggered = false;
+
+    function q(sel){
+      try{ return document.querySelector(sel); }catch(_){ return null; }
+    }
+
+    function isLoadingVisible(){
+      try{
+        const el = q('#loading');
+        if(!el) return false;
+        const st = getComputedStyle(el);
+        return st.display !== 'none' && st.visibility !== 'hidden' && st.opacity !== '0';
+      }catch(_){ return false; }
+    }
+
+    function getProgressValue(){
+      try{
+        const loading = q('#loading');
+        if(!loading) return null;
+
+        const bar = loading.querySelector('.progressbar .bar');
+        const info = loading.querySelector('.progressInfo');
+
+        const barStyle = bar ? getComputedStyle(bar) : null;
+        const barWidth = barStyle ? barStyle.width : '';
+        const infoText = info ? String(info.textContent || '').trim() : '';
+
+        return barWidth + '__' + infoText;
+      }catch(_){ return null; }
+    }
+
+    function tick(){
+      try{
+        if(reloadTriggered) return;
+        if(!isLoadingVisible()){
+          lastProgressValue = null;
+          lastProgressChangeAt = Date.now();
+          return;
+        }
+
+        const current = getProgressValue();
+        if(current !== lastProgressValue){
+          lastProgressValue = current;
+          lastProgressChangeAt = Date.now();
+          return;
+        }
+
+        if(Date.now() - lastProgressChangeAt < STUCK_AFTER_MS) return;
+
+        reloadTriggered = true;
+        console.warn('[adi-bot] Loader utknął na ponad 15s - odświeżam stronę.');
+        try{ location.reload(); }catch(_){ try{ history.go(0); }catch(__){} }
+      }catch(_){ }
+    }
+
+    setInterval(tick, CHECK_EVERY_MS);
+    setTimeout(tick, 1200);
+  })();
+  // === /LOADER STUCK WATCHDOG ===
+
+
   // === NIGHT LOGOUT GUARD (23:59-06:00) ===
   (function(){
     const CHECK_MS = 1000;
