@@ -2151,34 +2151,6 @@ function setTempTarget(val){
 
 
 
-      // ===== PRIORITY: auction task overrides exping =====
-      try{
-        const aucTask = (function(){ try{ return JSON.parse(localStorage.getItem('adi-bot_auction_task') || 'null'); }catch(_){ return null; } })();
-        if(aucTask && aucTask.kind === 'auction' && aucTask.map){
-          try{ setTempTarget(aucTask.map); }catch(_){ }
-          $m_id = undefined;
-          clearTargetLock();blokada = false;
-          blokada2 = false;
-
-          const cur = normMapName(map.name);
-          const tgt = normMapName(aucTask.map);
-          if(cur !== tgt){
-            $map_cords = self.findBestGw();
-            if($map_cords && !bolcka){
-              if(hero.x == $map_cords.x && hero.y == $map_cords.y){
-                _g('walk');
-              }else{
-                a_goTo($map_cords.x, $map_cords.y);
-                bolcka = true;
-                setTimeout(()=>bolcka=false, 2000);
-              }
-            }
-          }
-          return ret;
-        }
-      }catch(_){ }
-
-
       // ===== PRIORITY: potion buy task overrides exping (hard priority like equip) =====
       try{
         const btRaw = localStorage.getItem('adi-bot_buy_task');
@@ -4315,6 +4287,8 @@ try{
   'lisciaste-rozstaje-handlarka-halidura': { key: 'lisciaste-rozstaje-handlarka-halidura', map: 'Liściaste Rozstaje', npc: 'Handlarka Halidura', pos: { x: 19, y: 53 }, stand: { x: 19, y: 54 } }
 };
 
+const AUTO_AUCTION_VENDOR = { key: 'torneg-aukcjoner', map: 'Torneg', npc: 'Aukcjoner', pos: { x: 57, y: 52 }, stand: { x: 57, y: 53 } };
+
 // === AUTO-GENERATED EQUIP PLAN (from TXT) ===
 const EQUIP_AUTO_PLAN = {"Łowca":[{"lvl":20,"vendor":"Umbar","items":["Kask myśliwego","Pierścień sprawności","Amulet rycerza"]},{"lvl":20,"vendor":"Szagarat Czarny Łowca","items":["Wzmocniony naciąg","Krótkie strzały bukowe"]},{"lvl":25,"vendor":"Szagarat Czarny Łowca","items":["Wyrzutnia ostrych strzał","Krótkie strzały klonowe"]},{"lvl":28,"vendor":"Umbar","items":["Stalowa czapka","Wzmocnione podeszwy","Oko fałszu","Malachitowa zawieszka"]},{"lvl":30,"vendor":"Szagarat Czarny Łowca","items":["Drżąca cięciwa","Krótkie strzały wiązowe"]},{"lvl":36,"vendor":"Anaret","items":["Bitewny diabeł","Goblinie cichobiegi","Czaszka gniewu","Szczęście podróżnika"]},{"lvl":36,"vendor":"Mroczny Zgrzyt","items":["Samoobrona łowcy","Ostre strzały zbója"]},{"lvl":41,"vendor":"Mroczny Zgrzyt","items":["Zdobiony łuk odkrywcy","Ostre strzały bandziora","Krucze odzienie"]},{"lvl":41,"vendor":"Anaret","items":["Skórzany hełm leszego"]},{"lvl":46,"vendor":"Mroczny Zgrzyt","items":["Naciąg szaleństwa","Ostre strzały rzezimieszka"]},{"lvl":46,"vendor":"Anaret","items":["Czarna zguba bojownika","Szkiełko w srebrnej oprawie"]},{"lvl":48,"vendor":"Mroczny Zgrzyt","items":["Leśny kaftan trapera"]},{"lvl":50,"vendor":"Huslin","items":["Broń doświadczonego łowcy","Kompletny kołczan łowcy"]},{"lvl":55,"vendor":"Sprzedawca Roan","items":["Osłona młodej harpii","Szelest nieuważnego kobolda","Odznaka młodego asasyna","Zielony wabiciel żądłaków"]},{"lvl":55,"vendor":"Huslin","items":["Skórzana kurta łowcy"]},{"lvl":60,"vendor":"Huslin","items":["Przekleństwo leśnej zwierzyny","Doskonały kołczan łowcy"]},{"lvl":65,"vendor":"Sprzedawca Roan","items":["Czapka łowcy tygrysów","Szczecina gnolla","Symbol spopielenia","Medalion fotosyntezy"]},{"lvl":65,"vendor":"Huslin","items":["Karmazynowy lekki pancerz"]},{"lvl":70,"vendor":"Huslin","items":["Szybkostrzelik myśliwego","Mistrzowski kołczan łowcy"]},{"lvl":75,"vendor":"Huslin","items":["Warstwa czarnej szczeciny"]},{"lvl":75,"vendor":"Sprzedawca Roan","items":["Srebrna kopuła śmiałka","Pozłacana duma rycerza","Zemsta banity","Koralowa narośl","Wonne pąki kniei"]},{"lvl":80,"vendor":"Tropicielka Olekusa","items":["Naciąg łowcy węży","Ostre strzały na ropuchy"]},{"lvl":85,"vendor":"Handlarka Halidura","items":["Prosta wężowa łebka","Ochrona przed igliwiem","Zamszowy chwyt gadziny","Bagienna narośl","Naszyjnik ofiary bagien"]},{"lvl":85,"vendor":"Tropicielka Olekusa","items":["Ukrycie czarnej kobry"]},{"lvl":90,"vendor":"Tropicielka Olekusa","items":["Cięciwa orlich piór","Ostre strzały na węże"]},{"lvl":95,"vendor":"Handlarka Halidura","items":["Świerkowy kask","Mytharskie cholewy","Ochrona z wężowej skóry","Koralowy język żaby","Ozdoba wężowego kochanka"]},{"lvl":95,"vendor":"Tropicielka Olekusa","items":["Kurta doświadczonego łowcy"]},{"lvl":100,"vendor":"Tropicielka Olekusa","items":["Pleciona wyrzutnia konarów","Ostre strzały na aligatory"]}],"Mag":[{"lvl":20,"vendor":"Umbar","items":["Hełm maga bojowego","Koralowy sygnet","Magiczna błyskotka"]},{"lvl":20,"vendor":"Wieszczka Sara","items":["Ognisty kryształ","Piekielna sfera"]},{"lvl":25,"vendor":"Wieszczka Sara","items":["Parząca chłosta","Parzący orb maga"]},{"lvl":28,"vendor":"Umbar","items":["Stalowa czapka","Magiczne trzewiki","Ziarno prawdy","Medalion z turkusem"]},{"lvl":30,"vendor":"Wieszczka Sara","items":["Piekielnik","Zaklęty ogień"]},{"lvl":36,"vendor":"Anaret","items":["Wzmocniona ochrona maga","Obuwie z magiczną powłoką","Czaszka chciwości","Los tułacza"]},{"lvl":36,"vendor":"Czarnoksiężnik Interbad","items":["Ścieżka wiecznego ognia","Szklana sfera płomieni"]},{"lvl":41,"vendor":"Czarnoksiężnik Interbad","items":["Czarcia pochodnia","Żar w kościanej oprawie","Płaszcz wróżbity amatora"]},{"lvl":41,"vendor":"Anaret","items":["Wizja trzeciego oka"]},{"lvl":46,"vendor":"Czarnoksiężnik Interbad","items":["Igneum Daemonium","Złoty cielec"]},{"lvl":46,"vendor":"Anaret","items":["Pierścień żądzy krwi","Gwiazda nadziei"]},{"lvl":48,"vendor":"Czarnoksiężnik Interbad","items":["Cyklamenowa peleryna"]},{"lvl":50,"vendor":"Adept Ceranir","items":["Iskra piromana","Żar z niebios"]},{"lvl":55,"vendor":"Sprzedawca Roan","items":["Hełm łowcy koboldów","Obuwie pokryte pajęczyną","Pierścień ulotnej myśli","Miododajny naszyjnik maga"]},{"lvl":55,"vendor":"Adept Ceranir","items":["Strój szlachetnego czarodzieja"]},{"lvl":60,"vendor":"Adept Ceranir","items":["Kryształy erupcji","Piekielny podarunek"]},{"lvl":65,"vendor":"Sprzedawca Roan","items":["Magiczne wsparcie demiliszy","Szczecina gnolla","Kryształowe iskry","Chabrowa zawieszka"]},{"lvl":65,"vendor":"Adept Ceranir","items":["Surdut sztukmistrza"]},{"lvl":70,"vendor":"Adept Ceranir","items":["Przewodnik magmowych świątyń","Serce wygasłego wulkanu"]},{"lvl":75,"vendor":"Adept Ceranir","items":["Splot magicznych nici"]},{"lvl":75,"vendor":"Sprzedawca Roan","items":["Srebrna kopuła śmiałka","Cholewy czarnoksiężnika","Splot ametystowych nici","Sygnet wyniosłości","Odurzająca woń hortensji"]},{"lvl":80,"vendor":"Mag Waken","items":["Płomień cierpiącej duszy","Wygotowany kryształ"]},{"lvl":85,"vendor":"Handlarka Halidura","items":["Hełm leśnego licha","Fikuśne kamasze maga","Wytwór syczącego rzemieślnika","Iglasty kryształ","Amulet przemiany w gada"]},{"lvl":85,"vendor":"Mag Waken","items":["Peleryna z metalową wstawką"]},{"lvl":90,"vendor":"Mag Waken","items":["Miotacz szeptanych zaklęć","Parzący knebel"]},{"lvl":95,"vendor":"Handlarka Halidura","items":["Podarunek Introprodara","Mytharskie cholewy","Wytwór syczącego rzemieślnika","Jaspisowy język węża","Smoczy wisior"]},{"lvl":95,"vendor":"Mag Waken","items":["Szata doświadczonego maga"]},{"lvl":100,"vendor":"Mag Waken","items":["Skarb ifryta","Serce nienawiści"]}],"Paladyn":[{"lvl":20,"vendor":"Umbar","items":["Rogi odkrywcy","Ozdoba wojaka","Magiczna błyskotka"]},{"lvl":20,"vendor":"Kowal Alrik","items":["Rozgrzana stal paladyna","Prosta tarcza paladyna"]},{"lvl":25,"vendor":"Kowal Alrik","items":["Ognista fala","Zbrukana osłona"]},{"lvl":28,"vendor":"Umbar","items":["Stalowa czapka","Magiczne trzewiki","Ziarno prawdy","Kwiecie ametystu"]},{"lvl":30,"vendor":"Kowal Alrik","items":["Magmowe ostrze","Ochrona demonów"]},{"lvl":36,"vendor":"Anaret","items":["Wzmocniona ochrona maga","Kamasze odważnego rycerza","Czaszka chciwości","Los tułacza"]},{"lvl":36,"vendor":"Szmugler Beniamin","items":["Ostrze topiące skały","Wsparcie złego ducha"]},{"lvl":41,"vendor":"Szmugler Beniamin","items":["Pałasz długiej agonii","Ochrona trzeciego kręgu","Gruby pikowany bezrękawnik"]},{"lvl":41,"vendor":"Anaret","items":["Hełm byczej siły"]},{"lvl":46,"vendor":"Szmugler Beniamin","items":["Skwierczący szpon demona","Zwęglone rogi szakala"]},{"lvl":46,"vendor":"Anaret","items":["Pierścień żądzy krwi","Złote płatki władzy"]},{"lvl":48,"vendor":"Szmugler Beniamin","items":["Pancerz szabrownika"]},{"lvl":50,"vendor":"Kowal Unil","items":["Skwar","Oranżowa osłona paladyna"]},{"lvl":55,"vendor":"Sprzedawca Roan","items":["Hełm łowcy koboldów","Szara piechota","Odwet wojownika","Miododajny naszyjnik maga"]},{"lvl":55,"vendor":"Kowal Unil","items":["Pierś z tajemniczym symbolem"]},{"lvl":60,"vendor":"Kowal Unil","items":["Język żaru i ognia","Tarcza nocy i dni"]},{"lvl":65,"vendor":"Sprzedawca Roan","items":["Kask pogromcy gnolli","Szczecina gnolla","Kryształowe iskry","Chabrowa zawieszka"]},{"lvl":65,"vendor":"Kowal Unil","items":["Odzienie znawcy zaklęć"]},{"lvl":70,"vendor":"Kowal Unil","items":["Przestroga żywiołaka","Blokada herosa"]},{"lvl":75,"vendor":"Kowal Unil","items":["Skórzany strój herosa"]},{"lvl":75,"vendor":"Sprzedawca Roan","items":["Srebrna kopuła śmiałka","Cholewy czarnoksiężnika","Splot ametystowych nici","Pycha Wernoradu","Odurzająca woń hortensji"]},{"lvl":80,"vendor":"Szybki Daraker","items":["Płomienny sejmitar","Ochrona gadziego odkrywcy"]},{"lvl":85,"vendor":"Handlarka Halidura","items":["Hełm leśnego licha","Smocze podeszwy","Zamszowy chwyt gadziny","Iglasty kryształ","Gadzia kolia"]},{"lvl":85,"vendor":"Szybki Daraker","items":["Kolczuga smoczej łuski"]},{"lvl":90,"vendor":"Szybki Daraker","items":["Wyszczerbione ostrze pożogi","Tarcza z fiolką antidotum"]},{"lvl":95,"vendor":"Handlarka Halidura","items":["Okazałe rogi centaura","Mytharskie cholewy","Wytwór syczącego rzemieślnika","Rubinowy język kameleona","Smoczy wisior"]},{"lvl":95,"vendor":"Szybki Daraker","items":["Puszka doświadczonego paladyna"]},{"lvl":100,"vendor":"Szybki Daraker","items":["Stal rozgrzana smoczym oddechem","Ochrona smoczych pazurów"]}],"Tancerz ostrzy":[{"lvl":20,"vendor":"Umbar","items":["Kask myśliwego","Pierścień sprawności","Amulet rycerza"]},{"lvl":20,"vendor":"Kowal Alrik","items":["Lekkie ostrze tancerza","Sztylet młodego rzezimieszka"]},{"lvl":25,"vendor":"Kowal Alrik","items":["Pogromca szkieletów","Złota rysa"]},{"lvl":28,"vendor":"Umbar","items":["Stalowa czapka","Wzmocnione podeszwy","Oko fałszu","Malachitowa zawieszka"]},{"lvl":30,"vendor":"Kowal Alrik","items":["Czarnoostrze","Kordzik skrytobójcy"]},{"lvl":36,"vendor":"Anaret","items":["Bitewny diabeł","Goblinie cichobiegi","Czaszka pychy","Szczęście podróżnika"]},{"lvl":36,"vendor":"Szmugler Beniamin","items":["Mroczny kordelas","Podręczne ostrze strażnika"]},{"lvl":41,"vendor":"Szmugler Beniamin","items":["Miecz sprawiedliwości","Zniszczona pamiątka","Skórzana kamizela tancerza"]},{"lvl":41,"vendor":"Anaret","items":["Skórzany hełm leszego"]},{"lvl":46,"vendor":"Szmugler Beniamin","items":["Przeklęta broń gwardzisty","Sztylet wspinaczkowy"]},{"lvl":46,"vendor":"Anaret","items":["Czarna zguba bojownika","Szkiełko w srebrnej oprawie"]},{"lvl":48,"vendor":"Szmugler Beniamin","items":["Kolczuga skrytobójcy amatora"]},{"lvl":50,"vendor":"Kowal Unil","items":["Pałasz honoru i chwały","Sztylet okrętowy"]},{"lvl":55,"vendor":"Sprzedawca Roan","items":["Osłona młodej harpii","Szelest nieuważnego kobolda","Odznaka młodego asasyna","Zielony wabiciel żądłaków"]},{"lvl":55,"vendor":"Kowal Unil","items":["Strój ze znakiem śmierci"]},{"lvl":60,"vendor":"Kowal Unil","items":["Ekwipunek szlachcica","Duma rzeźnika"]},{"lvl":65,"vendor":"Sprzedawca Roan","items":["Czapka łowcy tygrysów","Szczecina gnolla","Symbol spopielenia","Kwiecisty popis jubilera"]},{"lvl":65,"vendor":"Kowal Unil","items":["Klata pulsujących świateł"]},{"lvl":70,"vendor":"Kowal Unil","items":["Szeroki metal strażnika","Stalowy płatek"]},{"lvl":75,"vendor":"Kowal Unil","items":["Pancerz zwycięzcy turnieju"]},{"lvl":75,"vendor":"Sprzedawca Roan","items":["Srebrna kopuła śmiałka","Pozłacana duma rycerza","Zakurzone wojenne rękawice","Koralowa narośl","Wonne pąki kniei"]},{"lvl":80,"vendor":"Szybki Daraker","items":["Podręczna mytharska maczeta","Ostrze grzechotnika"]},{"lvl":85,"vendor":"Handlarka Halidura","items":["Prosta wężowa łebka","Ochrona przed igliwiem","Zamszowy chwyt gadziny","Bagienna narośl","Naszyjnik ofiary bagien"]},{"lvl":85,"vendor":"Szybki Daraker","items":["Blaszane oko bogów"]},{"lvl":90,"vendor":"Szybki Daraker","items":["Piła tnąca konary","Żelazna strzałka"]},{"lvl":95,"vendor":"Handlarka Halidura","items":["Świerkowy kask","Mytharskie cholewy","Ochrona z wężowej skóry","Koralowy język żaby","Ozdoba wężowego kochanka"]},{"lvl":95,"vendor":"Szybki Daraker","items":["Zbroja doświadczonego tancerza"]},{"lvl":100,"vendor":"Szybki Daraker","items":["Wężowy urwiłeb","Haratanie wężowego ogona"]}],"Tropiciel":[{"lvl":20,"vendor":"Umbar","items":["Hełm maga bojowego","Pierścień sprawności","Magiczna błyskotka"]},{"lvl":20,"vendor":"Szagarat Czarny Łowca","items":["Płomienna cięciwa","Iskrzące strzały bukowe"]},{"lvl":25,"vendor":"Szagarat Czarny Łowca","items":["Łuk dotkliwych poparzeń","Iskrzące strzały klonowe"]},{"lvl":28,"vendor":"Umbar","items":["Stalowa czapka","Magiczne trzewiki","Ziarno prawdy","Medalion z turkusem"]},{"lvl":30,"vendor":"Szagarat Czarny Łowca","items":["Ogniste skrzydła","Iskrzące strzały wiązowe"]},{"lvl":36,"vendor":"Anaret","items":["Wzmocniona ochrona maga","Obuwie z magiczną powłoką","Czaszka gniewu","Los tułacza"]},{"lvl":36,"vendor":"Mroczny Zgrzyt","items":["Objęcie młodego smoka","Gorące strzały zbója"]},{"lvl":41,"vendor":"Mroczny Zgrzyt","items":["Piekielna tortura","Gorące strzały bandziora","Płaszcz trapera"]},{"lvl":41,"vendor":"Anaret","items":["Wizja trzeciego oka"]},{"lvl":46,"vendor":"Mroczny Zgrzyt","items":["Manotrówczy naciąg tropiciela","Gorące strzały rzezimieszka"]},{"lvl":46,"vendor":"Anaret","items":["Czarna zguba bojownika","Gwiazda nadziei"]},{"lvl":48,"vendor":"Mroczny Zgrzyt","items":["Złota pierś myśliwego"]},{"lvl":50,"vendor":"Huslin","items":["Skwierczący naciąg","Kompletny kołczan tropiciela"]},{"lvl":55,"vendor":"Sprzedawca Roan","items":["Hełm łowcy koboldów","Obuwie pokryte pajęczyną","Pierścień ulotnej myśli","Miododajny naszyjnik maga"]},{"lvl":55,"vendor":"Huslin","items":["Odzienie złotych pyłków"]},{"lvl":60,"vendor":"Huslin","items":["Ogniste szczypce","Doskonały kołczan tropiciela"]},{"lvl":65,"vendor":"Sprzedawca Roan","items":["Magiczne wsparcie demiliszy","Szczecina gnolla","Kryształowe iskry","Medalion fotosyntezy"]},{"lvl":65,"vendor":"Huslin","items":["Płaszcz tropiciela z wyżyn"]},{"lvl":70,"vendor":"Huslin","items":["Soczysty łuk anemonów","Mistrzowski kołczan tropiciela"]},{"lvl":75,"vendor":"Huslin","items":["Opieka leśnej istoty"]},{"lvl":75,"vendor":"Sprzedawca Roan","items":["Srebrna kopuła śmiałka","Cholewy czarnoksiężnika","Zemsta banity","Sygnet wyniosłości","Odurzająca woń hortensji"]},{"lvl":80,"vendor":"Tropicielka Olekusa","items":["Wyrzutnia rozgotowanych żab","Płonące strzały na ropuchy"]},{"lvl":85,"vendor":"Handlarka Halidura","items":["Hełm leśnego licha","Fikuśne kamasze maga","Zamszowy chwyt gadziny","Iglasty kryształ","Amulet przemiany w gada"]},{"lvl":85,"vendor":"Tropicielka Olekusa","items":["Zbożowy kamuflaż węża"]},{"lvl":90,"vendor":"Tropicielka Olekusa","items":["Gniewna cięciwa z Mythar","Płonące strzały na węże"]},{"lvl":95,"vendor":"Handlarka Halidura","items":["Podarunek Introprodara","Mytharskie cholewy","Wytwór syczącego rzemieślnika","Jaspisowy język węża","Smoczy wisior"]},{"lvl":95,"vendor":"Tropicielka Olekusa","items":["Odzienie doświadczonego tropiciela"]},{"lvl":100,"vendor":"Tropicielka Olekusa","items":["Zew Introprodara","Płonące strzały na aligatory"]}],"Wojownik":[{"lvl":20,"vendor":"Umbar","items":["Rogi odkrywcy","Ozdoba wojaka","Amulet rycerza"]},{"lvl":20,"vendor":"Kowal Alrik","items":["Uniwersalne ostrze","Tarcza początkującego"]},{"lvl":25,"vendor":"Kowal Alrik","items":["Kątownik","Lepsza ochrona wojaka"]},{"lvl":28,"vendor":"Umbar","items":["Stalowa czapka","Wzmocnione podeszwy","Oko fałszu","Kwiecie ametystu"]},{"lvl":30,"vendor":"Kowal Alrik","items":["Smukły miecz rycerza","Rogi bawoła"]},{"lvl":36,"vendor":"Anaret","items":["Bitewny diabeł","Kamasze odważnego rycerza","Czaszka pychy","Szczęście podróżnika"]},{"lvl":36,"vendor":"Szmugler Beniamin","items":["Falchion podróżnika","Tarcza obita skórą"]},{"lvl":41,"vendor":"Szmugler Beniamin","items":["Kliga ostrych zębów","Zakrwawiona tafla","Bojowy serdak"]},{"lvl":41,"vendor":"Anaret","items":["Hełm byczej siły"]},{"lvl":46,"vendor":"Szmugler Beniamin","items":["Ostrze dekapitacji","Zderzak"]},{"lvl":46,"vendor":"Anaret","items":["Czarna zguba bojownika","Szkiełko w srebrnej oprawie"]},{"lvl":48,"vendor":"Szmugler Beniamin","items":["Odzienie ze skóry dzika"]},{"lvl":50,"vendor":"Kowal Unil","items":["Eleganckie ostrze wojownika","Kolczasta osłona"]},{"lvl":55,"vendor":"Sprzedawca Roan","items":["Osłona młodej harpii","Szara piechota","Odwet wojownika","Zielony wabiciel żądłaków"]},{"lvl":55,"vendor":"Kowal Unil","items":["Wytwór miejscowej szwaczki"]},{"lvl":60,"vendor":"Kowal Unil","items":["Stalowy zawijas","Tarcza dawnej chwały"]},{"lvl":65,"vendor":"Sprzedawca Roan","items":["Kask pogromcy gnolli","Szczecina gnolla","Symbol spopielenia","Kwiecisty popis jubilera"]},{"lvl":65,"vendor":"Kowal Unil","items":["Wzmocniona ochrona żeber"]},{"lvl":70,"vendor":"Kowal Unil","items":["Wzmocniona ochrona żeber","Patronat demona"]},{"lvl":75,"vendor":"Kowal Unil","items":["Wytworna kamizela wojownika"]},{"lvl":75,"vendor":"Sprzedawca Roan","items":["Srebrna kopuła śmiałka","Pozłacana duma rycerza","Zakurzone wojenne rękawice","Pycha Wernoradu","Wonne pąki kniei"]},{"lvl":80,"vendor":"Szybki Daraker","items":["Falchion żabiej czaszki","Iglasta osłona"]},{"lvl":85,"vendor":"Handlarka Halidura","items":["Prosta wężowa łebka","Smocze podeszwy","Zamszowy chwyt gadziny","Bagienna narośl","Gadzia kolia"]},{"lvl":85,"vendor":"Szybki Daraker","items":["Filcowa opieka gadów"]},{"lvl":90,"vendor":"Szybki Daraker","items":["Czarna strzała wojownika","Tarcza połowicznej przemiany"]},{"lvl":95,"vendor":"Handlarka Halidura","items":["Okazałe rogi centaura","Mytharskie cholewy","Ochrona z wężowej skóry","Rubinowy język kameleona","Ozdoba wężowego kochanka"]},{"lvl":95,"vendor":"Szybki Daraker","items":["Puszka doświadczonego paladyna"]},{"lvl":100,"vendor":"Szybki Daraker","items":["Cięcie biesa","Trofeum centaura"]}]};
 
@@ -4444,7 +4418,7 @@ try{
           if(norm(map?.name||'')===norm(task.map)){ task.stage='toStand'; saveEquipTask(task); }
           else{
           setTempTarget(task.map);
-          eqSetInfo('Wyznaczam trasę do '+task.map+'...', true);
+          eqSetInfo('Wyznaczam trasę do '+task.map+'...' + (task.kind==='auction' ? ' (Aukcjoner)' : ''), true);
           // Move one step of the route here (do not depend on main bot loop)
           try{
             var step = (typeof followGraphTo==='function') ? followGraphTo(task.map) : null;
@@ -4465,7 +4439,7 @@ try{
           if(npc){
             eqClick(npc);
             task.stage='dialog'; saveEquipTask(task);
-            eqSetInfo('Jestem u '+task.npc+' ('+task.map+'). Otwieram „Pokaż towary”…', true);
+            eqSetInfo('Jestem u '+task.npc+' ('+task.map+').' + (task.kind==='auction' ? ' Otwieram dialog aukcyjny…' : ' Otwieram „Pokaż towary”…'), true);
           } else {
             eqSetInfo('Szukam NPC: '+task.npc+'...', false);
           }
@@ -4474,6 +4448,13 @@ try{
         // 4) Klik w „Pokaż towary” / „Sklep”
         if(task.stage==='dialog'){
           if(document.querySelector('.dialog, #dialog, .npcDialog, #npcDialog, .dsc')){
+            if(task.kind==='auction'){
+              eqSetInfo('Dotarłem do Aukcjonera i stoję na (' + task.stand.x + ',' + task.stand.y + ').', true);
+              clearEquipTask();
+              setTempTarget(null);
+              clearInterval(window.__adiEquipTimer);
+              return;
+            }
             if(typeof apOpenDialogShop==='function') apOpenDialogShop();
             task.stage='shop'; saveEquipTask(task);
           } else {
@@ -4549,6 +4530,65 @@ if(task.stage==='equip'){
 }, 400);
     }
 
+
+
+// ===== AUTO AUCTION WALKER (free slots threshold -> Aukcjoner Torneg) =====
+(function(){
+  const CHECK_MS = 1200;
+  const START_COOLDOWN_MS = 15000;
+  let lastStartAt = 0;
+
+  function adiStartAuctionWalk(reason){
+    try{
+      const now = Date.now();
+      if(now - lastStartAt < START_COOLDOWN_MS) return false;
+      lastStartAt = now;
+
+      const existing = loadEquipTask();
+      if(existing) return false;
+
+      const v = AUTO_AUCTION_VENDOR;
+      const task = {
+        kind: 'auction',
+        stage: 'toCity',
+        map: v.map,
+        npc: v.npc,
+        stand: { x: Number(v.stand.x), y: Number(v.stand.y) },
+        pos: { x: Number(v.pos.x), y: Number(v.pos.y) },
+        createdAt: now,
+        reason: String(reason || 'free-slots')
+      };
+      saveEquipTask(task);
+      setTempTarget(v.map);
+      startEquipFlow();
+      eqSetInfo('Mało miejsca w torbie -> idę do ' + v.npc + ' w ' + v.map + ' na (' + v.stand.x + ',' + v.stand.y + ').', true);
+      const btn=document.querySelector('#adi-bot_toggle'); if(btn && btn.innerText==='START') btn.click();
+      return true;
+    }catch(_){ return false; }
+  }
+  window.__adiStartAuctionWalk = adiStartAuctionWalk;
+
+  setInterval(()=>{
+    try{
+      const cfg = adiLoadAuctionCfg();
+      if(!cfg || !cfg.enabled) return;
+      if(!window.hero || !window.map || !window.g) return;
+      if(g.dead || g.resp || g.reload || g.battle) return;
+
+      const task = loadEquipTask();
+      if(task && task.kind !== 'auction') return;
+      if(task && task.kind === 'auction') return;
+
+      const bagSpace = adiGetTotalBagSpace();
+      if(!bagSpace || !Number.isFinite(Number(bagSpace.free))) return;
+
+      const threshold = Math.max(1, parseInt(cfg.freeSlotsThreshold || 3, 10) || 3);
+      if(Number(bagSpace.free) >= threshold) return;
+
+      adiStartAuctionWalk('free<' + threshold);
+    }catch(_){ }
+  }, CHECK_MS);
+})();
 
 
 // ===== ABORT EQUIP FLOW ON DEATH (prevents resuming stale equip tasks after respawn) =====
@@ -5439,7 +5479,6 @@ if (typeof window.window.__adi_equipByNameSequence !== 'function') {
 (function(){
   const ADI_LOOT_CFG_KEY = 'adi-bot_loot_cfg_v1';
   const ADI_AUCTION_CFG_KEY = 'adi-bot_auction_cfg_v1';
-  const ADI_AUCTION_CFG_KEY_LEGACY = 'adi-bot_auction_cfg';
   const ADI_LOOT_NOTIFY_SEEN_KEY = 'adi-bot_loot_notify_seen_v1';
   const ADI_LOOT_UI_STYLE_ID = 'adi-bot-loot-style';
   let __adiLootFlushTimer = null;
@@ -5501,7 +5540,7 @@ if (typeof window.window.__adi_equipByNameSequence !== 'function') {
 
   function adiLoadAuctionCfg(){
     try{
-      const raw = localStorage.getItem(ADI_AUCTION_CFG_KEY) || localStorage.getItem(ADI_AUCTION_CFG_KEY_LEGACY);
+      const raw = localStorage.getItem(ADI_AUCTION_CFG_KEY);
       const cfg = raw ? JSON.parse(raw) : {};
       const def = adiAuctionDefaults();
       const num = (v, d=0) => {
@@ -5518,11 +5557,7 @@ if (typeof window.window.__adi_equipByNameSequence !== 'function') {
   }
 
   function adiSaveAuctionCfg(next){
-    try{
-      const payload = JSON.stringify(next || adiAuctionDefaults());
-      localStorage.setItem(ADI_AUCTION_CFG_KEY, payload);
-      localStorage.setItem(ADI_AUCTION_CFG_KEY_LEGACY, payload);
-    }catch(_){ }
+    try{ localStorage.setItem(ADI_AUCTION_CFG_KEY, JSON.stringify(next || adiAuctionDefaults())); }catch(_){ }
   }
 
   function adiLootMessage(txt){
@@ -5736,6 +5771,10 @@ if (typeof window.window.__adi_equipByNameSequence !== 'function') {
             <input type="number" min="0" step="1" id="adi-auction-common-price" class="adi-bot_inputs adi-inline-input" value="${cfg.commonPrice}">
             <span class="adi-settings-label">Pospolite</span>
           </label>
+          <label class="adi-settings-line" for="adi-auction-free-threshold">
+            <input type="number" min="1" step="1" id="adi-auction-free-threshold" class="adi-bot_inputs adi-inline-input" value="${Math.max(1, Number(cfg.freeSlotsThreshold || 3))}">
+            <span class="adi-settings-label">Auto-podejście do Aukcjonera poniżej tylu wolnych miejsc</span>
+          </label>
           <div id="adi-auction-bag-space" class="adi-auction-space">Aktualna ilość wolnych miejsc w torbach: —</div>
         </div>
       `;
@@ -5775,6 +5814,7 @@ if (typeof window.window.__adi_equipByNameSequence !== 'function') {
       bindInput('adi-auction-heroic-price', 'heroicPrice', 'heroiczne');
       bindInput('adi-auction-unique-price', 'uniquePrice', 'unikatowe');
       bindInput('adi-auction-common-price', 'commonPrice', 'pospolite');
+      bindInput('adi-auction-free-threshold', 'freeSlotsThreshold', 'progu wolnych miejsc');
 
       const updateBagSpace = ()=>{
         const out = auctionPanel.querySelector('#adi-auction-bag-space');
@@ -5803,211 +5843,6 @@ if (typeof window.window.__adi_equipByNameSequence !== 'function') {
       return true;
     }catch(e){ console.warn('[adi-auction-ui] ensure tab failed', e); return false; }
   }
-
-
-  const ADI_AUCTION_TASK_KEY = 'adi-bot_auction_task';
-  const ADI_AUCTIONEERS_TEXT = [
-    'Aukcjoner Torneg (57,52) Ustawiaj postać zawsze na kordach (57,53)',
-    'Aukcjoner Werbin (34,24) Ustawiaj postać zawsze na kordach (34,25)',
-    'Aukcjoner Eder (32,49) Ustawiaj postać zawsze na kordach (32,50)',
-    'Aukcjoner Karka-han (61,26) Ustawiaj postać zawsze na kordach (61,27)',
-    'Aukcjoner Thuzal (58,50) Ustawiaj postać zawsze na kordach (58,51)',
-    'Aukcjoner Mythar (63,37) Ustawiaj postać zawsze na kordach (63,38)',
-    'Aukcjoner Nithal (21,43) Ustawiaj postać zawsze na kordach (21,44)',
-    'Aukcjoner Tuzmer (44,33) Ustawiaj postać zawsze na kordach (44,34)',
-    'Aukcjoner Dom Aukcyjny (20,6) Ustawiaj postać zawsze na kordach (20,7)'
-  ].join('\n');
-
-  function adiSaveAuctionTask(t){ try{ localStorage.setItem(ADI_AUCTION_TASK_KEY, JSON.stringify(t)); }catch(_){ } }
-  function adiLoadAuctionTask(){ try{ const raw = localStorage.getItem(ADI_AUCTION_TASK_KEY); return raw ? JSON.parse(raw) : null; }catch(_){ return null; } }
-  function adiClearAuctionTask(){
-    try{ localStorage.removeItem(ADI_AUCTION_TASK_KEY); }catch(_){ }
-    try{ if(window.__adiAuctionTimer) clearInterval(window.__adiAuctionTimer); }catch(_){ }
-  }
-
-  function adiParseAuctioneers(raw){
-    try{
-      return String(raw || '').split(/\r?\n/).map(x=>String(x||'').trim()).filter(Boolean).map(line=>{
-        const m = line.match(/^Aukcjoner\s+(.+?)\s+\((\d+),\s*(\d+)\)\s+Ustawiaj postać zawsze na kordach\s+\((\d+),\s*(\d+)\)$/i);
-        if(!m) return null;
-        return {
-          npc: 'Aukcjoner',
-          map: m[1].trim(),
-          pos: { x: Number(m[2]), y: Number(m[3]) },
-          stand: { x: Number(m[4]), y: Number(m[5]) }
-        };
-      }).filter(Boolean);
-    }catch(_){ return []; }
-  }
-
-  function adiGetAuctioneers(){
-    try{
-      const raw = localStorage.getItem('adi-bot_auctioneers_raw') || ADI_AUCTIONEERS_TEXT;
-      const arr = adiParseAuctioneers(raw);
-      window.ADI_AUCTIONEERS = arr;
-      return arr;
-    }catch(_){ return []; }
-  }
-
-  function adiFindAuctionNpc(){
-    try{
-      if(typeof apFindNpcByName === 'function'){
-        const npc = apFindNpcByName('Aukcjoner');
-        if(npc) return npc;
-      }
-    }catch(_){ }
-    try{
-      const all = Array.from(document.querySelectorAll('div.npc[ctip="t_npc"]'));
-      for(const el of all){
-        const tip = String(el.getAttribute('tip') || '').replace(/<[^>]*>/g,'');
-        if(norm(tip).includes(norm('Aukcjoner'))) return el;
-      }
-    }catch(_){ }
-    return null;
-  }
-
-  function adiAuctionDistanceSteps(targetMap){
-    try{
-      if(!window.ADI_MAP_GRAPH_READY) return normMapName(map?.name||'') === normMapName(targetMap) ? 0 : 999999;
-      const route = buildGraphRouteTo(targetMap);
-      if(route === null) return 999999;
-      return Array.isArray(route) ? route.length : 999999;
-    }catch(_){ return 999999; }
-  }
-
-  function adiGetNearestAuctioneer(){
-    const arr = adiGetAuctioneers();
-    if(!arr.length) return null;
-    const cur = normMapName(map?.name || '');
-    let best = null;
-    let bestSteps = 999999;
-    for(const a of arr){
-      const steps = normMapName(a.map) === cur ? 0 : adiAuctionDistanceSteps(a.map);
-      if(steps < bestSteps){
-        best = a;
-        bestSteps = steps;
-      }
-    }
-    return best;
-  }
-
-  function adiStartAuctionFlow(){
-    try{ if(window.__adiAuctionTimer) clearInterval(window.__adiAuctionTimer); }catch(_){ }
-    window.__adiAuctionTimer = setInterval(()=>{
-      let task = adiLoadAuctionTask();
-      if(!task){ try{ clearInterval(window.__adiAuctionTimer); }catch(_){ } return; }
-      if(window.g && (g.dead || g.resp || g.reload)) return;
-
-      // normalize task shape to the same style as potion/equip vendor flows
-      if(!task.vendor){
-        task.vendor = { key: normMapName(task.map||'aukcjoner'), map: task.map, npc: task.npc || 'Aukcjoner', stand: task.stand };
-      }
-      if(!task.stage) task.stage = 'toMap';
-      if(task.stage === 'toCity') task.stage = 'toMap';
-      adiSaveAuctionTask(task);
-
-      const v = task.vendor || {};
-      const standX = Number(v?.stand?.x);
-      const standY = Number(v?.stand?.y);
-      const here = normMapName(map?.name || '');
-      const there = normMapName(v.map || task.map || '');
-
-      if(task.stage === 'toMap'){
-        if(here === there){
-          try{ a_goTo(standX, standY); }catch(_){ }
-          task.stage = 'toStand';
-          adiSaveAuctionTask(task);
-        }else{
-          try{ setTempTarget(v.map || task.map); }catch(_){ }
-          try{
-            let via = null;
-            if(typeof followGraphTo === 'function') via = followGraphTo(v.map || task.map);
-            if(!via && typeof __adi_routeToNamedMap === 'function') via = __adi_routeToNamedMap(v.map || task.map);
-            if(via){
-              if(hero.x===via.x && hero.y===via.y){ _g('walk'); }
-              else { a_goTo(via.x, via.y); }
-            }
-          }catch(_){ }
-        }
-        return;
-      }
-
-      if(task.stage === 'toStand'){
-        if(typeof hero!=='undefined' && hero.x===standX && hero.y===standY){
-          task.stage='toNpc';
-          adiSaveAuctionTask(task);
-          try{ const npc = (typeof apFindNpcByName==='function') ? apFindNpcByName(v.npc || 'Aukcjoner') : adiFindAuctionNpc(); if(npc){ if(typeof apClick==='function') apClick(npc); } }catch(_){ }
-        }else{
-          try{ a_goTo(standX, standY); }catch(_){ }
-        }
-        return;
-      }
-
-      if(task.stage === 'toNpc'){
-        const npc = (typeof apFindNpcByName==='function') ? apFindNpcByName(v.npc || 'Aukcjoner') : adiFindAuctionNpc();
-        if(npc){
-          try{ if(typeof apClick==='function') apClick(npc); else {
-            npc.dispatchEvent(new MouseEvent('mousedown',{bubbles:true}));
-            npc.click();
-            npc.dispatchEvent(new MouseEvent('mouseup',{bubbles:true}));
-          } }catch(_){ }
-          task.stage = 'done';
-          adiSaveAuctionTask(task);
-        }
-        return;
-      }
-
-      if(task.stage === 'done'){
-        try{ setTempTarget(null); }catch(_){ }
-        adiClearAuctionTask();
-        return;
-      }
-    }, 600);
-  }
-
-  function adiMaybeStartAuctionRun(){
-    try{
-      const cfg = adiLoadAuctionCfg();
-      if(!cfg || !cfg.enabled) return false;
-      const curTask = adiLoadAuctionTask();
-      if(curTask && curTask.map) return true;
-      const bagSpace = adiGetTotalBagSpace();
-      if(!bagSpace || bagSpace.free > 3) return false;
-      try{
-        const eqTask = JSON.parse(localStorage.getItem('adi-bot_equip_task') || 'null');
-        if(eqTask && eqTask.map) return false;
-      }catch(_){ }
-      try{
-        const buyTask = JSON.parse(localStorage.getItem('adi-bot_buy_task') || 'null');
-        if(buyTask && buyTask.active) return false;
-      }catch(_){ }
-      const a = adiGetNearestAuctioneer();
-      if(!a || !a.map || !a.stand) return false;
-      const task = { active: true, kind:'auction', stage:'toMap', createdAt:Date.now(), vendor:{ key: normMapName(a.map), map:a.map, npc:a.npc, stand:a.stand, pos:a.pos } };
-      adiSaveAuctionTask(task);
-      try{ setTempTarget(a.map); }catch(_){ }
-      adiStartAuctionFlow();
-      return true;
-    }catch(_){ return false; }
-  }
-
-  (function(){
-    try{ window.ADI_AUCTIONEERS = adiGetAuctioneers(); }catch(_){ }
-    let wasDead = false;
-    setInterval(()=>{
-      try{
-        const deadNow = !!(window.g && g.dead);
-        if(deadNow && !wasDead){
-          wasDead = true;
-          adiClearAuctionTask();
-          try{ setTempTarget(null); }catch(_){ }
-        }else if(!deadNow && wasDead){
-          wasDead = false;
-        }
-      }catch(_){ }
-    }, 500);
-    setInterval(()=>{ try{ const t=adiLoadAuctionTask(); if(t) adiStartAuctionFlow(); else adiMaybeStartAuctionRun(); }catch(_){ } }, 1200);
-  })();
 
   function adiLower(s){ return String(s || '').toLowerCase(); }
 
