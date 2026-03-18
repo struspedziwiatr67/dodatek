@@ -6738,7 +6738,7 @@ if (typeof window.window.__adi_equipByNameSequence !== 'function') {
             }catch(_){ }
           }
 
-          adiAuctionInfo('Idę do najbliższego aukcjonera: ' + v.map, moved);
+          
         }
         return;
       }
@@ -6869,3 +6869,11 @@ window.adiAuctionGetBagSpace = function(){
     return null;
   }
 };
+
+// === TORNEG STAND FIX ===
+
+      if(task.stage === 'toStand'){
+        if(here === 'torneg'){
+          if(typeof a_goTo === 'function') a_goTo(57,53);
+        }
+      }
