@@ -5851,6 +5851,12 @@ if (typeof window.window.__adi_equipByNameSequence !== 'function') {
 
   function adiFindAuctionNpc(){
     try{
+      if(typeof apFindNpcByName === 'function'){
+        const npc = apFindNpcByName('Aukcjoner');
+        if(npc) return npc;
+      }
+    }catch(_){ }
+    try{
       const all = Array.from(document.querySelectorAll('div.npc[ctip="t_npc"]'));
       for(const el of all){
         const tip = String(el.getAttribute('tip') || '').replace(/<[^>]*>/g,'');
@@ -5888,23 +5894,38 @@ if (typeof window.window.__adi_equipByNameSequence !== 'function') {
   function adiStartAuctionFlow(){
     try{ if(window.__adiAuctionTimer) clearInterval(window.__adiAuctionTimer); }catch(_){ }
     window.__adiAuctionTimer = setInterval(()=>{
-      const task = adiLoadAuctionTask();
+      let task = adiLoadAuctionTask();
       if(!task){ try{ clearInterval(window.__adiAuctionTimer); }catch(_){ } return; }
       if(window.g && (g.dead || g.resp || g.reload)) return;
 
-      if(task.stage === 'toCity'){
-        if(normMapName(map?.name||'') === normMapName(task.map)){
+      // normalize task shape to the same style as potion/equip vendor flows
+      if(!task.vendor){
+        task.vendor = { key: normMapName(task.map||'aukcjoner'), map: task.map, npc: task.npc || 'Aukcjoner', stand: task.stand };
+      }
+      if(!task.stage) task.stage = 'toMap';
+      if(task.stage === 'toCity') task.stage = 'toMap';
+      adiSaveAuctionTask(task);
+
+      const v = task.vendor || {};
+      const standX = Number(v?.stand?.x);
+      const standY = Number(v?.stand?.y);
+      const here = normMapName(map?.name || '');
+      const there = normMapName(v.map || task.map || '');
+
+      if(task.stage === 'toMap'){
+        if(here === there){
+          try{ a_goTo(standX, standY); }catch(_){ }
           task.stage = 'toStand';
           adiSaveAuctionTask(task);
         }else{
-          try{ setTempTarget(task.map); }catch(_){ }
+          try{ setTempTarget(v.map || task.map); }catch(_){ }
           try{
-            let step = null;
-            if(typeof __adi_routeToNamedMap === 'function') step = __adi_routeToNamedMap(task.map);
-            if(!step && typeof followGraphTo === 'function') step = followGraphTo(task.map);
-            if(step && typeof step.x !== 'undefined'){
-              if(hero && Number(hero.x) === Number(step.x) && Number(hero.y) === Number(step.y)) _g('walk');
-              else a_goTo(step.x, step.y);
+            let via = null;
+            if(typeof followGraphTo === 'function') via = followGraphTo(v.map || task.map);
+            if(!via && typeof __adi_routeToNamedMap === 'function') via = __adi_routeToNamedMap(v.map || task.map);
+            if(via){
+              if(hero.x===via.x && hero.y===via.y){ _g('walk'); }
+              else { a_goTo(via.x, via.y); }
             }
           }catch(_){ }
         }
@@ -5912,23 +5933,24 @@ if (typeof window.window.__adi_equipByNameSequence !== 'function') {
       }
 
       if(task.stage === 'toStand'){
-        const x = Number(task?.stand?.x);
-        const y = Number(task?.stand?.y);
-        if(hero?.x === x && hero?.y === y){
-          task.stage = 'toNpc';
+        if(typeof hero!=='undefined' && hero.x===standX && hero.y===standY){
+          task.stage='toNpc';
           adiSaveAuctionTask(task);
-          return;
+          try{ const npc = (typeof apFindNpcByName==='function') ? apFindNpcByName(v.npc || 'Aukcjoner') : adiFindAuctionNpc(); if(npc){ if(typeof apClick==='function') apClick(npc); } }catch(_){ }
+        }else{
+          try{ a_goTo(standX, standY); }catch(_){ }
         }
-        a_goTo(x, y);
         return;
       }
 
       if(task.stage === 'toNpc'){
-        const npc = adiFindAuctionNpc();
+        const npc = (typeof apFindNpcByName==='function') ? apFindNpcByName(v.npc || 'Aukcjoner') : adiFindAuctionNpc();
         if(npc){
-          try{ npc.dispatchEvent(new MouseEvent('mousedown',{bubbles:true})); }catch(_){ }
-          try{ npc.click(); }catch(_){ }
-          try{ npc.dispatchEvent(new MouseEvent('mouseup',{bubbles:true})); }catch(_){ }
+          try{ if(typeof apClick==='function') apClick(npc); else {
+            npc.dispatchEvent(new MouseEvent('mousedown',{bubbles:true}));
+            npc.click();
+            npc.dispatchEvent(new MouseEvent('mouseup',{bubbles:true}));
+          } }catch(_){ }
           task.stage = 'done';
           adiSaveAuctionTask(task);
         }
@@ -5940,7 +5962,7 @@ if (typeof window.window.__adi_equipByNameSequence !== 'function') {
         adiClearAuctionTask();
         return;
       }
-    }, 400);
+    }, 600);
   }
 
   function adiMaybeStartAuctionRun(){
@@ -5961,7 +5983,7 @@ if (typeof window.window.__adi_equipByNameSequence !== 'function') {
       }catch(_){ }
       const a = adiGetNearestAuctioneer();
       if(!a || !a.map || !a.stand) return false;
-      const task = { kind:'auction', stage:'toCity', map:a.map, npc:a.npc, stand:a.stand, pos:a.pos, createdAt:Date.now() };
+      const task = { active: true, kind:'auction', stage:'toMap', createdAt:Date.now(), vendor:{ key: normMapName(a.map), map:a.map, npc:a.npc, stand:a.stand, pos:a.pos } };
       adiSaveAuctionTask(task);
       try{ setTempTarget(a.map); }catch(_){ }
       adiStartAuctionFlow();
@@ -5984,7 +6006,7 @@ if (typeof window.window.__adi_equipByNameSequence !== 'function') {
         }
       }catch(_){ }
     }, 500);
-    setInterval(()=>{ try{ adiMaybeStartAuctionRun(); }catch(_){ } }, 1200);
+    setInterval(()=>{ try{ const t=adiLoadAuctionTask(); if(t) adiStartAuctionFlow(); else adiMaybeStartAuctionRun(); }catch(_){ } }, 1200);
   })();
 
   function adiLower(s){ return String(s || '').toLowerCase(); }
