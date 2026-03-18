@@ -3212,7 +3212,7 @@ function apOpenDialogShop(){
 
         if(task.stage==='toMap'){
           if(here===normMapName(v.map)){
-            a_goTo(standX, standY);
+            adiAuctionMoveTo(standX, standY);
             apSetInfo('Podchodzę do kapłanki...', true);
             task.stage='toStand'; saveBuyTask(task);
           }else{
@@ -3232,7 +3232,7 @@ function apOpenDialogShop(){
             task.stage='toNpc'; saveBuyTask(task);
             const npc = apFindNpcByName(v.npc); if(npc) apClick(npc);
           }else{
-            a_goTo(standX, standY);
+            adiAuctionMoveTo(standX, standY);
           }
           return;
         }
@@ -6664,6 +6664,22 @@ if (typeof window.window.__adi_equipByNameSequence !== 'function') {
     try{ if(!el) return false; el.dispatchEvent(new MouseEvent('mousedown',{bubbles:true})); el.click(); return true; }catch(_){ try{ el.click(); return true; }catch(__){ return false; } }
   }
 
+  function adiAuctionMoveTo(x,y){
+    try{
+      if(typeof a_goTo === 'function'){ a_goTo(x,y); return true; }
+    }catch(_){}
+    try{
+      if(typeof goTo === 'function'){ goTo(x,y); return true; }
+    }catch(_){}
+    try{
+      if(typeof window !== 'undefined' && typeof window.goTo === 'function'){ window.goTo(x,y); return true; }
+    }catch(_){}
+    try{
+      if(window.hero && hero.x === x && hero.y === y){ _g('walk'); return true; }
+    }catch(_){}
+    return false;
+  }
+
   function adiAuctionLoadTask(){
     try{
       const raw = localStorage.getItem(AUCTION_TASK_KEY);
@@ -6714,7 +6730,7 @@ if (typeof window.window.__adi_equipByNameSequence !== 'function') {
 
       if(task.stage === 'toMap'){
         if(here === targetMap){
-          if(typeof a_goTo === 'function') a_goTo(standX, standY);
+          adiAuctionMoveTo(standX, standY);
           task.stage = 'toStand';
           adiAuctionSaveTask(task);
           adiAuctionInfo('Podchodzę do aukcjonera...', true);
@@ -6725,7 +6741,7 @@ if (typeof window.window.__adi_equipByNameSequence !== 'function') {
             if(via){
               moved = true;
               if(hero.x === via.x && hero.y === via.y) _g('walk');
-              else if(typeof a_goTo === 'function') a_goTo(via.x, via.y);
+              else adiAuctionMoveTo(via.x, via.y);
             }
           }catch(_){}
 
@@ -6735,7 +6751,7 @@ if (typeof window.window.__adi_equipByNameSequence !== 'function') {
               if(gw){
                 moved = true;
                 if(hero.x === gw.x && hero.y === gw.y) _g('walk');
-                else if(typeof a_goTo === 'function') a_goTo(gw.x, gw.y);
+                else adiAuctionMoveTo(gw.x, gw.y);
               }
             }catch(_){}
           }
@@ -6750,7 +6766,7 @@ if (typeof window.window.__adi_equipByNameSequence !== 'function') {
           const npc = adiAuctionFindNpcByName(v.npc || 'Aukcjoner');
           if(npc) adiAuctionClick(npc);
         }else{
-          a_goTo(standX, standY);
+          adiAuctionMoveTo(standX, standY);
         }
         return;
       }
