@@ -4483,6 +4483,13 @@ try{
         // 4) Klik w „Pokaż towary” / „Sklep”
         if(task.stage==='dialog'){
           if(document.querySelector('.dialog, #dialog, .npcDialog, #npcDialog, .dsc')){
+            if(task && task.mode==='auction-approach'){
+              try{ localStorage.removeItem('adi-bot_auction_task'); }catch(_){}
+              try{ clearEquipTask(); }catch(_){}
+              try{ setTempTarget(null); }catch(_){}
+              eqSetInfo('Dotarłem do NPC aukcji i otworzyłem dialog.', true);
+              return;
+            }
             if(typeof apOpenDialogShop==='function') apOpenDialogShop();
             task.stage='shop'; saveEquipTask(task);
           } else {
@@ -6721,78 +6728,47 @@ if (typeof window.window.__adi_equipByNameSequence !== 'function') {
       const v = task.vendor || adiAuctionFindNearest();
       if(!v){ adiAuctionClearTask(); clearInterval(__adiAuctionFlowTimer); __adiAuctionFlowTimer = null; return; }
 
-      const standX = Number(v.stand && v.stand.x);
-      const standY = Number(v.stand && v.stand.y);
-      const here = (typeof normMapName === 'function') ? normMapName(map.name) : String((window.map && map.name) || '').toLowerCase().trim();
-      const targetMap = (typeof normMapName === 'function') ? normMapName(v.map) : String(v.map||'').toLowerCase().trim();
+      const here = (typeof normMapName === 'function')
+        ? normMapName((window.map && map.name) || '')
+        : String((window.map && map.name) || '').toLowerCase().trim();
 
-      try{ setTempTarget(v.map); }catch(_){}
+      const targetMap = (typeof normMapName === 'function')
+        ? normMapName(v.map)
+        : String(v.map || '').toLowerCase().trim();
 
-      if(task.stage === 'toMap'){
-        if(here === targetMap){
-          adiAuctionMoveTo(standX, standY);
-          task.stage = 'toStand';
-          adiAuctionSaveTask(task);
-          adiAuctionInfo('Podchodzę do aukcjonera...', true);
-        }else{
-          let moved = false;
-          try{
-            const via = (typeof followGraphTo === 'function') ? followGraphTo(v.map) : null;
-            if(via){
-              moved = true;
-              if(hero.x === via.x && hero.y === via.y) _g('walk');
-              else adiAuctionMoveTo(via.x, via.y);
-            }
-          }catch(_){}
+      // Delegacja 1:1 do sprawdzonego flow handlarzy ekwipunku.
+      try{
+        const mirrored = {
+          active: true,
+          mode: 'auction-approach',
+          stage: (here === targetMap ? 'toStand' : 'toCity'),
+          map: v.map,
+          npc: v.npc || 'Aukcjoner',
+          stand: { x: Number(v.stand && v.stand.x), y: Number(v.stand && v.stand.y) }
+        };
 
-          if(!moved){
-            try{
-              const gw = self.findBestGw();
-              if(gw){
-                moved = true;
-                if(hero.x === gw.x && hero.y === gw.y) _g('walk');
-                else adiAuctionMoveTo(gw.x, gw.y);
-              }
-            }catch(_){}
-          }
+        const existing = (typeof loadEquipTask === 'function') ? loadEquipTask() : null;
+        const sameExisting = existing
+          && existing.mode === 'auction-approach'
+          && String(existing.map||'') === String(mirrored.map||'')
+          && String(existing.npc||'') === String(mirrored.npc||'')
+          && Number(existing.stand && existing.stand.x) === Number(mirrored.stand.x)
+          && Number(existing.stand && existing.stand.y) === Number(mirrored.stand.y);
+
+        if(!sameExisting){
+          if(typeof saveEquipTask === 'function') saveEquipTask(mirrored);
+          if(typeof startEquipFlow === 'function') startEquipFlow();
         }
-        return;
-      }
+      }catch(_){}
 
-      if(task.stage === 'toStand'){
-        if(typeof hero !== 'undefined' && hero.x === standX && hero.y === standY){
-          task.stage = 'toNpc';
-          adiAuctionSaveTask(task);
-          const npc = adiAuctionFindNpcByName(v.npc || 'Aukcjoner');
-          if(npc) adiAuctionClick(npc);
-        }else{
-          adiAuctionMoveTo(standX, standY);
-        }
-        return;
-      }
+      // Trzymaj routing na mapę docelową.
+      try{ if(typeof setTempTarget === 'function') setTempTarget(v.map); }catch(_){}
 
-      if(task.stage === 'toNpc'){
-        if(document.querySelector('.dialog, #dialog, .npcDialog, #npcDialog, .dsc')){
-          task.stage = 'done';
-          adiAuctionSaveTask(task);
-          adiAuctionInfo('Dotarłem do aukcjonera ' + v.map + '.', true);
-          setTimeout(()=>{
-            try{ setTempTarget(null); }catch(_){}
-            try{ window.__tempRoute = null; window.__tempRouteTarget = null; }catch(_){}
-            try{ window.__graphRoute = null; window.__graphRouteTarget = null; }catch(_){}
-            adiAuctionClearTask();
-            if(__adiAuctionFlowTimer){ clearInterval(__adiAuctionFlowTimer); __adiAuctionFlowTimer = null; }
-          }, 1200);
-        }else{
-          const npc = adiAuctionFindNpcByName(v.npc || 'Aukcjoner');
-          if(npc) adiAuctionClick(npc);
-        }
-        return;
-      }
-
-      if(task.stage === 'done'){
-        adiAuctionClearTask();
-        if(__adiAuctionFlowTimer){ clearInterval(__adiAuctionFlowTimer); __adiAuctionFlowTimer = null; }
+      // Jeśli dialog już jest otwarty, kończymy task aukcji.
+      if(document.querySelector('.dialog, #dialog, .npcDialog, #npcDialog, .dsc')){
+        adiAuctionInfo('Dotarłem do aukcjonera ' + v.map + '.', true);
+        try{ adiAuctionClearTask(); }catch(_){}
+        try{ clearInterval(__adiAuctionFlowTimer); __adiAuctionFlowTimer = null; }catch(_){}
       }
     }, 700);
   }
@@ -6820,7 +6796,7 @@ if (typeof window.window.__adi_equipByNameSequence !== 'function') {
       const vendor = adiAuctionFindNearest();
       adiAuctionSaveTask({ active:true, stage:'toMap', createdAt:now, vendor });
       localStorage.setItem(AUCTION_LAST_TRIGGER_KEY, String(now));
-      adiAuctionInfo('Mało miejsca w torbach (' + bag.free + '/' + bag.total + ' wolnych). Uruchamiam trasę do aukcjonera.', true);
+      adiAuctionInfo('Mało miejsca w torbach (' + bag.free + '/' + bag.total + ' wolnych).', true);
       adiAuctionStartFlow();
     }catch(_){ }
   }
