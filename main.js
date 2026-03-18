@@ -6564,7 +6564,7 @@ if (typeof window.window.__adi_equipByNameSequence !== 'function') {
   const AUCTION_NEAR_FULL_FREE_SLOTS = 3;
 
   const AUCTIONEERS = {
-    torneg: { key:'torneg', map:'Torneg', npc:'Aukcjoner', stand:{x:57,y:52} },
+    torneg: { key:'torneg', map:'Torneg', npc:'Aukcjoner', stand:{x:57,y:53} },
     werbin: { key:'werbin', map:'Werbin', npc:'Aukcjoner', stand:{x:34,y:24} },
     eder: { key:'eder', map:'Eder', npc:'Aukcjoner', stand:{x:32,y:49} },
     karkahan: { key:'karkahan', map:'Karka-han', npc:'Aukcjoner', stand:{x:61,y:26} },
@@ -6679,7 +6679,7 @@ if (typeof window.window.__adi_equipByNameSequence !== 'function') {
   let __adiAuctionWatchTimer = null;
 
   function adiAuctionInfo(msg, ok){
-    try{ if(typeof message === 'function') message('[Aukcja] ' + msg); }catch(_){ }
+    try{ /* celowo bez żółtego spamu na czacie */ }catch(_){ }
     try{
       const out = document.getElementById('adi-auction-bag-space');
       if(out && msg){
@@ -6812,7 +6812,7 @@ if (typeof window.window.__adi_equipByNameSequence !== 'function') {
     try{
       const task = adiAuctionLoadTask();
       if(task && task.active){
-        adiAuctionInfo('Wznawiam drogę do aukcjonera po odświeżeniu...', true);
+
         adiAuctionStartFlow();
       }
     }catch(_){ }
