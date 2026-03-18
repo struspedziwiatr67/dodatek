@@ -6803,3 +6803,44 @@ if (typeof window.window.__adi_equipByNameSequence !== 'function') {
   setTimeout(adiAuctionBootResume, 1200);
   __adiAuctionWatchTimer = setInterval(adiAuctionWatchdog, 2000);
 })();
+
+
+// === FIX BAG SPACE ===
+window.adiAuctionGetBagSpace = function(){
+  try{
+    const ids = ['bs0','bs1','bs2'];
+    let free = 0;
+    let total = 0;
+
+    for (const id of ids) {
+      const el = document.getElementById(id) || document.querySelector('#' + id);
+      if (!el) continue;
+
+      const txt = String(el.textContent || el.innerText || '').trim();
+
+      const m = txt.match(/(\d+)\s*\/\s*(\d+)/);
+      if (m) {
+        const used = Number(m[1]);
+        const max = Number(m[2]);
+        free += (max - used);
+        total += max;
+        continue;
+      }
+
+      const n = parseInt(txt, 10);
+      if (!isNaN(n)) {
+        free += n;
+        total += 30;
+      }
+    }
+
+    return {
+      free,
+      total,
+      used: total - free
+    };
+  } catch(e){
+    console.warn('bag error', e);
+    return null;
+  }
+};
