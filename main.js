@@ -2187,7 +2187,41 @@ function setTempTarget(val){
           // twardy priorytet -> pomijamy całą resztę (exp, moby, trasy na expowisko)
           return ret;
         }
+      }catch(_){}
 
+      // ===== PRIORITY: auction task overrides exping =====
+      try{
+        const atRaw = localStorage.getItem('adi-bot_auction_task');
+        const at = atRaw ? JSON.parse(atRaw) : null;
+
+        if(at && at.active){
+          try{ const v = (at && at.vendor) ? at.vendor : null; if(v && v.map) setTempTarget(v.map); }catch(_){ }
+
+          $m_id = undefined;
+           clearTargetLock();blokada = false;
+          blokada2 = false;
+
+          try{
+            const cur = normMapName(map.name);
+            const v = (at && at.vendor) ? at.vendor : null;
+            const tgt = v ? normMapName(v.map) : '';
+            if(tgt && cur !== tgt){
+              $map_cords = self.findBestGw();
+              if($map_cords && !bolcka){
+                if(hero.x == $map_cords.x && hero.y == $map_cords.y){
+                  _g('walk');
+                }else{
+                  a_goTo($map_cords.x, $map_cords.y);
+                  bolcka = true;
+                  setTimeout(()=>bolcka=false, 2000);
+                }
+              }
+            }
+          }catch(_){ }
+
+          return ret;
+        }
+      }catch(_){}
 
 // ===== PRIORITY: E2 mode (idź na mapę E2 i podejdź na kordy) =====
 try{
@@ -3762,6 +3796,10 @@ const have = (window.getPotionCountByName ? window.getPotionCountByName(selName)
       }
 }catch(_){}
 
+    // Resume auto-auction task if it was active before refresh
+    try{
+      if(window.__adiAuctionBootResume) window.__adiAuctionBootResume();
+    }catch(_){ }
 
     // listenery UI
     // Exp/E2 przełącznik listy
@@ -6013,14 +6051,17 @@ if (typeof window.window.__adi_equipByNameSequence !== 'function') {
           const first = Number(m[1] || 0);
           const second = Number(m[2] || 0);
 
-          // Licznik bsX pokazuje wolne/łączne miejsca.
-          // Przykład: 0/30 = torba pełna, 1/30 = jedno wolne miejsce.
-          free += first;
+          // W praktyce licznik bsX pokazuje zajęte/łączne miejsca.
+          // Przykład: 30/30 = torba pełna, 29/30 = jedno wolne miejsce.
+          // Dlatego wolne liczymy jako total - used.
+          const used = Math.max(0, Math.min(second, first));
+          free += Math.max(0, second - used);
           total += second;
         }else{
           const n = parseInt(t, 10);
           if(!isNaN(n)){
-            free += n;
+            const used = Math.max(0, Math.min(30, n));
+            free += Math.max(0, 30 - used);
             total += 30;
           }
         }
@@ -6518,3 +6559,253 @@ if (typeof window.window.__adi_equipByNameSequence !== 'function') {
   setTimeout(function(){ e2WrapBattleMsg(); e2WrapLootItem(); }, 300);
 })();
 // ===== /E2 COUNTER =====
+
+
+/* =======================================================
+   AUTO-AUKCJONER: gdy mało miejsca w torbach -> idź do najbliższego Aukcjonera
+   ======================================================= */
+(function(){
+  const AUCTION_TASK_KEY = 'adi-bot_auction_task';
+  const AUCTION_LAST_TRIGGER_KEY = 'adi-bot_auction_last_trigger';
+  const AUCTION_NEAR_FULL_FREE_SLOTS = 3;
+
+  const AUCTIONEERS = {
+    torneg: { key:'torneg', map:'Torneg', npc:'Aukcjoner', stand:{x:57,y:52} },
+    werbin: { key:'werbin', map:'Werbin', npc:'Aukcjoner', stand:{x:34,y:24} },
+    eder: { key:'eder', map:'Eder', npc:'Aukcjoner', stand:{x:32,y:49} },
+    karkahan: { key:'karkahan', map:'Karka-han', npc:'Aukcjoner', stand:{x:61,y:26} },
+    thuzal: { key:'thuzal', map:'Thuzal', npc:'Aukcjoner', stand:{x:58,y:50} },
+    mythar: { key:'mythar', map:'Mythar', npc:'Aukcjoner', stand:{x:63,y:37} },
+    nithal: { key:'nithal', map:'Nithal', npc:'Aukcjoner', stand:{x:21,y:43} },
+    tuzmer: { key:'tuzmer', map:'Tuzmer', npc:'Aukcjoner', stand:{x:44,y:33} },
+    domaukcyjny: { key:'domaukcyjny', map:'Dom Aukcyjny', npc:'Aukcjoner', stand:{x:20,y:6} }
+  };
+
+  function adiAuctionLoadCfg(){
+    try{
+      const raw = localStorage.getItem('adi-bot_auction_cfg_v1');
+      const cfg = raw ? JSON.parse(raw) : {};
+      return {
+        enabled: !!cfg.enabled,
+        heroicPrice: Math.max(0, parseInt(cfg.heroicPrice || 0, 10) || 0),
+        uniquePrice: Math.max(0, parseInt(cfg.uniquePrice || 0, 10) || 0),
+        commonPrice: Math.max(0, parseInt(cfg.commonPrice || 0, 10) || 0)
+      };
+    }catch(_){ return { enabled:false, heroicPrice:0, uniquePrice:0, commonPrice:0 }; }
+  }
+
+  function adiAuctionGetBagSpace(){
+    try{
+      let free = 0;
+      let total = 0;
+      for(const id of ['bs0','bs1','bs2']){
+        const el = document.querySelector(`small#${id}`) || document.getElementById(id);
+        if(!el) continue;
+        const t = String(el.textContent || el.innerText || '').trim();
+        if(!t) continue;
+        const m = t.match(/(\d+)\/(\d+)/);
+        if(m){
+          const used = Math.max(0, Math.min(Number(m[2]||0), Number(m[1]||0)));
+          const cap = Number(m[2]||0);
+          total += cap;
+          free += Math.max(0, cap - used);
+        }
+      }
+      return total > 0 ? { free, total } : null;
+    }catch(_){ return null; }
+  }
+
+  function adiAuctionStepsToMap(targetName){
+    try{
+      if(!window.ADI_MAP_GRAPH_READY || typeof bfsGraph !== 'function' || typeof normMapName !== 'function') return Infinity;
+      const cur = normMapName((window.map && map.name) || '');
+      const tgt = normMapName(targetName || '');
+      if(!cur || !tgt) return Infinity;
+      if(cur === tgt) return 0;
+      const path = bfsGraph(cur, tgt);
+      if(!path || path.length < 2) return Infinity;
+      return path.length - 1;
+    }catch(_){ return Infinity; }
+  }
+
+  function adiAuctionFindNearest(){
+    try{
+      const cur = (typeof normMapName === 'function') ? normMapName((window.map && map.name) || '') : '';
+      let best = null;
+      let bestSteps = Infinity;
+      for(const k in AUCTIONEERS){
+        const v = AUCTIONEERS[k];
+        if(cur && typeof normMapName === 'function' && normMapName(v.map) === cur) return v;
+        const s = adiAuctionStepsToMap(v.map);
+        if(s < bestSteps){ bestSteps = s; best = v; }
+      }
+      return best || AUCTIONEERS.torneg;
+    }catch(_){ return AUCTIONEERS.torneg; }
+  }
+
+  function adiAuctionFindNpcByName(name){
+    try{
+      const all = Array.from(document.querySelectorAll('div.npc[ctip="t_npc"]'));
+      const needle = (typeof normMapName === 'function') ? normMapName(name) : String(name||'').toLowerCase();
+      for(const el of all){
+        const tip = String(el.getAttribute('tip') || '').replace(/<[^>]*>/g,'');
+        const hay = (typeof normMapName === 'function') ? normMapName(tip) : tip.toLowerCase();
+        if(hay && hay.includes(needle)) return el;
+      }
+    }catch(_){ }
+    return null;
+  }
+
+  function adiAuctionClick(el){
+    try{ if(!el) return false; el.dispatchEvent(new MouseEvent('mousedown',{bubbles:true})); el.click(); return true; }catch(_){ try{ el.click(); return true; }catch(__){ return false; } }
+  }
+
+  function adiAuctionLoadTask(){
+    try{
+      const raw = localStorage.getItem(AUCTION_TASK_KEY);
+      if(!raw) return null;
+      const o = JSON.parse(raw);
+      return (o && o.active) ? o : null;
+    }catch(_){ return null; }
+  }
+  function adiAuctionSaveTask(o){ try{ localStorage.setItem(AUCTION_TASK_KEY, JSON.stringify(o || {})); }catch(_){ } }
+  function adiAuctionClearTask(){ try{ localStorage.removeItem(AUCTION_TASK_KEY); }catch(_){ try{ localStorage.setItem(AUCTION_TASK_KEY, '{}'); }catch(__){} } }
+
+  let __adiAuctionFlowTimer = null;
+  let __adiAuctionWatchTimer = null;
+
+  function adiAuctionInfo(msg, ok){
+    try{ if(typeof message === 'function') message('[Aukcja] ' + msg); }catch(_){ }
+    try{
+      const out = document.getElementById('adi-auction-bag-space');
+      if(out && msg){
+        const extra = document.getElementById('adi-auction-task-info') || (function(){
+          const d = document.createElement('div');
+          d.id = 'adi-auction-task-info';
+          d.className = 'adi-auction-space';
+          d.style.fontWeight = '400';
+          out.parentNode && out.parentNode.appendChild(d);
+          return d;
+        })();
+        if(extra){ extra.textContent = msg; extra.style.color = ok ? '#2e8b57' : '#b22222'; }
+      }
+    }catch(_){ }
+  }
+
+  function adiAuctionStartFlow(){
+    if(__adiAuctionFlowTimer) clearInterval(__adiAuctionFlowTimer);
+    __adiAuctionFlowTimer = setInterval(()=>{
+      const task = adiAuctionLoadTask();
+      if(!task){ clearInterval(__adiAuctionFlowTimer); __adiAuctionFlowTimer = null; return; }
+      const v = task.vendor || adiAuctionFindNearest();
+      try{ if(v && v.map && typeof setTempTarget === 'function') setTempTarget(v.map); }catch(_){ }
+
+      const here = (typeof normMapName === 'function') ? normMapName((window.map && map.name) || '') : '';
+      const targetMap = (typeof normMapName === 'function') ? normMapName(v.map) : String(v.map||'').toLowerCase();
+      const standX = Number(v.stand && v.stand.x);
+      const standY = Number(v.stand && v.stand.y);
+
+      if(task.stage === 'toMap'){
+        if(here === targetMap){
+          if(typeof a_goTo === 'function') a_goTo(standX, standY);
+          task.stage = 'toStand';
+          adiAuctionSaveTask(task);
+          adiAuctionInfo('Doszedłem na mapę aukcjonera, podchodzę do NPC...', true);
+        }else{
+          try{
+            const via = (typeof followGraphTo === 'function') ? followGraphTo(v.map) : null;
+            if(via){
+              if(window.hero && hero.x === via.x && hero.y === via.y) _g('walk');
+              else if(typeof a_goTo === 'function') a_goTo(via.x, via.y);
+            }
+          }catch(_){ }
+          adiAuctionInfo('Idę do najbliższego aukcjonera: ' + v.map, true);
+        }
+        return;
+      }
+
+      if(task.stage === 'toStand'){
+        if(window.hero && hero.x === standX && hero.y === standY){
+          task.stage = 'toNpc';
+          adiAuctionSaveTask(task);
+        }else{
+          if(typeof a_goTo === 'function') a_goTo(standX, standY);
+        }
+        return;
+      }
+
+      if(task.stage === 'toNpc'){
+        const npc = adiAuctionFindNpcByName(v.npc || 'Aukcjoner');
+        if(npc){
+          adiAuctionClick(npc);
+          task.stage = 'done';
+          adiAuctionSaveTask(task);
+          adiAuctionInfo('Dotarłem do aukcjonera ' + v.map + '.', true);
+          setTimeout(()=>{
+            try{ if(typeof setTempTarget === 'function') setTempTarget(null); }catch(_){ }
+            try{ window.__tempRoute=null; window.__tempRouteTarget=null; }catch(_){ }
+            try{ window.__graphRoute=null; window.__graphRouteTarget=null; }catch(_){ }
+            adiAuctionClearTask();
+            if(__adiAuctionFlowTimer){ clearInterval(__adiAuctionFlowTimer); __adiAuctionFlowTimer = null; }
+          }, 1200);
+        }else{
+          adiAuctionInfo('Szukam NPC Aukcjoner na mapie ' + v.map + '...', false);
+        }
+        return;
+      }
+
+      if(!task.stage){
+        task.stage = 'toMap';
+        adiAuctionSaveTask(task);
+      }
+    }, 700);
+  }
+
+  function adiAuctionMaybeStart(){
+    try{
+      const cfg = adiAuctionLoadCfg();
+      if(!cfg.enabled) return;
+      if(localStorage.getItem('adi-bot_enabled') !== '1') return;
+      if(adiAuctionLoadTask()) return;
+      if(localStorage.getItem('adi-bot_buy_task')){
+        try{ const bt = JSON.parse(localStorage.getItem('adi-bot_buy_task')||'{}'); if(bt && bt.active) return; }catch(_){ }
+      }
+      if(localStorage.getItem('adi-bot_equip_task')){
+        try{ const et = JSON.parse(localStorage.getItem('adi-bot_equip_task')||'{}'); if(et && et.kind === 'equip') return; }catch(_){ }
+      }
+      const bag = adiAuctionGetBagSpace();
+      if(!bag || !Number.isFinite(bag.free)) return;
+      if(bag.free > AUCTION_NEAR_FULL_FREE_SLOTS) return;
+
+      const now = Date.now();
+      const last = parseInt(localStorage.getItem(AUCTION_LAST_TRIGGER_KEY) || '0', 10) || 0;
+      if(now - last < 15000) return;
+
+      const vendor = adiAuctionFindNearest();
+      adiAuctionSaveTask({ active:true, stage:'toMap', createdAt:now, vendor });
+      localStorage.setItem(AUCTION_LAST_TRIGGER_KEY, String(now));
+      adiAuctionInfo('Mało miejsca w torbach (' + bag.free + '/' + bag.total + ' wolnych). Idę do aukcjonera: ' + vendor.map, true);
+      adiAuctionStartFlow();
+    }catch(_){ }
+  }
+
+  function adiAuctionBootResume(){
+    try{
+      const task = adiAuctionLoadTask();
+      if(task && task.active){
+        adiAuctionInfo('Wznawiam drogę do aukcjonera po odświeżeniu...', true);
+        adiAuctionStartFlow();
+      }
+    }catch(_){ }
+  }
+
+  function adiAuctionWatchdog(){
+    try{ adiAuctionMaybeStart(); }catch(_){ }
+  }
+
+  window.__adiAuctionBootResume = adiAuctionBootResume;
+  window.__adiAuctionMaybeStart = adiAuctionMaybeStart;
+
+  setTimeout(adiAuctionBootResume, 1200);
+  __adiAuctionWatchTimer = setInterval(adiAuctionWatchdog, 2000);
+})();
