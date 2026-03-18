@@ -2384,7 +2384,6 @@ window.__adiE2HoldSpot = (!__e2Present && !__manualOverride && hero.x === tx && 
     }
   }
 }catch(_){}
-      }catch(_){}
 
       // ===== Tryb E2 (na kordach): bij TYLKO wybraną Elitę II =====
       // Jeśli stoimy na docelowych kordach E2:
