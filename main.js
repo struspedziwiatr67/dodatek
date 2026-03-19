@@ -4409,6 +4409,49 @@ try{
     }
     function eqShopOpen(){ return document.querySelector('.item[id^="item"], .shop, #shop, #npcshop'); }
     function eqClick(el){ try{ el.dispatchEvent(new MouseEvent('mousedown',{bubbles:true})); }catch(_ ){} try{ el.click(); }catch(_ ){} try{ el.dispatchEvent(new MouseEvent('mouseup',{bubbles:true})); }catch(_ ){} }
+    function eqFindAuctionFirstDialogOption(){
+      try{
+        const selectors = [
+          '#dialog .replies li.LINE_OPTION',
+          '#dialog .replies li',
+          '#dialog .replyes li',
+          '#dialog .replyes .icon.LINE_OPTION',
+          '#dialog li[onclick*="talk&id="][onclick*="&c="]',
+          '.dialog .replies li.LINE_OPTION',
+          '.dialog .replies li',
+          '.dialog li[onclick*="talk&id="][onclick*="&c="]',
+          '#dialog .icon.LINE_OPTION',
+          '.icon.LINE_OPTION'
+        ];
+        for(const sel of selectors){
+          const list = Array.from(document.querySelectorAll(sel)).filter(el => {
+            try{
+              const txt = String(el.textContent || '').trim();
+              const oc = String(el.getAttribute('onclick') || '');
+              const st = getComputedStyle(el);
+              return st.display !== 'none' && st.visibility !== 'hidden' && (txt || oc);
+            }catch(_){ return false; }
+          });
+          if(list.length) return list[0];
+        }
+      }catch(_ ){}
+      return null;
+    }
+    function eqClickAuctionFirstDialog(){
+      try{
+        const opt = eqFindAuctionFirstDialogOption();
+        if(!opt) return false;
+        const oc = String(opt.getAttribute('onclick') || '');
+        if(oc && typeof window._g === 'function'){
+          const m = oc.match(/_g\((['"])(.*?)\1\)/);
+          if(m && m[2]){
+            try{ window._g(m[2]); return true; }catch(_ ){}
+          }
+        }
+        eqClick(opt);
+        return true;
+      }catch(_ ){ return false; }
+    }
 
     function startEquipFlow(){
       let timer = window.__adiEquipTimer;
@@ -4451,17 +4494,42 @@ try{
         if(task.stage==='dialog'){
           if(document.querySelector('.dialog, #dialog, .npcDialog, #npcDialog, .dsc')){
             if(task.kind==='auction'){
-              eqSetInfo('Dotarłem do Aukcjonera i stoję na (' + task.stand.x + ',' + task.stand.y + ').', true);
-              clearEquipTask();
-              setTempTarget(null);
-              clearInterval(window.__adiEquipTimer);
-              return;
+              if(!task.dialogOpenedAt){
+                task.dialogOpenedAt = Date.now();
+                saveEquipTask(task);
+                eqSetInfo('Dialog Aukcjonera otwarty. Czekam 1s przed kliknięciem pierwszej opcji…', true);
+                return;
+              }
+              if(Date.now() - Number(task.dialogOpenedAt || 0) < 1000){
+                eqSetInfo('Dialog Aukcjonera otwarty. Czekam 1s przed kliknięciem pierwszej opcji…', true);
+                return;
+              }
+              if(!task.dialogClicked){
+                const clicked = eqClickAuctionFirstDialog();
+                if(clicked){
+                  task.dialogClicked = true;
+                  task.stage = 'auctionMenu';
+                  saveEquipTask(task);
+                  eqSetInfo('Kliknąłem pierwszy dialog u Aukcjonera.', true);
+                }else{
+                  eqSetInfo('Nie widzę jeszcze pierwszej opcji dialogowej u Aukcjonera…', false);
+                }
+                return;
+              }
             }
             if(typeof apOpenDialogShop==='function') apOpenDialogShop();
             task.stage='shop'; saveEquipTask(task);
           } else {
             const npc = eqFindNpcByName(task.npc); if(npc) eqClick(npc);
           }
+          return;
+        }
+
+        if(task.stage==='auctionMenu'){
+          eqSetInfo('Pierwszy dialog Aukcjonera kliknięty.', true);
+          clearEquipTask();
+          setTempTarget(null);
+          clearInterval(window.__adiEquipTimer);
           return;
         }
 
