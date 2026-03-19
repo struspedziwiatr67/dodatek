@@ -4486,12 +4486,12 @@ try{
             try{
               await adiAuctionRunPostingFlow(task);
             }catch(e){
-              try{ console.warn('[adi-auction] posting flow failed', e); }catch(_ ){}
-              try{ eqSetInfo('Aukcja: błąd wystawiania - ' + String((e && e.message) || e || 'nieznany'), true); }catch(_ ){}
+              try{ console.warn('[adi-auction] posting flow failed', e); }catch(_){}
+              try{ eqSetInfo('Aukcja: błąd wystawiania - ' + String((e && e.message) || e || 'nieznany'), true); }catch(_){}
             }finally{
-              try{ clearEquipTask(); }catch(_ ){}
-              try{ setTempTarget(null); }catch(_ ){}
-              try{ clearInterval(window.__adiEquipTimer); }catch(_ ){}
+              try{ clearEquipTask(); }catch(_){}
+              try{ setTempTarget(null); }catch(_){}
+              try{ clearInterval(window.__adiEquipTimer); }catch(_){}
             }
           })();
           return;
@@ -5594,7 +5594,6 @@ if (typeof window.window.__adi_equipByNameSequence !== 'function') {
     try{ localStorage.setItem(ADI_AUCTION_CFG_KEY, JSON.stringify(next || adiAuctionDefaults())); }catch(_){ }
   }
 
-
   const ADI_AUCTION_GUI_DELAY_MS = 1000;
 
   function adiAuctionVisible(el){
@@ -5615,6 +5614,8 @@ if (typeof window.window.__adi_equipByNameSequence !== 'function') {
     if(!el) return false;
     await adiAuctionDelay(delayMs);
     try{ el.dispatchEvent(new MouseEvent('mouseover', { bubbles:true, cancelable:true, view:window })); }catch(_){}
+    try{ el.dispatchEvent(new MouseEvent('mouseenter', { bubbles:true, cancelable:true, view:window })); }catch(_){}
+    try{ el.dispatchEvent(new MouseEvent('mousemove', { bubbles:true, cancelable:true, view:window })); }catch(_){}
     try{ el.dispatchEvent(new MouseEvent('mousedown', { bubbles:true, cancelable:true, view:window })); }catch(_){}
     try{ el.dispatchEvent(new MouseEvent('mouseup',   { bubbles:true, cancelable:true, view:window })); }catch(_){}
     try{ el.dispatchEvent(new MouseEvent('click',     { bubbles:true, cancelable:true, view:window })); return true; }catch(_){}
@@ -5655,26 +5656,98 @@ if (typeof window.window.__adi_equipByNameSequence !== 'function') {
     return false;
   }
 
-  function adiAuctionFindInventoryItemElById(id){
+  function adiAuctionRarityMatchesText(txt, rarity){
+    const s = String(txt || '').toLowerCase();
+    if(rarity === 'heroic') return s.includes('heroic') || s.includes('heroicz');
+    if(rarity === 'unique') return s.includes('unique') || s.includes('unikat');
+    if(rarity === 'common') return s.includes('common') || s.includes('pospol');
+    if(rarity === 'legendary') return s.includes('legendary') || s.includes('legend');
+    return false;
+  }
+
+  function adiAuctionFindInventoryItemElById(id, row){
     try{
       const sid = String(id == null ? '' : id).trim();
-      if(!sid) return null;
-      const sels = [
-        `.item[data-item-id="item${sid}"]`,
-        `[data-item-id="item${sid}"]`,
-        `#item${sid}`,
-        `.item[id="item${sid}"]`
-      ];
-      for(const sel of sels){
-        const list = Array.from(document.querySelectorAll(sel));
-        for(const el of list){
-          if(!el) continue;
-          if(el.closest('#npcshop, .shop, #shop')) continue;
-          return el;
+      const bag = document.querySelector('#bagc');
+      if(bag){
+        const candidates = Array.from(bag.querySelectorAll('.item, .item-draggable, [class*="item"]'));
+        const byExact = candidates.find(el => {
+          const all = String(el.outerHTML || '') + ' ' + String(el.getAttribute('data-item-id') || '') + ' ' + String(el.id || '') + ' ' + String(el.getAttribute('tip') || '');
+          return sid && (all.includes('item' + sid) || all.includes('id="item' + sid + '"') || all.includes('data-item-id="item' + sid + '"'));
+        });
+        if(byExact) return byExact;
+        if(row){
+          const wantedName = String(row.name || '').trim().toLowerCase();
+          const wantedRarity = String(row.rarity || '').trim().toLowerCase();
+          const byNameAndRarity = candidates.find(el => {
+            const txt = (String(el.outerHTML || '') + ' ' + String(el.getAttribute('tip') || '') + ' ' + String(el.getAttribute('class') || '')).toLowerCase();
+            const nameOk = wantedName ? txt.includes(wantedName) : true;
+            const rarityOk = wantedRarity ? adiAuctionRarityMatchesText(txt, wantedRarity) : true;
+            return nameOk && rarityOk;
+          });
+          if(byNameAndRarity) return byNameAndRarity;
+        }
+      }
+      if(sid){
+        const sels = [
+          `.item[data-item-id="item${sid}"]`,
+          `[data-item-id="item${sid}"]`,
+          `#item${sid}`,
+          `.item[id="item${sid}"]`
+        ];
+        for(const sel of sels){
+          const list = Array.from(document.querySelectorAll(sel));
+          for(const el of list){
+            if(!el) continue;
+            if(el.closest('#npcshop, .shop, #shop')) continue;
+            return el;
+          }
         }
       }
     }catch(_){}
     return null;
+  }
+
+  function adiAuctionFindBagItemByScan(row){
+    try{
+      const bag = document.querySelector('#bagc');
+      if(!bag || !row) return null;
+      const candidates = Array.from(bag.querySelectorAll('.item, .item-draggable, [class*="item"]'));
+      const wantedName = String(row.name || '').trim().toLowerCase();
+      const wantedRarity = String(row.rarity || '').trim().toLowerCase();
+      for(const el of candidates){
+        const txt = (String(el.outerHTML || '') + ' ' + String(el.getAttribute('tip') || '') + ' ' + String(el.getAttribute('class') || '') + ' ' + String(el.id || '')).toLowerCase();
+        const nameOk = wantedName ? txt.includes(wantedName) : true;
+        const rarityOk = wantedRarity ? adiAuctionRarityMatchesText(txt, wantedRarity) : true;
+        if(nameOk && rarityOk) return el;
+      }
+      for(const el of candidates){
+        const txt = (String(el.outerHTML || '') + ' ' + String(el.getAttribute('tip') || '') + ' ' + String(el.getAttribute('class') || '') + ' ' + String(el.id || '')).toLowerCase();
+        if(wantedRarity && adiAuctionRarityMatchesText(txt, wantedRarity)) return el;
+      }
+    }catch(_){}
+    return null;
+  }
+
+  async function adiAuctionClickInventoryItem(row){
+    let itemEl = adiAuctionFindInventoryItemElById(row && row.id, row);
+    if(!itemEl) itemEl = adiAuctionFindBagItemByScan(row);
+    if(!itemEl) throw new Error('Nie znalazłem itemu w torbie: ' + String(row && row.name || row && row.id || '?'));
+    const targets = [
+      itemEl,
+      itemEl.firstElementChild,
+      itemEl.lastElementChild,
+      itemEl.parentElement
+    ].filter(Boolean);
+    for(const target of targets){
+      try{
+        await adiAuctionGuiClick(target);
+        await adiAuctionDelay(250);
+        const panel = adiAuctionFindPanel();
+        if(panel) return { itemEl, panel };
+      }catch(_){}
+    }
+    return { itemEl, panel: null };
   }
 
   function adiAuctionAllCandidateItems(){
@@ -5782,22 +5855,24 @@ if (typeof window.window.__adi_equipByNameSequence !== 'function') {
   }
 
   async function adiAuctionPostSingleRow(row){
-    const itemEl = adiAuctionFindInventoryItemElById(row && row.id);
-    if(!itemEl) throw new Error('Nie znalazłem itemu w torbie: ' + String(row && row.name || row && row.id || '?'));
-    await adiAuctionGuiClick(itemEl);
-    const panel = await new Promise((resolve, reject)=>{
-      const started = Date.now();
-      (function waitPanel(){
-        const found = adiAuctionFindPanel();
-        if(found) return resolve(found);
-        if(Date.now() - started > 6000) return reject(new Error('Nie otworzył się panel wystawiania dla ' + String(row && row.name || '?')));
-        setTimeout(waitPanel, 120);
-      })();
-    });
+    let clickResult = await adiAuctionClickInventoryItem(row);
+    let panel = clickResult && clickResult.panel;
+    if(!panel){
+      panel = await new Promise((resolve, reject)=>{
+        const started = Date.now();
+        (function waitPanel(){
+          const found = adiAuctionFindPanel();
+          if(found) return resolve(found);
+          if(Date.now() - started > 6000) return reject(new Error('Nie otworzył się panel wystawiania dla ' + String(row && row.name || '?')));
+          setTimeout(waitPanel, 120);
+        })();
+      });
+    }
     const input = adiAuctionFindPriceInput(panel);
     if(!input) throw new Error('Brak input.default dla ' + String(row && row.name || '?'));
     await adiAuctionDelay(ADI_AUCTION_GUI_DELAY_MS);
     adiAuctionSetInputValue(input, row.price);
+    await adiAuctionDelay(ADI_AUCTION_GUI_DELAY_MS);
     const submit = adiAuctionFindSubmitEl(panel);
     if(!submit) throw new Error('Brak przycisku Wystaw dla ' + String(row && row.name || '?'));
     await adiAuctionGuiClick(submit);
@@ -5833,7 +5908,6 @@ if (typeof window.window.__adi_equipByNameSequence !== 'function') {
       window.__adiAuctionPostingBusy = false;
     }
   }
-
 
   function adiLootMessage(txt){
     try{ if(typeof message === 'function') message(txt); }catch(_){ }
