@@ -6709,3 +6709,90 @@ if (typeof window.window.__adi_equipByNameSequence !== 'function') {
   setTimeout(function(){ e2WrapBattleMsg(); e2WrapLootItem(); }, 300);
 })();
 // ===== /E2 COUNTER =====
+
+
+// ===== AUCTION MODULE (AUTO SELL) =====
+(function(){
+
+function sleep(ms){ return new Promise(r=>setTimeout(r,ms)); }
+
+function clickEl(el){
+  try{ el.click(); return true;}catch{ return false;}
+}
+
+function getTxt(el){
+  return [
+    el.getAttribute("tip"),
+    el.getAttribute("data-tip"),
+    el.getAttribute("title"),
+    el.textContent
+  ].join(" ").toLowerCase();
+}
+
+function isValid(txt){
+  return !(
+    txt.includes("konsumpcyjne") ||
+    txt.includes("błogosławień") ||
+    txt.includes("teleport")
+  );
+}
+
+function findItem(){
+  const bag=document.querySelector("#bagc");
+  if(!bag) return null;
+  const items=[...bag.querySelectorAll("*")];
+
+  function f(k){
+    return items.find(el=>{
+      const t=getTxt(el);
+      return t.includes(k) && isValid(t);
+    });
+  }
+
+  return f("heroicz") || f("unikat") || f("pospolity");
+}
+
+async function auctionLoop(){
+  while(true){
+    const item=findItem();
+    if(!item){
+      console.log("[BOT] brak itemów");
+      break;
+    }
+
+    clickEl(item);
+    await sleep(300);
+
+    const input=document.querySelector("input.default");
+    if(!input){ console.warn("brak input"); break; }
+
+    input.dispatchEvent(new Event('input',{bubbles:true}));
+
+    await sleep(200);
+
+    const btn=[...document.querySelectorAll("span.gfont")]
+      .find(el=>el.textContent.trim().toLowerCase()==="wystaw");
+
+    if(!btn){ console.warn("brak przycisku"); break; }
+
+    clickEl(btn);
+    await sleep(800);
+  }
+}
+
+async function handleAuctionNPC(npcId){
+  _g(`talk&id=${npcId}`);
+  await sleep(1000);
+
+  const first=document.querySelector("li[onclick*='talk&id']");
+  if(first) first.click();
+
+  await sleep(500);
+
+  auctionLoop();
+}
+
+// expose
+window.__adiAuctionStart = handleAuctionNPC;
+
+})();
