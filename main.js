@@ -2107,21 +2107,19 @@ function setTempTarget(val){
         const eqRaw = localStorage.getItem('adi-bot_equip_task');
         const eqTask = eqRaw ? JSON.parse(eqRaw) : null;
 
-        if(eqTask && eqTask.map && (eqTask.kind === 'equip' || eqTask.kind === 'auction')){
-          // STALE GUARD tylko dla zakupów ekwipunku: jeśli task dotyczy niższego lvla niż aktualny (np. po śmierci/reload) -> czyść
-          if(eqTask.kind === 'equip'){
-            const curLvl = Number(hero?.lvl) || 0;
-            const taskLvl = Number(eqTask?.level) || 0;
-            if(taskLvl > 0 && curLvl > 0 && taskLvl < curLvl){
-              console.warn('[adi-bot] Stary equip_task wykryty -> czyszczę', {taskLvl, curLvl, eqTask});
-              try{ localStorage.removeItem('adi-bot_equip_task'); }catch(_){ }
-              try{ localStorage.setItem('adi-bot_equip_task_queue', JSON.stringify([])); }catch(_){ }
-              try{ setTempTarget(null); }catch(_){ }
-              return ret;
-            }
+        if(eqTask && eqTask.kind === 'equip' && eqTask.map){
+          // STALE GUARD: jeśli task dotyczy niższego lvla niż aktualny (np. po śmierci/reload) -> czyść
+          const curLvl = Number(hero?.lvl) || 0;
+          const taskLvl = Number(eqTask?.level) || 0;
+          if(taskLvl > 0 && curLvl > 0 && taskLvl < curLvl){
+            console.warn('[adi-bot] Stary equip_task wykryty -> czyszczę', {taskLvl, curLvl, eqTask});
+            try{ localStorage.removeItem('adi-bot_equip_task'); }catch(_){ }
+            try{ localStorage.setItem('adi-bot_equip_task_queue', JSON.stringify([])); }catch(_){ }
+            try{ setTempTarget(null); }catch(_){ }
+            return ret;
           }
 
-          // zawsze utrzymuj temp target na miasto od taska (ekwipunek / aukcja)
+          // zawsze utrzymuj temp target na miasto od ekwipunku
           setTempTarget(eqTask.map);
 
           // nie wybieraj mobów, nie wracaj na expowisko
@@ -2129,7 +2127,7 @@ function setTempTarget(val){
            clearTargetLock();blokada = false;
           blokada2 = false;
 
-          // jeśli jesteśmy poza mapą docelową -> jedziemy tylko po GW (findBestGw ma już logikę ADI_TEMP_TARGET_MAP)
+          // jeśli jesteśmy poza miastem -> jedziemy tylko po GW (findBestGw ma już logikę ADI_TEMP_TARGET_MAP)
           const cur = normMapName(map.name);
           const tgt = normMapName(eqTask.map);
 
@@ -3506,10 +3504,6 @@ box.appendChild(autoHealRow);
       tabTest.id = 'adi-tab-test';
       tabTest.className = 'adi-tab-content';
 
-      const tabAuction = document.createElement('div');
-      tabAuction.id = 'adi-tab-aukcja';
-      tabAuction.className = 'adi-tab-content';
-
       const tabStart = document.createElement('div');
       tabStart.id = 'adi-tab-start';
       tabStart.className = 'adi-tab-content';
@@ -3628,18 +3622,16 @@ try{
 
       const t1 = mkTab('Exp','exp');
       const t2 = mkTab('E2','e2');
-      const tA = mkTab('Aukcja','aukcja');
       const t3 = mkTab('Test','test');
       const t4 = mkTab('Wioska startowa','start');
       t1.classList.add('active');
 
-      tabs.appendChild(t1); tabs.appendChild(t2); tabs.appendChild(tA); tabs.appendChild(t3); tabs.appendChild(t4);
+      tabs.appendChild(t1); tabs.appendChild(t2); tabs.appendChild(t3); tabs.appendChild(t4);
 
       const contentWrap = document.createElement('div');
       contentWrap.className = 'adi-tabwrap';
       contentWrap.appendChild(tabExp);
       contentWrap.appendChild(tabE2);
-      contentWrap.appendChild(tabAuction);
       contentWrap.appendChild(tabTest);
 
       contentWrap.appendChild(tabStart);
@@ -3664,7 +3656,7 @@ try{
       // restore last active tab
       try{
         const saved = (localStorage.getItem('adi-bot_active_tab')||'exp').trim();
-        if(saved==='e2' || saved==='test' || saved==='exp' || saved==='start' || saved==='aukcja') activateTab(saved);
+        if(saved==='e2' || saved==='test' || saved==='exp' || saved==='start') activateTab(saved);
       }catch(_){}
     }catch(e){ console.warn('[adi-bot] tabs init failed', e); }
 
@@ -4289,8 +4281,6 @@ try{
   'lisciaste-rozstaje-handlarka-halidura': { key: 'lisciaste-rozstaje-handlarka-halidura', map: 'Liściaste Rozstaje', npc: 'Handlarka Halidura', pos: { x: 19, y: 53 }, stand: { x: 19, y: 54 } }
 };
 
-const AUTO_AUCTION_VENDOR = { key: 'torneg-aukcjoner', map: 'Torneg', npc: 'Aukcjoner', pos: { x: 57, y: 52 }, stand: { x: 57, y: 53 } };
-
 // === AUTO-GENERATED EQUIP PLAN (from TXT) ===
 const EQUIP_AUTO_PLAN = {"Łowca":[{"lvl":20,"vendor":"Umbar","items":["Kask myśliwego","Pierścień sprawności","Amulet rycerza"]},{"lvl":20,"vendor":"Szagarat Czarny Łowca","items":["Wzmocniony naciąg","Krótkie strzały bukowe"]},{"lvl":25,"vendor":"Szagarat Czarny Łowca","items":["Wyrzutnia ostrych strzał","Krótkie strzały klonowe"]},{"lvl":28,"vendor":"Umbar","items":["Stalowa czapka","Wzmocnione podeszwy","Oko fałszu","Malachitowa zawieszka"]},{"lvl":30,"vendor":"Szagarat Czarny Łowca","items":["Drżąca cięciwa","Krótkie strzały wiązowe"]},{"lvl":36,"vendor":"Anaret","items":["Bitewny diabeł","Goblinie cichobiegi","Czaszka gniewu","Szczęście podróżnika"]},{"lvl":36,"vendor":"Mroczny Zgrzyt","items":["Samoobrona łowcy","Ostre strzały zbója"]},{"lvl":41,"vendor":"Mroczny Zgrzyt","items":["Zdobiony łuk odkrywcy","Ostre strzały bandziora","Krucze odzienie"]},{"lvl":41,"vendor":"Anaret","items":["Skórzany hełm leszego"]},{"lvl":46,"vendor":"Mroczny Zgrzyt","items":["Naciąg szaleństwa","Ostre strzały rzezimieszka"]},{"lvl":46,"vendor":"Anaret","items":["Czarna zguba bojownika","Szkiełko w srebrnej oprawie"]},{"lvl":48,"vendor":"Mroczny Zgrzyt","items":["Leśny kaftan trapera"]},{"lvl":50,"vendor":"Huslin","items":["Broń doświadczonego łowcy","Kompletny kołczan łowcy"]},{"lvl":55,"vendor":"Sprzedawca Roan","items":["Osłona młodej harpii","Szelest nieuważnego kobolda","Odznaka młodego asasyna","Zielony wabiciel żądłaków"]},{"lvl":55,"vendor":"Huslin","items":["Skórzana kurta łowcy"]},{"lvl":60,"vendor":"Huslin","items":["Przekleństwo leśnej zwierzyny","Doskonały kołczan łowcy"]},{"lvl":65,"vendor":"Sprzedawca Roan","items":["Czapka łowcy tygrysów","Szczecina gnolla","Symbol spopielenia","Medalion fotosyntezy"]},{"lvl":65,"vendor":"Huslin","items":["Karmazynowy lekki pancerz"]},{"lvl":70,"vendor":"Huslin","items":["Szybkostrzelik myśliwego","Mistrzowski kołczan łowcy"]},{"lvl":75,"vendor":"Huslin","items":["Warstwa czarnej szczeciny"]},{"lvl":75,"vendor":"Sprzedawca Roan","items":["Srebrna kopuła śmiałka","Pozłacana duma rycerza","Zemsta banity","Koralowa narośl","Wonne pąki kniei"]},{"lvl":80,"vendor":"Tropicielka Olekusa","items":["Naciąg łowcy węży","Ostre strzały na ropuchy"]},{"lvl":85,"vendor":"Handlarka Halidura","items":["Prosta wężowa łebka","Ochrona przed igliwiem","Zamszowy chwyt gadziny","Bagienna narośl","Naszyjnik ofiary bagien"]},{"lvl":85,"vendor":"Tropicielka Olekusa","items":["Ukrycie czarnej kobry"]},{"lvl":90,"vendor":"Tropicielka Olekusa","items":["Cięciwa orlich piór","Ostre strzały na węże"]},{"lvl":95,"vendor":"Handlarka Halidura","items":["Świerkowy kask","Mytharskie cholewy","Ochrona z wężowej skóry","Koralowy język żaby","Ozdoba wężowego kochanka"]},{"lvl":95,"vendor":"Tropicielka Olekusa","items":["Kurta doświadczonego łowcy"]},{"lvl":100,"vendor":"Tropicielka Olekusa","items":["Pleciona wyrzutnia konarów","Ostre strzały na aligatory"]}],"Mag":[{"lvl":20,"vendor":"Umbar","items":["Hełm maga bojowego","Koralowy sygnet","Magiczna błyskotka"]},{"lvl":20,"vendor":"Wieszczka Sara","items":["Ognisty kryształ","Piekielna sfera"]},{"lvl":25,"vendor":"Wieszczka Sara","items":["Parząca chłosta","Parzący orb maga"]},{"lvl":28,"vendor":"Umbar","items":["Stalowa czapka","Magiczne trzewiki","Ziarno prawdy","Medalion z turkusem"]},{"lvl":30,"vendor":"Wieszczka Sara","items":["Piekielnik","Zaklęty ogień"]},{"lvl":36,"vendor":"Anaret","items":["Wzmocniona ochrona maga","Obuwie z magiczną powłoką","Czaszka chciwości","Los tułacza"]},{"lvl":36,"vendor":"Czarnoksiężnik Interbad","items":["Ścieżka wiecznego ognia","Szklana sfera płomieni"]},{"lvl":41,"vendor":"Czarnoksiężnik Interbad","items":["Czarcia pochodnia","Żar w kościanej oprawie","Płaszcz wróżbity amatora"]},{"lvl":41,"vendor":"Anaret","items":["Wizja trzeciego oka"]},{"lvl":46,"vendor":"Czarnoksiężnik Interbad","items":["Igneum Daemonium","Złoty cielec"]},{"lvl":46,"vendor":"Anaret","items":["Pierścień żądzy krwi","Gwiazda nadziei"]},{"lvl":48,"vendor":"Czarnoksiężnik Interbad","items":["Cyklamenowa peleryna"]},{"lvl":50,"vendor":"Adept Ceranir","items":["Iskra piromana","Żar z niebios"]},{"lvl":55,"vendor":"Sprzedawca Roan","items":["Hełm łowcy koboldów","Obuwie pokryte pajęczyną","Pierścień ulotnej myśli","Miododajny naszyjnik maga"]},{"lvl":55,"vendor":"Adept Ceranir","items":["Strój szlachetnego czarodzieja"]},{"lvl":60,"vendor":"Adept Ceranir","items":["Kryształy erupcji","Piekielny podarunek"]},{"lvl":65,"vendor":"Sprzedawca Roan","items":["Magiczne wsparcie demiliszy","Szczecina gnolla","Kryształowe iskry","Chabrowa zawieszka"]},{"lvl":65,"vendor":"Adept Ceranir","items":["Surdut sztukmistrza"]},{"lvl":70,"vendor":"Adept Ceranir","items":["Przewodnik magmowych świątyń","Serce wygasłego wulkanu"]},{"lvl":75,"vendor":"Adept Ceranir","items":["Splot magicznych nici"]},{"lvl":75,"vendor":"Sprzedawca Roan","items":["Srebrna kopuła śmiałka","Cholewy czarnoksiężnika","Splot ametystowych nici","Sygnet wyniosłości","Odurzająca woń hortensji"]},{"lvl":80,"vendor":"Mag Waken","items":["Płomień cierpiącej duszy","Wygotowany kryształ"]},{"lvl":85,"vendor":"Handlarka Halidura","items":["Hełm leśnego licha","Fikuśne kamasze maga","Wytwór syczącego rzemieślnika","Iglasty kryształ","Amulet przemiany w gada"]},{"lvl":85,"vendor":"Mag Waken","items":["Peleryna z metalową wstawką"]},{"lvl":90,"vendor":"Mag Waken","items":["Miotacz szeptanych zaklęć","Parzący knebel"]},{"lvl":95,"vendor":"Handlarka Halidura","items":["Podarunek Introprodara","Mytharskie cholewy","Wytwór syczącego rzemieślnika","Jaspisowy język węża","Smoczy wisior"]},{"lvl":95,"vendor":"Mag Waken","items":["Szata doświadczonego maga"]},{"lvl":100,"vendor":"Mag Waken","items":["Skarb ifryta","Serce nienawiści"]}],"Paladyn":[{"lvl":20,"vendor":"Umbar","items":["Rogi odkrywcy","Ozdoba wojaka","Magiczna błyskotka"]},{"lvl":20,"vendor":"Kowal Alrik","items":["Rozgrzana stal paladyna","Prosta tarcza paladyna"]},{"lvl":25,"vendor":"Kowal Alrik","items":["Ognista fala","Zbrukana osłona"]},{"lvl":28,"vendor":"Umbar","items":["Stalowa czapka","Magiczne trzewiki","Ziarno prawdy","Kwiecie ametystu"]},{"lvl":30,"vendor":"Kowal Alrik","items":["Magmowe ostrze","Ochrona demonów"]},{"lvl":36,"vendor":"Anaret","items":["Wzmocniona ochrona maga","Kamasze odważnego rycerza","Czaszka chciwości","Los tułacza"]},{"lvl":36,"vendor":"Szmugler Beniamin","items":["Ostrze topiące skały","Wsparcie złego ducha"]},{"lvl":41,"vendor":"Szmugler Beniamin","items":["Pałasz długiej agonii","Ochrona trzeciego kręgu","Gruby pikowany bezrękawnik"]},{"lvl":41,"vendor":"Anaret","items":["Hełm byczej siły"]},{"lvl":46,"vendor":"Szmugler Beniamin","items":["Skwierczący szpon demona","Zwęglone rogi szakala"]},{"lvl":46,"vendor":"Anaret","items":["Pierścień żądzy krwi","Złote płatki władzy"]},{"lvl":48,"vendor":"Szmugler Beniamin","items":["Pancerz szabrownika"]},{"lvl":50,"vendor":"Kowal Unil","items":["Skwar","Oranżowa osłona paladyna"]},{"lvl":55,"vendor":"Sprzedawca Roan","items":["Hełm łowcy koboldów","Szara piechota","Odwet wojownika","Miododajny naszyjnik maga"]},{"lvl":55,"vendor":"Kowal Unil","items":["Pierś z tajemniczym symbolem"]},{"lvl":60,"vendor":"Kowal Unil","items":["Język żaru i ognia","Tarcza nocy i dni"]},{"lvl":65,"vendor":"Sprzedawca Roan","items":["Kask pogromcy gnolli","Szczecina gnolla","Kryształowe iskry","Chabrowa zawieszka"]},{"lvl":65,"vendor":"Kowal Unil","items":["Odzienie znawcy zaklęć"]},{"lvl":70,"vendor":"Kowal Unil","items":["Przestroga żywiołaka","Blokada herosa"]},{"lvl":75,"vendor":"Kowal Unil","items":["Skórzany strój herosa"]},{"lvl":75,"vendor":"Sprzedawca Roan","items":["Srebrna kopuła śmiałka","Cholewy czarnoksiężnika","Splot ametystowych nici","Pycha Wernoradu","Odurzająca woń hortensji"]},{"lvl":80,"vendor":"Szybki Daraker","items":["Płomienny sejmitar","Ochrona gadziego odkrywcy"]},{"lvl":85,"vendor":"Handlarka Halidura","items":["Hełm leśnego licha","Smocze podeszwy","Zamszowy chwyt gadziny","Iglasty kryształ","Gadzia kolia"]},{"lvl":85,"vendor":"Szybki Daraker","items":["Kolczuga smoczej łuski"]},{"lvl":90,"vendor":"Szybki Daraker","items":["Wyszczerbione ostrze pożogi","Tarcza z fiolką antidotum"]},{"lvl":95,"vendor":"Handlarka Halidura","items":["Okazałe rogi centaura","Mytharskie cholewy","Wytwór syczącego rzemieślnika","Rubinowy język kameleona","Smoczy wisior"]},{"lvl":95,"vendor":"Szybki Daraker","items":["Puszka doświadczonego paladyna"]},{"lvl":100,"vendor":"Szybki Daraker","items":["Stal rozgrzana smoczym oddechem","Ochrona smoczych pazurów"]}],"Tancerz ostrzy":[{"lvl":20,"vendor":"Umbar","items":["Kask myśliwego","Pierścień sprawności","Amulet rycerza"]},{"lvl":20,"vendor":"Kowal Alrik","items":["Lekkie ostrze tancerza","Sztylet młodego rzezimieszka"]},{"lvl":25,"vendor":"Kowal Alrik","items":["Pogromca szkieletów","Złota rysa"]},{"lvl":28,"vendor":"Umbar","items":["Stalowa czapka","Wzmocnione podeszwy","Oko fałszu","Malachitowa zawieszka"]},{"lvl":30,"vendor":"Kowal Alrik","items":["Czarnoostrze","Kordzik skrytobójcy"]},{"lvl":36,"vendor":"Anaret","items":["Bitewny diabeł","Goblinie cichobiegi","Czaszka pychy","Szczęście podróżnika"]},{"lvl":36,"vendor":"Szmugler Beniamin","items":["Mroczny kordelas","Podręczne ostrze strażnika"]},{"lvl":41,"vendor":"Szmugler Beniamin","items":["Miecz sprawiedliwości","Zniszczona pamiątka","Skórzana kamizela tancerza"]},{"lvl":41,"vendor":"Anaret","items":["Skórzany hełm leszego"]},{"lvl":46,"vendor":"Szmugler Beniamin","items":["Przeklęta broń gwardzisty","Sztylet wspinaczkowy"]},{"lvl":46,"vendor":"Anaret","items":["Czarna zguba bojownika","Szkiełko w srebrnej oprawie"]},{"lvl":48,"vendor":"Szmugler Beniamin","items":["Kolczuga skrytobójcy amatora"]},{"lvl":50,"vendor":"Kowal Unil","items":["Pałasz honoru i chwały","Sztylet okrętowy"]},{"lvl":55,"vendor":"Sprzedawca Roan","items":["Osłona młodej harpii","Szelest nieuważnego kobolda","Odznaka młodego asasyna","Zielony wabiciel żądłaków"]},{"lvl":55,"vendor":"Kowal Unil","items":["Strój ze znakiem śmierci"]},{"lvl":60,"vendor":"Kowal Unil","items":["Ekwipunek szlachcica","Duma rzeźnika"]},{"lvl":65,"vendor":"Sprzedawca Roan","items":["Czapka łowcy tygrysów","Szczecina gnolla","Symbol spopielenia","Kwiecisty popis jubilera"]},{"lvl":65,"vendor":"Kowal Unil","items":["Klata pulsujących świateł"]},{"lvl":70,"vendor":"Kowal Unil","items":["Szeroki metal strażnika","Stalowy płatek"]},{"lvl":75,"vendor":"Kowal Unil","items":["Pancerz zwycięzcy turnieju"]},{"lvl":75,"vendor":"Sprzedawca Roan","items":["Srebrna kopuła śmiałka","Pozłacana duma rycerza","Zakurzone wojenne rękawice","Koralowa narośl","Wonne pąki kniei"]},{"lvl":80,"vendor":"Szybki Daraker","items":["Podręczna mytharska maczeta","Ostrze grzechotnika"]},{"lvl":85,"vendor":"Handlarka Halidura","items":["Prosta wężowa łebka","Ochrona przed igliwiem","Zamszowy chwyt gadziny","Bagienna narośl","Naszyjnik ofiary bagien"]},{"lvl":85,"vendor":"Szybki Daraker","items":["Blaszane oko bogów"]},{"lvl":90,"vendor":"Szybki Daraker","items":["Piła tnąca konary","Żelazna strzałka"]},{"lvl":95,"vendor":"Handlarka Halidura","items":["Świerkowy kask","Mytharskie cholewy","Ochrona z wężowej skóry","Koralowy język żaby","Ozdoba wężowego kochanka"]},{"lvl":95,"vendor":"Szybki Daraker","items":["Zbroja doświadczonego tancerza"]},{"lvl":100,"vendor":"Szybki Daraker","items":["Wężowy urwiłeb","Haratanie wężowego ogona"]}],"Tropiciel":[{"lvl":20,"vendor":"Umbar","items":["Hełm maga bojowego","Pierścień sprawności","Magiczna błyskotka"]},{"lvl":20,"vendor":"Szagarat Czarny Łowca","items":["Płomienna cięciwa","Iskrzące strzały bukowe"]},{"lvl":25,"vendor":"Szagarat Czarny Łowca","items":["Łuk dotkliwych poparzeń","Iskrzące strzały klonowe"]},{"lvl":28,"vendor":"Umbar","items":["Stalowa czapka","Magiczne trzewiki","Ziarno prawdy","Medalion z turkusem"]},{"lvl":30,"vendor":"Szagarat Czarny Łowca","items":["Ogniste skrzydła","Iskrzące strzały wiązowe"]},{"lvl":36,"vendor":"Anaret","items":["Wzmocniona ochrona maga","Obuwie z magiczną powłoką","Czaszka gniewu","Los tułacza"]},{"lvl":36,"vendor":"Mroczny Zgrzyt","items":["Objęcie młodego smoka","Gorące strzały zbója"]},{"lvl":41,"vendor":"Mroczny Zgrzyt","items":["Piekielna tortura","Gorące strzały bandziora","Płaszcz trapera"]},{"lvl":41,"vendor":"Anaret","items":["Wizja trzeciego oka"]},{"lvl":46,"vendor":"Mroczny Zgrzyt","items":["Manotrówczy naciąg tropiciela","Gorące strzały rzezimieszka"]},{"lvl":46,"vendor":"Anaret","items":["Czarna zguba bojownika","Gwiazda nadziei"]},{"lvl":48,"vendor":"Mroczny Zgrzyt","items":["Złota pierś myśliwego"]},{"lvl":50,"vendor":"Huslin","items":["Skwierczący naciąg","Kompletny kołczan tropiciela"]},{"lvl":55,"vendor":"Sprzedawca Roan","items":["Hełm łowcy koboldów","Obuwie pokryte pajęczyną","Pierścień ulotnej myśli","Miododajny naszyjnik maga"]},{"lvl":55,"vendor":"Huslin","items":["Odzienie złotych pyłków"]},{"lvl":60,"vendor":"Huslin","items":["Ogniste szczypce","Doskonały kołczan tropiciela"]},{"lvl":65,"vendor":"Sprzedawca Roan","items":["Magiczne wsparcie demiliszy","Szczecina gnolla","Kryształowe iskry","Medalion fotosyntezy"]},{"lvl":65,"vendor":"Huslin","items":["Płaszcz tropiciela z wyżyn"]},{"lvl":70,"vendor":"Huslin","items":["Soczysty łuk anemonów","Mistrzowski kołczan tropiciela"]},{"lvl":75,"vendor":"Huslin","items":["Opieka leśnej istoty"]},{"lvl":75,"vendor":"Sprzedawca Roan","items":["Srebrna kopuła śmiałka","Cholewy czarnoksiężnika","Zemsta banity","Sygnet wyniosłości","Odurzająca woń hortensji"]},{"lvl":80,"vendor":"Tropicielka Olekusa","items":["Wyrzutnia rozgotowanych żab","Płonące strzały na ropuchy"]},{"lvl":85,"vendor":"Handlarka Halidura","items":["Hełm leśnego licha","Fikuśne kamasze maga","Zamszowy chwyt gadziny","Iglasty kryształ","Amulet przemiany w gada"]},{"lvl":85,"vendor":"Tropicielka Olekusa","items":["Zbożowy kamuflaż węża"]},{"lvl":90,"vendor":"Tropicielka Olekusa","items":["Gniewna cięciwa z Mythar","Płonące strzały na węże"]},{"lvl":95,"vendor":"Handlarka Halidura","items":["Podarunek Introprodara","Mytharskie cholewy","Wytwór syczącego rzemieślnika","Jaspisowy język węża","Smoczy wisior"]},{"lvl":95,"vendor":"Tropicielka Olekusa","items":["Odzienie doświadczonego tropiciela"]},{"lvl":100,"vendor":"Tropicielka Olekusa","items":["Zew Introprodara","Płonące strzały na aligatory"]}],"Wojownik":[{"lvl":20,"vendor":"Umbar","items":["Rogi odkrywcy","Ozdoba wojaka","Amulet rycerza"]},{"lvl":20,"vendor":"Kowal Alrik","items":["Uniwersalne ostrze","Tarcza początkującego"]},{"lvl":25,"vendor":"Kowal Alrik","items":["Kątownik","Lepsza ochrona wojaka"]},{"lvl":28,"vendor":"Umbar","items":["Stalowa czapka","Wzmocnione podeszwy","Oko fałszu","Kwiecie ametystu"]},{"lvl":30,"vendor":"Kowal Alrik","items":["Smukły miecz rycerza","Rogi bawoła"]},{"lvl":36,"vendor":"Anaret","items":["Bitewny diabeł","Kamasze odważnego rycerza","Czaszka pychy","Szczęście podróżnika"]},{"lvl":36,"vendor":"Szmugler Beniamin","items":["Falchion podróżnika","Tarcza obita skórą"]},{"lvl":41,"vendor":"Szmugler Beniamin","items":["Kliga ostrych zębów","Zakrwawiona tafla","Bojowy serdak"]},{"lvl":41,"vendor":"Anaret","items":["Hełm byczej siły"]},{"lvl":46,"vendor":"Szmugler Beniamin","items":["Ostrze dekapitacji","Zderzak"]},{"lvl":46,"vendor":"Anaret","items":["Czarna zguba bojownika","Szkiełko w srebrnej oprawie"]},{"lvl":48,"vendor":"Szmugler Beniamin","items":["Odzienie ze skóry dzika"]},{"lvl":50,"vendor":"Kowal Unil","items":["Eleganckie ostrze wojownika","Kolczasta osłona"]},{"lvl":55,"vendor":"Sprzedawca Roan","items":["Osłona młodej harpii","Szara piechota","Odwet wojownika","Zielony wabiciel żądłaków"]},{"lvl":55,"vendor":"Kowal Unil","items":["Wytwór miejscowej szwaczki"]},{"lvl":60,"vendor":"Kowal Unil","items":["Stalowy zawijas","Tarcza dawnej chwały"]},{"lvl":65,"vendor":"Sprzedawca Roan","items":["Kask pogromcy gnolli","Szczecina gnolla","Symbol spopielenia","Kwiecisty popis jubilera"]},{"lvl":65,"vendor":"Kowal Unil","items":["Wzmocniona ochrona żeber"]},{"lvl":70,"vendor":"Kowal Unil","items":["Wzmocniona ochrona żeber","Patronat demona"]},{"lvl":75,"vendor":"Kowal Unil","items":["Wytworna kamizela wojownika"]},{"lvl":75,"vendor":"Sprzedawca Roan","items":["Srebrna kopuła śmiałka","Pozłacana duma rycerza","Zakurzone wojenne rękawice","Pycha Wernoradu","Wonne pąki kniei"]},{"lvl":80,"vendor":"Szybki Daraker","items":["Falchion żabiej czaszki","Iglasta osłona"]},{"lvl":85,"vendor":"Handlarka Halidura","items":["Prosta wężowa łebka","Smocze podeszwy","Zamszowy chwyt gadziny","Bagienna narośl","Gadzia kolia"]},{"lvl":85,"vendor":"Szybki Daraker","items":["Filcowa opieka gadów"]},{"lvl":90,"vendor":"Szybki Daraker","items":["Czarna strzała wojownika","Tarcza połowicznej przemiany"]},{"lvl":95,"vendor":"Handlarka Halidura","items":["Okazałe rogi centaura","Mytharskie cholewy","Ochrona z wężowej skóry","Rubinowy język kameleona","Ozdoba wężowego kochanka"]},{"lvl":95,"vendor":"Szybki Daraker","items":["Puszka doświadczonego paladyna"]},{"lvl":100,"vendor":"Szybki Daraker","items":["Cięcie biesa","Trofeum centaura"]}]};
 
@@ -4420,7 +4410,7 @@ try{
           if(norm(map?.name||'')===norm(task.map)){ task.stage='toStand'; saveEquipTask(task); }
           else{
           setTempTarget(task.map);
-          eqSetInfo('Wyznaczam trasę do '+task.map+'...' + (task.kind==='auction' ? ' (Aukcjoner)' : ''), true);
+          eqSetInfo('Wyznaczam trasę do '+task.map+'...', true);
           // Move one step of the route here (do not depend on main bot loop)
           try{
             var step = (typeof followGraphTo==='function') ? followGraphTo(task.map) : null;
@@ -4441,7 +4431,7 @@ try{
           if(npc){
             eqClick(npc);
             task.stage='dialog'; saveEquipTask(task);
-            eqSetInfo('Jestem u '+task.npc+' ('+task.map+').' + (task.kind==='auction' ? ' Otwieram dialog aukcyjny…' : ' Otwieram „Pokaż towary”…'), true);
+            eqSetInfo('Jestem u '+task.npc+' ('+task.map+'). Otwieram „Pokaż towary”…', true);
           } else {
             eqSetInfo('Szukam NPC: '+task.npc+'...', false);
           }
@@ -4450,50 +4440,11 @@ try{
         // 4) Klik w „Pokaż towary” / „Sklep”
         if(task.stage==='dialog'){
           if(document.querySelector('.dialog, #dialog, .npcDialog, #npcDialog, .dsc')){
-            if(task.kind==='auction'){
-              if(task.firstDialogClickedAt){
-                task.stage='auctionDialogWait'; saveEquipTask(task);
-                return;
-              }
-              task.firstDialogClickedAt = Date.now();
-              task.stage='auctionDialogWait'; saveEquipTask(task);
-              eqSetInfo('Jestem u '+task.npc+' ('+task.map+'). Klikam 1. dialog aukcyjny…', true);
-              adiAuctionClickFirstDialog().catch(()=>{});
-              return;
-            }
             if(typeof apOpenDialogShop==='function') apOpenDialogShop();
             task.stage='shop'; saveEquipTask(task);
           } else {
             const npc = eqFindNpcByName(task.npc); if(npc) eqClick(npc);
           }
-          return;
-        }
-
-        if(task.stage==='auctionDialogWait'){
-          const elapsed = Date.now() - Number(task.firstDialogClickedAt || 0);
-          if(elapsed < (ADI_AUCTION_GUI_DELAY_MS + 250)) return;
-          task.stage = 'auctionPosting';
-          saveEquipTask(task);
-          eqSetInfo('Dotarłem do Aukcjonera, stoję na (' + task.stand.x + ',' + task.stand.y + '), kliknąłem 1. dialog i zaczynam wystawianie itemów.', true);
-          return;
-        }
-
-        if(task.stage==='auctionPosting'){
-          if(task.__postingStarted) return;
-          task.__postingStarted = true;
-          saveEquipTask(task);
-          (async ()=>{
-            try{
-              await adiAuctionRunPostingFlow(task);
-            }catch(e){
-              try{ console.warn('[adi-auction] posting flow failed', e); }catch(_){}
-              try{ eqSetInfo('Aukcja: błąd wystawiania - ' + String((e && e.message) || e || 'nieznany'), true); }catch(_){}
-            }finally{
-              try{ clearEquipTask(); }catch(_){}
-              try{ setTempTarget(null); }catch(_){}
-              try{ clearInterval(window.__adiEquipTimer); }catch(_){}
-            }
-          })();
           return;
         }
 
@@ -4564,65 +4515,6 @@ if(task.stage==='equip'){
 }, 400);
     }
 
-
-
-// ===== AUTO AUCTION WALKER (free slots threshold -> Aukcjoner Torneg) =====
-(function(){
-  const CHECK_MS = 1200;
-  const START_COOLDOWN_MS = 15000;
-  let lastStartAt = 0;
-
-  function adiStartAuctionWalk(reason){
-    try{
-      const now = Date.now();
-      if(now - lastStartAt < START_COOLDOWN_MS) return false;
-      lastStartAt = now;
-
-      const existing = loadEquipTask();
-      if(existing) return false;
-
-      const v = AUTO_AUCTION_VENDOR;
-      const task = {
-        kind: 'auction',
-        stage: 'toCity',
-        map: v.map,
-        npc: v.npc,
-        stand: { x: Number(v.stand.x), y: Number(v.stand.y) },
-        pos: { x: Number(v.pos.x), y: Number(v.pos.y) },
-        createdAt: now,
-        reason: String(reason || 'free-slots')
-      };
-      saveEquipTask(task);
-      setTempTarget(v.map);
-      startEquipFlow();
-      eqSetInfo('Mało miejsca w torbie -> idę do ' + v.npc + ' w ' + v.map + ' na (' + v.stand.x + ',' + v.stand.y + ').', true);
-      const btn=document.querySelector('#adi-bot_toggle'); if(btn && btn.innerText==='START') btn.click();
-      return true;
-    }catch(_){ return false; }
-  }
-  window.__adiStartAuctionWalk = adiStartAuctionWalk;
-
-  setInterval(()=>{
-    try{
-      const cfg = adiLoadAuctionCfg();
-      if(!cfg || !cfg.enabled) return;
-      if(!window.hero || !window.map || !window.g) return;
-      if(g.dead || g.resp || g.reload || g.battle) return;
-
-      const task = loadEquipTask();
-      if(task && task.kind !== 'auction') return;
-      if(task && task.kind === 'auction') return;
-
-      const bagSpace = adiGetTotalBagSpace();
-      if(!bagSpace || !Number.isFinite(Number(bagSpace.free))) return;
-
-      const threshold = Math.max(1, parseInt(cfg.freeSlotsThreshold || 3, 10) || 3);
-      if(Number(bagSpace.free) >= threshold) return;
-
-      adiStartAuctionWalk('free<' + threshold);
-    }catch(_){ }
-  }, CHECK_MS);
-})();
 
 
 // ===== ABORT EQUIP FLOW ON DEATH (prevents resuming stale equip tasks after respawn) =====
@@ -5512,7 +5404,6 @@ if (typeof window.window.__adi_equipByNameSequence !== 'function') {
    ======================================================= */
 (function(){
   const ADI_LOOT_CFG_KEY = 'adi-bot_loot_cfg_v1';
-  const ADI_AUCTION_CFG_KEY = 'adi-bot_auction_cfg_v1';
   const ADI_LOOT_NOTIFY_SEEN_KEY = 'adi-bot_loot_notify_seen_v1';
   const ADI_LOOT_UI_STYLE_ID = 'adi-bot-loot-style';
   let __adiLootFlushTimer = null;
@@ -5563,352 +5454,6 @@ if (typeof window.window.__adi_equipByNameSequence !== 'function') {
     try{ localStorage.setItem(ADI_LOOT_CFG_KEY, JSON.stringify(next || adiLootDefaults())); }catch(_){ }
   }
 
-  function adiAuctionDefaults(){
-    return {
-      enabled: false,
-      heroicPrice: 0,
-      uniquePrice: 0,
-      commonPrice: 0
-    };
-  }
-
-  function adiLoadAuctionCfg(){
-    try{
-      const raw = localStorage.getItem(ADI_AUCTION_CFG_KEY);
-      const cfg = raw ? JSON.parse(raw) : {};
-      const def = adiAuctionDefaults();
-      const num = (v, d=0) => {
-        const n = parseInt(v ?? d, 10);
-        return Number.isFinite(n) && n >= 0 ? n : d;
-      };
-      return {
-        enabled: cfg.enabled ?? def.enabled,
-        heroicPrice: num(cfg.heroicPrice, def.heroicPrice),
-        uniquePrice: num(cfg.uniquePrice, def.uniquePrice),
-        commonPrice: num(cfg.commonPrice, def.commonPrice)
-      };
-    }catch(_){ return adiAuctionDefaults(); }
-  }
-
-  function adiSaveAuctionCfg(next){
-    try{ localStorage.setItem(ADI_AUCTION_CFG_KEY, JSON.stringify(next || adiAuctionDefaults())); }catch(_){ }
-  }
-
-  const ADI_AUCTION_GUI_DELAY_MS = 1000;
-
-  function adiAuctionVisible(el){
-    try{
-      if(!el || !el.isConnected) return false;
-      const st = getComputedStyle(el);
-      if(!st || st.display === 'none' || st.visibility === 'hidden' || Number(st.opacity || '1') === 0) return false;
-      const r = el.getBoundingClientRect();
-      return !!(r && r.width > 0 && r.height > 0);
-    }catch(_){ return false; }
-  }
-
-  function adiAuctionDelay(ms){
-    return new Promise(resolve => setTimeout(resolve, Math.max(0, Number(ms)||0)));
-  }
-
-  async function adiAuctionGuiClick(el, delayMs = ADI_AUCTION_GUI_DELAY_MS){
-    if(!el) return false;
-    await adiAuctionDelay(delayMs);
-    try{ el.dispatchEvent(new MouseEvent('mouseover', { bubbles:true, cancelable:true, view:window })); }catch(_){}
-    try{ el.dispatchEvent(new MouseEvent('mouseenter', { bubbles:true, cancelable:true, view:window })); }catch(_){}
-    try{ el.dispatchEvent(new MouseEvent('mousemove', { bubbles:true, cancelable:true, view:window })); }catch(_){}
-    try{ el.dispatchEvent(new MouseEvent('mousedown', { bubbles:true, cancelable:true, view:window })); }catch(_){}
-    try{ el.dispatchEvent(new MouseEvent('mouseup',   { bubbles:true, cancelable:true, view:window })); }catch(_){}
-    try{ el.dispatchEvent(new MouseEvent('click',     { bubbles:true, cancelable:true, view:window })); return true; }catch(_){}
-    try{ el.click(); return true; }catch(_){}
-    return false;
-  }
-
-  async function adiAuctionClickFirstDialog(delayMs = ADI_AUCTION_GUI_DELAY_MS){
-    await adiAuctionDelay(delayMs);
-    try{
-      const dlg = document.querySelector('#dialog, .dialog, .npcDialog, #npcDialog, .dsc') || document;
-      let first =
-        dlg.querySelector('#replies li, .replies li, #replies .reply, .replies .reply') ||
-        dlg.querySelector('li[data-option], li[data-answer], .dialog-option, .npc-dialog-option');
-
-      if(!first){
-        const all = Array.from(dlg.querySelectorAll('li, div, a')).filter(el => {
-          const txt = String(el.textContent || '').trim();
-          const oc = String(el.getAttribute('onclick') || '');
-          return !!txt && (oc || /reply|option|line/i.test(String(el.className || '')));
-        });
-        first = all[0] || null;
-      }
-
-      if(first){
-        await adiAuctionGuiClick(first, 0);
-        return true;
-      }
-
-      try{
-        document.dispatchEvent(new KeyboardEvent('keydown', { key:'1', code:'Digit1', which:49, keyCode:49, bubbles:true }));
-        document.dispatchEvent(new KeyboardEvent('keyup',   { key:'1', code:'Digit1', which:49, keyCode:49, bubbles:true }));
-        return true;
-      }catch(_){}
-    }catch(e){
-      try{ console.warn('[adi-auction] click first dialog failed', e); }catch(_){}
-    }
-    return false;
-  }
-
-  function adiAuctionRarityMatchesText(txt, rarity){
-    const s = String(txt || '').toLowerCase();
-    if(rarity === 'heroic') return s.includes('heroic') || s.includes('heroicz');
-    if(rarity === 'unique') return s.includes('unique') || s.includes('unikat');
-    if(rarity === 'common') return s.includes('common') || s.includes('pospol');
-    if(rarity === 'legendary') return s.includes('legendary') || s.includes('legend');
-    return false;
-  }
-
-  function adiAuctionFindInventoryItemElById(id, row){
-    try{
-      const sid = String(id == null ? '' : id).trim();
-      const bag = document.querySelector('#bagc');
-      if(bag){
-        const candidates = Array.from(bag.querySelectorAll('.item, .item-draggable, [class*="item"]'));
-        const byExact = candidates.find(el => {
-          const all = String(el.outerHTML || '') + ' ' + String(el.getAttribute('data-item-id') || '') + ' ' + String(el.id || '') + ' ' + String(el.getAttribute('tip') || '');
-          return sid && (all.includes('item' + sid) || all.includes('id="item' + sid + '"') || all.includes('data-item-id="item' + sid + '"'));
-        });
-        if(byExact) return byExact;
-        if(row){
-          const wantedName = String(row.name || '').trim().toLowerCase();
-          const wantedRarity = String(row.rarity || '').trim().toLowerCase();
-          const byNameAndRarity = candidates.find(el => {
-            const txt = (String(el.outerHTML || '') + ' ' + String(el.getAttribute('tip') || '') + ' ' + String(el.getAttribute('class') || '')).toLowerCase();
-            const nameOk = wantedName ? txt.includes(wantedName) : true;
-            const rarityOk = wantedRarity ? adiAuctionRarityMatchesText(txt, wantedRarity) : true;
-            return nameOk && rarityOk;
-          });
-          if(byNameAndRarity) return byNameAndRarity;
-        }
-      }
-      if(sid){
-        const sels = [
-          `.item[data-item-id="item${sid}"]`,
-          `[data-item-id="item${sid}"]`,
-          `#item${sid}`,
-          `.item[id="item${sid}"]`
-        ];
-        for(const sel of sels){
-          const list = Array.from(document.querySelectorAll(sel));
-          for(const el of list){
-            if(!el) continue;
-            if(el.closest('#npcshop, .shop, #shop')) continue;
-            return el;
-          }
-        }
-      }
-    }catch(_){}
-    return null;
-  }
-
-  function adiAuctionFindBagItemByScan(row){
-    try{
-      const bag = document.querySelector('#bagc');
-      if(!bag || !row) return null;
-      const candidates = Array.from(bag.querySelectorAll('.item, .item-draggable, [class*="item"]'));
-      const wantedName = String(row.name || '').trim().toLowerCase();
-      const wantedRarity = String(row.rarity || '').trim().toLowerCase();
-      for(const el of candidates){
-        const txt = (String(el.outerHTML || '') + ' ' + String(el.getAttribute('tip') || '') + ' ' + String(el.getAttribute('class') || '') + ' ' + String(el.id || '')).toLowerCase();
-        const nameOk = wantedName ? txt.includes(wantedName) : true;
-        const rarityOk = wantedRarity ? adiAuctionRarityMatchesText(txt, wantedRarity) : true;
-        if(nameOk && rarityOk) return el;
-      }
-      for(const el of candidates){
-        const txt = (String(el.outerHTML || '') + ' ' + String(el.getAttribute('tip') || '') + ' ' + String(el.getAttribute('class') || '') + ' ' + String(el.id || '')).toLowerCase();
-        if(wantedRarity && adiAuctionRarityMatchesText(txt, wantedRarity)) return el;
-      }
-    }catch(_){}
-    return null;
-  }
-
-  async function adiAuctionClickInventoryItem(row){
-    let itemEl = adiAuctionFindInventoryItemElById(row && row.id, row);
-    if(!itemEl) itemEl = adiAuctionFindBagItemByScan(row);
-    if(!itemEl) throw new Error('Nie znalazłem itemu w torbie: ' + String(row && row.name || row && row.id || '?'));
-    const targets = [
-      itemEl,
-      itemEl.firstElementChild,
-      itemEl.lastElementChild,
-      itemEl.parentElement
-    ].filter(Boolean);
-    for(const target of targets){
-      try{
-        await adiAuctionGuiClick(target);
-        await adiAuctionDelay(250);
-        const panel = adiAuctionFindPanel();
-        if(panel) return { itemEl, panel };
-      }catch(_){}
-    }
-    return { itemEl, panel: null };
-  }
-
-  function adiAuctionAllCandidateItems(){
-    try{
-      if(!window.g || !g.item) return [];
-      const out = [];
-      for(const key in g.item){
-        const item = g.item[key];
-        if(!item) continue;
-        if(String(item.loc || '') !== 'g') continue;
-        const rarity = adiDetectLootRarity(item);
-        out.push({
-          slot: String(key),
-          item,
-          rarity,
-          name: String(item.name || item.n || ''),
-          id: item.id != null ? item.id : key
-        });
-      }
-      return out;
-    }catch(_){ return []; }
-  }
-
-  function adiAuctionPickPriceForRarity(rarity, cfg){
-    try{
-      if(rarity === 'heroic') return Math.max(0, parseInt(cfg && cfg.heroicPrice || 0, 10) || 0);
-      if(rarity === 'unique') return Math.max(0, parseInt(cfg && cfg.uniquePrice || 0, 10) || 0);
-      if(rarity === 'common') return Math.max(0, parseInt(cfg && cfg.commonPrice || 0, 10) || 0);
-    }catch(_){}
-    return 0;
-  }
-
-  function adiAuctionNextSellableItem(cfg){
-    try{
-      const items = adiAuctionAllCandidateItems();
-      const seen = window.__adiAuctionPostedIds = window.__adiAuctionPostedIds || new Set();
-      for(const row of items){
-        if(!row || !row.item) continue;
-        if(seen.has(String(row.id))) continue;
-        if(row.rarity === 'legendary') continue;
-        const price = adiAuctionPickPriceForRarity(row.rarity, cfg);
-        if(price <= 0) continue;
-        return Object.assign({ price }, row);
-      }
-    }catch(_){}
-    return null;
-  }
-
-  function adiAuctionMarkPosted(row){
-    try{
-      const seen = window.__adiAuctionPostedIds = window.__adiAuctionPostedIds || new Set();
-      if(row && row.id != null) seen.add(String(row.id));
-    }catch(_){}
-  }
-
-  function adiAuctionResetPosted(){
-    try{ window.__adiAuctionPostedIds = new Set(); }catch(_){}
-  }
-
-  function adiAuctionFindPanel(){
-    try{
-      const panels = Array.from(document.querySelectorAll('.auction-off-item-panel-wrapper, .auction-offer-item-panel-wrapper, .auction-window, .auction-panel, .one-record.auction-buy-now, .auction-off-item-panel'));
-      for(const p of panels){ if(adiAuctionVisible(p)) return p; }
-    }catch(_){}
-    return null;
-  }
-
-  function adiAuctionFindPriceInput(panel){
-    try{
-      const root = panel || adiAuctionFindPanel() || document;
-      const inputs = Array.from(root.querySelectorAll('input.default, input[placeholder*="Min."], input[type="text"], input[type="number"]'));
-      for(const el of inputs){ if(adiAuctionVisible(el)) return el; }
-    }catch(_){}
-    return null;
-  }
-
-  function adiAuctionSetInputValue(input, value){
-    try{
-      if(!input) return false;
-      const val = String(value == null ? '' : value);
-      input.focus();
-      try{ input.select && input.select(); }catch(_){}
-      const proto = Object.getPrototypeOf(input);
-      const desc = proto && Object.getOwnPropertyDescriptor(proto, 'value');
-      if(desc && desc.set) desc.set.call(input, val);
-      else input.value = val;
-      try{ input.setAttribute('value', val); }catch(_){}
-      for(const type of ['input','change','keyup','blur']){
-        try{ input.dispatchEvent(new Event(type, { bubbles:true })); }catch(_){}
-      }
-      return true;
-    }catch(_){ return false; }
-  }
-
-  function adiAuctionFindSubmitEl(panel){
-    try{
-      const root = panel || adiAuctionFindPanel() || document;
-      const nodes = Array.from(root.querySelectorAll('span.gfont, .gfont, button, .btn, div, span'));
-      for(const el of nodes){
-        const txt = String(el.textContent || el.getAttribute('name') || '').toLowerCase().trim();
-        if(txt === 'wystaw' || txt.includes('wystaw')) return el.closest('.btn, .button, .small, div, span') || el;
-      }
-    }catch(_){}
-    return null;
-  }
-
-  async function adiAuctionPostSingleRow(row){
-    let clickResult = await adiAuctionClickInventoryItem(row);
-    let panel = clickResult && clickResult.panel;
-    if(!panel){
-      panel = await new Promise((resolve, reject)=>{
-        const started = Date.now();
-        (function waitPanel(){
-          const found = adiAuctionFindPanel();
-          if(found) return resolve(found);
-          if(Date.now() - started > 6000) return reject(new Error('Nie otworzył się panel wystawiania dla ' + String(row && row.name || '?')));
-          setTimeout(waitPanel, 120);
-        })();
-      });
-    }
-    const input = adiAuctionFindPriceInput(panel);
-    if(!input) throw new Error('Brak input.default dla ' + String(row && row.name || '?'));
-    await adiAuctionDelay(ADI_AUCTION_GUI_DELAY_MS);
-    adiAuctionSetInputValue(input, row.price);
-    await adiAuctionDelay(ADI_AUCTION_GUI_DELAY_MS);
-    const submit = adiAuctionFindSubmitEl(panel);
-    if(!submit) throw new Error('Brak przycisku Wystaw dla ' + String(row && row.name || '?'));
-    await adiAuctionGuiClick(submit);
-    await adiAuctionDelay(1000);
-    adiAuctionMarkPosted(row);
-    return true;
-  }
-
-  async function adiAuctionRunPostingFlow(task){
-    if(window.__adiAuctionPostingBusy) return false;
-    window.__adiAuctionPostingBusy = true;
-    try{
-      const cfg = adiLoadAuctionCfg();
-      adiAuctionResetPosted();
-      let posted = 0;
-      let guard = 0;
-      while(guard < 200){
-        guard += 1;
-        const row = adiAuctionNextSellableItem(cfg);
-        if(!row) break;
-        try{
-          eqSetInfo('Aukcja: wystawiam ' + (row.name || ('item ' + row.id)) + ' [' + adiLootRarityLabel(row.rarity) + '] za ' + row.price + '.', true);
-        }catch(_){}
-        await adiAuctionPostSingleRow(row);
-        posted += 1;
-        await adiAuctionDelay(250);
-      }
-      try{
-        eqSetInfo(posted > 0 ? ('Aukcja: wystawiono ' + posted + ' itemów.') : 'Aukcja: brak itemów do wystawienia lub ceny = 0.', true);
-      }catch(_){}
-      return posted > 0;
-    }finally{
-      window.__adiAuctionPostingBusy = false;
-    }
-  }
-
   function adiLootMessage(txt){
     try{ if(typeof message === 'function') message(txt); }catch(_){ }
   }
@@ -5919,21 +5464,20 @@ if (typeof window.window.__adi_equipByNameSequence !== 'function') {
       const st = document.createElement('style');
       st.id = ADI_LOOT_UI_STYLE_ID;
       st.textContent = `
-        #adi-tab-settings .adi-settings-section, #adi-tab-aukcja .adi-settings-section{border:1px solid rgba(0,0,0,.45);border-radius:8px;padding:8px;margin:6px 0;background:rgba(234,227,227,.88);color:#000;text-align:left}
-        #adi-tab-settings .adi-settings-title, #adi-tab-aukcja .adi-settings-title{font-weight:700;font-size:13px;margin-bottom:8px}
-        #adi-tab-settings .adi-settings-line, #adi-tab-aukcja .adi-settings-line{display:flex;align-items:center;gap:8px;margin:6px 0;flex-wrap:wrap}
-        #adi-tab-settings .adi-settings-label, #adi-tab-aukcja .adi-settings-label{font-size:13px;line-height:1.2}
-        #adi-tab-settings .adi-settings-sub, #adi-tab-aukcja .adi-settings-sub{font-size:12px;opacity:.85;margin:2px 0 8px}
-        #adi-tab-settings .adi-switch, #adi-tab-aukcja .adi-switch{position:relative;display:inline-block;width:42px;height:22px;flex:0 0 auto}
-        #adi-tab-settings .adi-switch input, #adi-tab-aukcja .adi-switch input{opacity:0;width:0;height:0}
-        #adi-tab-settings .adi-slider, #adi-tab-aukcja .adi-slider{position:absolute;cursor:pointer;inset:0;background:#888;border-radius:999px;transition:.2s}
-        #adi-tab-settings .adi-slider:before, #adi-tab-aukcja .adi-slider:before{content:'';position:absolute;height:16px;width:16px;left:3px;top:3px;background:#fff;border-radius:50%;transition:.2s}
-        #adi-tab-settings .adi-switch input:checked + .adi-slider, #adi-tab-aukcja .adi-switch input:checked + .adi-slider{background:#28a745}
-        #adi-tab-settings .adi-switch input:checked + .adi-slider:before, #adi-tab-aukcja .adi-switch input:checked + .adi-slider:before{transform:translateX(20px)}
-        #adi-tab-settings input[type="text"], #adi-tab-settings input[type="number"], #adi-tab-aukcja input[type="text"], #adi-tab-aukcja input[type="number"]{box-sizing:border-box;width:100%;max-width:100%;margin:0}
+        #adi-tab-settings .adi-settings-section{border:1px solid rgba(0,0,0,.45);border-radius:8px;padding:8px;margin:6px 0;background:rgba(234,227,227,.88);color:#000;text-align:left}
+        #adi-tab-settings .adi-settings-title{font-weight:700;font-size:13px;margin-bottom:8px}
+        #adi-tab-settings .adi-settings-line{display:flex;align-items:center;gap:8px;margin:6px 0;flex-wrap:wrap}
+        #adi-tab-settings .adi-settings-label{font-size:13px;line-height:1.2}
+        #adi-tab-settings .adi-settings-sub{font-size:12px;opacity:.85;margin:2px 0 8px}
+        #adi-tab-settings .adi-switch{position:relative;display:inline-block;width:42px;height:22px;flex:0 0 auto}
+        #adi-tab-settings .adi-switch input{opacity:0;width:0;height:0}
+        #adi-tab-settings .adi-slider{position:absolute;cursor:pointer;inset:0;background:#888;border-radius:999px;transition:.2s}
+        #adi-tab-settings .adi-slider:before{content:'';position:absolute;height:16px;width:16px;left:3px;top:3px;background:#fff;border-radius:50%;transition:.2s}
+        #adi-tab-settings .adi-switch input:checked + .adi-slider{background:#28a745}
+        #adi-tab-settings .adi-switch input:checked + .adi-slider:before{transform:translateX(20px)}
+        #adi-tab-settings input[type="text"], #adi-tab-settings input[type="number"]{box-sizing:border-box;width:100%;max-width:100%;margin:0}
         #adi-tab-settings .adi-webhook-input{font-size:13px}
-        #adi-tab-settings .adi-inline-input, #adi-tab-aukcja .adi-inline-input{width:120px !important;display:inline-block}
-        #adi-tab-aukcja .adi-auction-space{margin-top:10px;font-size:13px;font-weight:700}
+        #adi-tab-settings .adi-inline-input{width:120px !important;display:inline-block}
       `;
       document.head.appendChild(st);
     }catch(_){ }
@@ -6073,143 +5617,6 @@ if (typeof window.window.__adi_equipByNameSequence !== 'function') {
 
       return true;
     }catch(e){ console.warn('[adi-loot-ui] ensure tab failed', e); return false; }
-  }
-
-  function adiEnsureAuctionTab(){
-    try{
-      const box = document.getElementById('adi-bot_box');
-      if(!box) return false;
-      const tabs = box.querySelector('.adi-tabs');
-      const wrap = box.querySelector('.adi-tabwrap');
-      if(!tabs || !wrap) return false;
-      adiEnsureLootStyle();
-
-      let auctionTabBtn = Array.from(tabs.querySelectorAll('.adi-tab')).find(x => x.dataset.tab === 'aukcja');
-      let auctionPanel = document.getElementById('adi-tab-aukcja');
-      if(!auctionTabBtn){
-        auctionTabBtn = document.createElement('div');
-        auctionTabBtn.className = 'adi-tab';
-        auctionTabBtn.dataset.tab = 'aukcja';
-        auctionTabBtn.textContent = 'Aukcja';
-        const e2Btn = Array.from(tabs.querySelectorAll('.adi-tab')).find(x => x.dataset.tab === 'e2');
-        if(e2Btn && e2Btn.nextSibling) tabs.insertBefore(auctionTabBtn, e2Btn.nextSibling);
-        else tabs.appendChild(auctionTabBtn);
-      }
-      if(!auctionPanel){
-        auctionPanel = document.createElement('div');
-        auctionPanel.id = 'adi-tab-aukcja';
-        auctionPanel.className = 'adi-tab-content';
-        const testPanel = document.getElementById('adi-tab-test');
-        if(testPanel) wrap.insertBefore(auctionPanel, testPanel);
-        else wrap.appendChild(auctionPanel);
-      }
-
-      const cfg = adiLoadAuctionCfg();
-      auctionPanel.innerHTML = `
-        <div class="adi-settings-section">
-          ${adiCheckbox('adi-auction-enabled', 'Wystawiaj itemy na aukcje', cfg.enabled)}
-          <label class="adi-settings-line" for="adi-auction-heroic-price">
-            <input type="number" min="0" step="1" id="adi-auction-heroic-price" class="adi-bot_inputs adi-inline-input" value="${cfg.heroicPrice}">
-            <span class="adi-settings-label">Heroiczne</span>
-          </label>
-          <label class="adi-settings-line" for="adi-auction-unique-price">
-            <input type="number" min="0" step="1" id="adi-auction-unique-price" class="adi-bot_inputs adi-inline-input" value="${cfg.uniquePrice}">
-            <span class="adi-settings-label">Unikatowe</span>
-          </label>
-          <label class="adi-settings-line" for="adi-auction-common-price">
-            <input type="number" min="0" step="1" id="adi-auction-common-price" class="adi-bot_inputs adi-inline-input" value="${cfg.commonPrice}">
-            <span class="adi-settings-label">Pospolite</span>
-          </label>
-          <label class="adi-settings-line" for="adi-auction-free-threshold">
-            <input type="number" min="1" step="1" id="adi-auction-free-threshold" class="adi-bot_inputs adi-inline-input" value="${Math.max(1, Number(cfg.freeSlotsThreshold || 3))}">
-            <span class="adi-settings-label">Auto-podejście do Aukcjonera poniżej tylu wolnych miejsc</span>
-          </label>
-          <div id="adi-auction-bag-space" class="adi-auction-space">Aktualna ilość wolnych miejsc w torbach: —</div>
-          <div class="adi-settings-line" style="margin-top:12px;justify-content:flex-start;">
-            <button id="adi-auction-go-now" class="adi-bot_inputs" type="button" style="width:auto;min-width:180px;cursor:pointer;">Wystaw itemy teraz</button>
-          </div>
-        </div>
-      `;
-
-      const bindCheck = (id, key, textOn, textOff) => {
-        const el = auctionPanel.querySelector('#' + id);
-        if(!el || el.__adiBound) return;
-        el.__adiBound = true;
-        el.addEventListener('change', ()=>{
-          const cur = adiLoadAuctionCfg();
-          cur[key] = !!el.checked;
-          adiSaveAuctionCfg(cur);
-          if(textOn || textOff) adiLootMessage(el.checked ? textOn : textOff);
-        });
-      };
-      const bindInput = (id, key, textLabel) => {
-        const el = auctionPanel.querySelector('#' + id);
-        if(!el || el.__adiBound) return;
-        el.__adiBound = true;
-
-        const save = (normalizeValue = false, showMsg = false)=>{
-          const cur = adiLoadAuctionCfg();
-          let n = parseInt(el.value || '0', 10);
-          if(!Number.isFinite(n) || n < 0) n = 0;
-          if(normalizeValue) el.value = String(n);
-          cur[key] = n;
-          adiSaveAuctionCfg(cur);
-          if(showMsg) adiLootMessage('Aukcja: cena dla ' + textLabel + ' = ' + n);
-        };
-
-        el.addEventListener('change', ()=>save(true, true));
-        el.addEventListener('input', ()=>save(false, false));
-        el.addEventListener('keyup', ()=>save(false, false));
-      };
-
-      bindCheck('adi-auction-enabled', 'enabled', 'Aukcja: WŁ', 'Aukcja: WYŁ');
-      bindInput('adi-auction-heroic-price', 'heroicPrice', 'heroiczne');
-      bindInput('adi-auction-unique-price', 'uniquePrice', 'unikatowe');
-      bindInput('adi-auction-common-price', 'commonPrice', 'pospolite');
-      bindInput('adi-auction-free-threshold', 'freeSlotsThreshold', 'progu wolnych miejsc');
-
-      const goNowBtn = auctionPanel.querySelector('#adi-auction-go-now');
-      if(goNowBtn && !goNowBtn.__adiBound){
-        goNowBtn.__adiBound = true;
-        goNowBtn.addEventListener('click', ()=>{
-          try{
-            const ok = (typeof window.__adiStartAuctionWalk === 'function')
-              ? window.__adiStartAuctionWalk('manual-button')
-              : false;
-            if(ok) adiLootMessage('Aukcja: ręcznie idę do Aukcjonera.');
-            else adiLootMessage('Aukcja: nie mogę ruszyć teraz do Aukcjonera.');
-          }catch(_){
-            adiLootMessage('Aukcja: błąd przy starcie dojścia do Aukcjonera.');
-          }
-        });
-      }
-
-      const updateBagSpace = ()=>{
-        const out = auctionPanel.querySelector('#adi-auction-bag-space');
-        if(!out) return;
-        const bagSpace = adiGetTotalBagSpace();
-        out.textContent = bagSpace
-          ? `Aktualna ilość wolnych miejsc w torbach: ${bagSpace.free}`
-          : 'Aktualna ilość wolnych miejsc w torbach: —';
-      };
-      updateBagSpace();
-      try{
-        if(auctionPanel.__adiBagSpaceTimer) clearInterval(auctionPanel.__adiBagSpaceTimer);
-        auctionPanel.__adiBagSpaceTimer = setInterval(updateBagSpace, 1000);
-      }catch(_){ }
-
-      try{
-        const saved = (localStorage.getItem('adi-bot_active_tab') || '').trim();
-        if(saved === 'aukcja'){
-          const allTabs = box.querySelectorAll('.adi-tab');
-          const allPanels = box.querySelectorAll('.adi-tab-content');
-          allTabs.forEach(x=>x.classList.toggle('active', x.dataset.tab === 'aukcja'));
-          allPanels.forEach(p=>p.classList.toggle('active', p.id === 'adi-tab-aukcja'));
-        }
-      }catch(_){ }
-
-      return true;
-    }catch(e){ console.warn('[adi-auction-ui] ensure tab failed', e); return false; }
   }
 
   function adiLower(s){ return String(s || '').toLowerCase(); }
@@ -6439,9 +5846,8 @@ if (typeof window.window.__adi_equipByNameSequence !== 'function') {
 
   function adiGetTotalBagSpace(){
     try{
-      let free = 0;
+      let used = 0;
       let total = 0;
-
       for(const id of ['bs0','bs1','bs2']){
         const el = document.querySelector(`small#${id}`) || document.getElementById(id);
         if(!el) continue;
@@ -6451,17 +5857,12 @@ if (typeof window.window.__adi_equipByNameSequence !== 'function') {
 
         const m = t.match(/(\d+)\/(\d+)/);
         if(m){
-          const first = Number(m[1] || 0);
-          const second = Number(m[2] || 0);
-
-          // Licznik bsX pokazuje wolne/łączne miejsca.
-          // Przykład: 0/30 = torba pełna, 1/30 = jedno wolne miejsce.
-          free += first;
-          total += second;
+          used += Number(m[1] || 0);
+          total += Number(m[2] || 0);
         }else{
           const n = parseInt(t, 10);
           if(!isNaN(n)){
-            free += n;
+            used += n;
             total += 30;
           }
         }
@@ -6469,10 +5870,10 @@ if (typeof window.window.__adi_equipByNameSequence !== 'function') {
 
       if(total <= 0) return null;
       return {
-        free: Math.max(0, free),
+        used,
         total,
-        used: Math.max(0, total - free),
-        text: `${Math.max(0, free)} / ${total}`
+        free: Math.max(0, total - used),
+        text: `${used}`
       };
     }catch(_){ return null; }
   }
@@ -6602,7 +6003,6 @@ if (typeof window.window.__adi_equipByNameSequence !== 'function') {
   }
 
   function adiBootLootPatch(){
-    try{ adiEnsureAuctionTab(); }catch(_){ }
     try{ adiEnsureSettingsTab(); }catch(_){ }
     try{ adiPatchLootItem(); }catch(_){ }
   }
