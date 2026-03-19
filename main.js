@@ -4530,6 +4530,15 @@ try{
       try{ input.dispatchEvent(new Event('blur', { bubbles:true })); }catch(_ ){}
       try{ input.dispatchEvent(new KeyboardEvent('keyup', { bubbles:true, key:'Enter' })); }catch(_ ){}
     }
+    function eqCloseAuctionWindow(){
+      try{
+        const btn = document.querySelector('div.auction-close-button, .auction-close-button');
+        if(!btn) return false;
+        eqClick(btn);
+        return true;
+      }catch(_ ){ return false; }
+    }
+
     function eqFindAuctionSubmitButton(){
       try{
         const candidates = Array.from(document.querySelectorAll('button, span.gfont, div.button, .button, .btn'));
@@ -4537,31 +4546,6 @@ try{
       }catch(_ ){}
       return null;
     }
-
-    function eqCloseAuctionWindow(){
-      try{
-        const candidates = [
-          document.querySelector('div.auction-close-button'),
-          document.querySelector('#auction-window .auction-close-button'),
-          document.querySelector('#auction-window .close-button'),
-          document.querySelector('#auction-window .close-wrapper'),
-          document.querySelector('#auction-window [class*="close"]')
-        ].filter(Boolean);
-
-        const btn = candidates[0] || null;
-        if(!btn) return false;
-
-        try{ btn.scrollIntoView({block:'center', inline:'center'}); }catch(_ ){}
-        try{ btn.dispatchEvent(new MouseEvent('mouseover', { bubbles:true, cancelable:true, view:window })); }catch(_ ){}
-        try{ btn.dispatchEvent(new MouseEvent('mousedown', { bubbles:true, cancelable:true, view:window })); }catch(_ ){}
-        try{ btn.dispatchEvent(new MouseEvent('mouseup', { bubbles:true, cancelable:true, view:window })); }catch(_ ){}
-        try{ btn.dispatchEvent(new MouseEvent('click', { bubbles:true, cancelable:true, view:window })); }catch(_ ){}
-        try{ btn.click(); }catch(_ ){}
-        return true;
-      }catch(_ ){}
-      return false;
-    }
-
 
     function startEquipFlow(){
       let timer = window.__adiEquipTimer;
@@ -4643,7 +4627,10 @@ try{
             eqClick(itemEl);
             eqSetInfo('Wybrano item do wystawienia na aukcję. Czekam na pole ceny…', true);
           }else{
-            eqSetInfo('Brak pasującego itemu do wystawienia (Heroiczny/Unikat/Pospolity bez ignorowanych typów).', true);
+            eqSetInfo('Brak pasującego itemu do wystawienia (Heroiczny/Unikat/Pospolity bez ignorowanych typów). Zamykam okno aukcji.', true);
+            const closed = eqCloseAuctionWindow();
+            if(closed) eqSetInfo('Nie było itemów do wystawienia — zamknięto okno Aukcjonera.', true);
+            else eqSetInfo('Nie było itemów do wystawienia, ale nie udało się zamknąć okna Aukcjonera.', false);
             clearEquipTask();
             setTempTarget(null);
             clearInterval(window.__adiEquipTimer);
@@ -4730,8 +4717,10 @@ try{
             eqSetInfo('Wybrano kolejny item do wystawienia na aukcję. Czekam na pole ceny…', true);
           }else{
             const total = Number(task.auctionListedCount || 0);
+            eqSetInfo('Nie ma już więcej itemów do wystawienia. Wystawiono łącznie: ' + total + '.', true);
             const closed = eqCloseAuctionWindow();
-            eqSetInfo('Nie ma już więcej itemów do wystawienia. Wystawiono łącznie: ' + total + '.' + (closed ? ' Zamykam okno aukcji.' : ' Nie udało się zamknąć okna aukcji.'), true);
+            if(closed) eqSetInfo('Zamknięto okno Aukcjonera po zakończeniu wystawiania.', true);
+            else eqSetInfo('Nie udało się zamknąć okna Aukcjonera po zakończeniu wystawiania.', false);
             clearEquipTask();
             setTempTarget(null);
             clearInterval(window.__adiEquipTimer);
