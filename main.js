@@ -6711,12 +6711,23 @@ if (typeof window.window.__adi_equipByNameSequence !== 'function') {
 // ===== /E2 COUNTER =====
 
 
-// ===== AUCTION V5 FINAL (FIXED PRICE INPUT) =====
+// ===== AUCTION V6 FINAL (GUI PRICE + DELAYS FIX) =====
 (function(){
 
 function sleep(ms){ return new Promise(r=>setTimeout(r,ms)); }
 
-function clickEl(el){ try{el.click();return true;}catch{return false;} }
+function clickEl(el){
+  if(!el) return false;
+  try{
+    el.dispatchEvent(new MouseEvent("mouseover",{bubbles:true}));
+    el.dispatchEvent(new MouseEvent("mousedown",{bubbles:true}));
+    el.dispatchEvent(new MouseEvent("mouseup",{bubbles:true}));
+    el.dispatchEvent(new MouseEvent("click",{bubbles:true}));
+    return true;
+  }catch(e){
+    try{ el.click(); return true; }catch(_){ return false; }
+  }
+}
 
 function getTxt(el){
   return [
@@ -6735,68 +6746,105 @@ function isValid(txt){
   );
 }
 
-function findItem(){
-  const bag=document.querySelector("#bagc");
+function findAuctionItem(){
+  const bag = document.querySelector("#bagc");
   if(!bag) return null;
-  const items=[...bag.querySelectorAll("*")];
+  const items = [...bag.querySelectorAll("*")];
 
-  function f(k){
-    return items.find(el=>{
-      const t=getTxt(el);
-      return t.includes(k) && isValid(t);
+  function f(keyword, rarity){
+    const el = items.find(node=>{
+      const t = getTxt(node);
+      return t.includes(keyword) && isValid(t);
     });
+    return el ? { el, rarity } : null;
   }
 
-  return f("heroicz") || f("unikat") || f("pospolity");
+  return (
+    f("heroicz", "heroic") ||
+    f("unikat", "unique") ||
+    f("pospolity", "common")
+  );
 }
 
-function setPrice(){
-  const inputs=[...document.querySelectorAll('input.default')]
-    .filter(el=>el.getAttribute('placeholder')==='Min. 500');
+function getGuiPriceByRarity(rarity){
+  const map = {
+    heroic: "#adi-auction-heroic-price",
+    unique: "#adi-auction-unique-price",
+    common: "#adi-auction-common-price"
+  };
+  const gui = document.querySelector(map[rarity] || "");
+  if(!gui) return "";
+  return String(gui.value || "").trim();
+}
 
-  const input=inputs[2];
-  if(!input){ console.warn("Brak inputa ceny"); return false; }
+function getAuctionPriceInput(){
+  const inputs = [...document.querySelectorAll('input.default')]
+    .filter(el => el.getAttribute('placeholder') === 'Min. 500');
+  return inputs[2] || null;
+}
 
-  const setter=Object.getOwnPropertyDescriptor(
-    Object.getPrototypeOf(input),"value"
-  ).set;
+function setNativeValue(input, value){
+  const desc = Object.getOwnPropertyDescriptor(Object.getPrototypeOf(input), "value");
+  if(desc && typeof desc.set === "function") desc.set.call(input, value);
+  else input.value = value;
+}
 
-  const value=input.value || "1000000"; // bierze z GUI
+async function setPriceForRarity(rarity){
+  const guiPrice = getGuiPriceByRarity(rarity);
+  if(!guiPrice){
+    console.warn("[BOT] Brak ceny w GUI dla rarity:", rarity);
+    return false;
+  }
 
-  setter.call(input,value);
+  const input = getAuctionPriceInput();
+  if(!input){
+    console.warn("[BOT] Brak inputa ceny aukcji");
+    return false;
+  }
 
+  input.focus();
+  await sleep(50);
+
+  setNativeValue(input, guiPrice);
   input.dispatchEvent(new Event("input",{bubbles:true}));
   input.dispatchEvent(new Event("change",{bubbles:true}));
   input.dispatchEvent(new Event("blur",{bubbles:true}));
 
   document.body.click();
+  await sleep(150);
 
-  return true;
+  return String(input.value || "").trim() === guiPrice;
 }
 
 async function auctionLoop(){
   while(true){
-    const item=findItem();
-    if(!item){
-      console.log("[BOT] brak itemów");
+    const picked = findAuctionItem();
+    if(!picked){
+      console.log("[BOT] brak itemów do wystawienia");
       break;
     }
 
-    clickEl(item);
-    await sleep(300);
+    clickEl(picked.el);
+    await sleep(500);
 
-    setPrice();
+    const ok = await setPriceForRarity(picked.rarity);
+    if(!ok){
+      console.warn("[BOT] Nie udało się ustawić ceny dla:", picked.rarity);
+      break;
+    }
 
-    await sleep(300);
+    await sleep(250);
 
-    const btn=[...document.querySelectorAll("span.gfont")]
-      .find(el=>el.textContent.trim().toLowerCase()==="wystaw");
+    const btn = [...document.querySelectorAll("span.gfont")]
+      .find(el => el.textContent.trim().toLowerCase() === "wystaw");
 
-    if(!btn){ console.warn("Brak przycisku wystaw"); break; }
+    if(!btn){
+      console.warn("[BOT] Brak przycisku Wystaw");
+      break;
+    }
 
     clickEl(btn);
-
-    await sleep(800);
+    await sleep(900);
   }
 }
 
@@ -6804,12 +6852,12 @@ async function startAuction(npcId){
   _g(`talk&id=${npcId}`);
   await sleep(1000);
 
-  const first=document.querySelector("li[onclick*='talk&id']");
-  if(first) first.click();
+  const first = document.querySelector("li[onclick*='talk&id']");
+  if(first) clickEl(first);
 
   await sleep(500);
 
-  auctionLoop();
+  await auctionLoop();
 }
 
 window.__adiAuctionStart = startAuction;
