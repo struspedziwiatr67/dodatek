@@ -257,269 +257,6 @@
 var TpG3Y86zpgrtWMzb, ZHN4ekpZ5m95pFbJ, YQTtmEs6a5mTXE5a;
 
 
-// ===== GUI CLICK QUEUE + 1s DELAY =====
-const ADI_GUI_CLICK_DELAY_MS = 1000;
-let __adiGuiClickChain = Promise.resolve();
-
-function adiQueueGuiAction(fn, delayMs){
-  const wait = Math.max(0, Number(delayMs == null ? ADI_GUI_CLICK_DELAY_MS : delayMs) || 0);
-  __adiGuiClickChain = __adiGuiClickChain.then(()=>new Promise(resolve=>{
-    setTimeout(()=>{
-      try{ fn && fn(); }catch(e){ try{ console.warn('[adi-gui-delay] action failed', e); }catch(_ ){} }
-      resolve();
-    }, wait);
-  }));
-  return __adiGuiClickChain;
-}
-
-function adiDelayedClick(el, delayMs){
-  if(!el) return Promise.resolve(false);
-  return adiQueueGuiAction(()=>{
-    try{ el.dispatchEvent(new MouseEvent('mouseover',{bubbles:true,cancelable:true,view:window})); }catch(_ ){}
-    try{ el.dispatchEvent(new MouseEvent('mousedown',{bubbles:true,cancelable:true,view:window})); }catch(_ ){}
-    try{ el.dispatchEvent(new MouseEvent('mouseup',{bubbles:true,cancelable:true,view:window})); }catch(_ ){}
-    try{ el.dispatchEvent(new MouseEvent('click',{bubbles:true,cancelable:true,view:window})); return; }catch(_ ){}
-    try{ el.click(); }catch(_ ){}
-  }, delayMs).then(()=>true);
-}
-
-function adiClickFirstNpcDialog(delayMs){
-  return adiQueueGuiAction(()=>{
-    try{
-      const dlg = document.querySelector('#dialog, .dialog, .npcDialog, #npcDialog, .dsc') || document;
-      let first =
-        dlg.querySelector('#replies li, .replies li, #replies .reply, .replies .reply') ||
-        dlg.querySelector('li[data-option], li[data-answer], .dialog-option, .npc-dialog-option');
-
-      if(!first){
-        const all = Array.from(dlg.querySelectorAll('li, div, a')).filter(el => {
-          const txt = String((el.textContent || '')).trim();
-          const oc = String(el.getAttribute('onclick') || '');
-          return !!txt && (oc || /reply|option|line/i.test(String(el.className || '')));
-        });
-        first = all[0] || null;
-      }
-
-      if(first){
-        try{ console.log('[adi-auction] Klikam 1. dialog NPC:', (first.textContent||'').trim()); }catch(_ ){}
-        try{ first.dispatchEvent(new MouseEvent('mouseover',{bubbles:true,cancelable:true,view:window})); }catch(_ ){}
-        try{ first.dispatchEvent(new MouseEvent('mousedown',{bubbles:true,cancelable:true,view:window})); }catch(_ ){}
-        try{ first.dispatchEvent(new MouseEvent('mouseup',{bubbles:true,cancelable:true,view:window})); }catch(_ ){}
-        try{ first.dispatchEvent(new MouseEvent('click',{bubbles:true,cancelable:true,view:window})); return; }catch(_ ){}
-        try{ first.click(); return; }catch(_ ){}
-      }
-
-      try{
-        document.dispatchEvent(new KeyboardEvent('keydown', { key:'1', code:'Digit1', which:49, keyCode:49, bubbles:true }));
-        document.dispatchEvent(new KeyboardEvent('keyup',   { key:'1', code:'Digit1', which:49, keyCode:49, bubbles:true }));
-      }catch(_ ){}
-    }catch(e){
-      try{ console.warn('[adi-auction] click first dialog failed', e); }catch(_ ){}
-    }
-  }, delayMs);
-}
-
-function adiAuctionNorm(s){
-  try{ return String(s || '').toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g,'').trim(); }catch(_){ return String(s || '').toLowerCase().trim(); }
-}
-
-function adiAuctionVisible(el){
-  try{
-    if(!el || !el.isConnected) return false;
-    const st = window.getComputedStyle(el);
-    if(!st || st.display === 'none' || st.visibility === 'hidden' || Number(st.opacity || '1') === 0) return false;
-    const r = el.getBoundingClientRect();
-    return !!(r && r.width > 0 && r.height > 0);
-  }catch(_){ return false; }
-}
-
-function adiAuctionFindInventoryItemElById(id){
-  try{
-    const sid = String(id == null ? '' : id).trim();
-    if(!sid) return null;
-    const sels = [
-      `.item[data-item-id="item${sid}"]`,
-      `[data-item-id="item${sid}"]`,
-      `#item${sid}`,
-      `.item[id="item${sid}"]`
-    ];
-    for(const sel of sels){
-      const list = Array.from(document.querySelectorAll(sel));
-      for(const el of list){
-        if(!el) continue;
-        if(el.closest('#npcshop, .shop, #shop')) continue;
-        return el;
-      }
-    }
-  }catch(_){ }
-  return null;
-}
-
-function adiAuctionAllCandidateItems(){
-  try{
-    if(!window.g || !g.item) return [];
-    const out = [];
-    for(const key in g.item){
-      const item = g.item[key];
-      if(!item) continue;
-      const loc = String(item.loc || '');
-      if(loc !== 'g') continue;
-      const rarity = adiDetectLootRarity(item);
-      out.push({
-        slot: String(key),
-        item,
-        rarity,
-        name: String(item.name || item.n || ''),
-        id: item.id != null ? item.id : key
-      });
-    }
-    return out;
-  }catch(_){ return []; }
-}
-
-function adiAuctionPickPriceForRarity(rarity, cfg){
-  try{
-    if(rarity === 'heroic') return Math.max(0, parseInt(cfg && cfg.heroicPrice || 0, 10) || 0);
-    if(rarity === 'unique') return Math.max(0, parseInt(cfg && cfg.uniquePrice || 0, 10) || 0);
-    if(rarity === 'common') return Math.max(0, parseInt(cfg && cfg.commonPrice || 0, 10) || 0);
-  }catch(_){ }
-  return 0;
-}
-
-function adiAuctionNextSellableItem(cfg){
-  try{
-    const items = adiAuctionAllCandidateItems();
-    const seen = window.__adiAuctionPostedIds = window.__adiAuctionPostedIds || new Set();
-    for(const row of items){
-      if(!row || !row.item) continue;
-      if(seen.has(String(row.id))) continue;
-      if(row.rarity === 'legendary') continue;
-      const price = adiAuctionPickPriceForRarity(row.rarity, cfg);
-      if(price <= 0) continue;
-      return Object.assign({ price }, row);
-    }
-  }catch(_){ }
-  return null;
-}
-
-function adiAuctionMarkPosted(row){
-  try{
-    const seen = window.__adiAuctionPostedIds = window.__adiAuctionPostedIds || new Set();
-    if(row && row.id != null) seen.add(String(row.id));
-  }catch(_){ }
-}
-
-function adiAuctionResetPosted(){
-  try{ window.__adiAuctionPostedIds = new Set(); }catch(_){ }
-}
-
-function adiAuctionFindPanel(){
-  try{
-    const panels = Array.from(document.querySelectorAll('.auction-off-item-panel-wrapper, .auction-offer-item-panel-wrapper, .auction-window, .auction-panel, .one-record.auction-buy-now, .auction-off-item-panel'));
-    for(const p of panels){ if(adiAuctionVisible(p)) return p; }
-  }catch(_){ }
-  return null;
-}
-
-function adiAuctionFindPriceInput(panel){
-  try{
-    const root = panel || adiAuctionFindPanel() || document;
-    const inputs = Array.from(root.querySelectorAll('input.default, input[placeholder*="Min."], input[type="text"], input[type="number"]'));
-    for(const el of inputs){ if(adiAuctionVisible(el)) return el; }
-  }catch(_){ }
-  return null;
-}
-
-function adiAuctionSetInputValue(input, value){
-  try{
-    if(!input) return false;
-    const val = String(value == null ? '' : value);
-    input.focus();
-    try{ input.select && input.select(); }catch(_){ }
-    const proto = Object.getPrototypeOf(input);
-    const desc = proto && Object.getOwnPropertyDescriptor(proto, 'value');
-    if(desc && desc.set) desc.set.call(input, val);
-    else input.value = val;
-    try{ input.setAttribute('value', val); }catch(_){ }
-    for(const type of ['input','change','keyup','blur']){
-      try{ input.dispatchEvent(new Event(type, { bubbles:true })); }catch(_){ }
-    }
-    return true;
-  }catch(_){ return false; }
-}
-
-function adiAuctionFindSubmitEl(panel){
-  try{
-    const root = panel || adiAuctionFindPanel() || document;
-    const spans = Array.from(root.querySelectorAll('span.gfont, .gfont, .font[name="Wystaw"], span[name="Wystaw"]'));
-    for(const el of spans){
-      const txt = adiAuctionNorm(el.textContent || el.getAttribute('name') || '');
-      if(txt === 'wystaw' || txt.includes('wystaw')) return el.closest('.btn, .button, .small, div, span') || el;
-    }
-    const generic = Array.from(root.querySelectorAll('button, .btn, div, span')).find(el => adiAuctionNorm(el.textContent || '').includes('wystaw'));
-    if(generic) return generic;
-  }catch(_){ }
-  return null;
-}
-
-function adiAuctionDialogClosed(){
-  try{ return !document.querySelector('.dialog, #dialog, .npcDialog, #npcDialog, .dsc'); }catch(_){ return false; }
-}
-
-async function adiAuctionPostSingleRow(row){
-  const itemEl = adiAuctionFindInventoryItemElById(row && row.id);
-  if(!itemEl) throw new Error('Nie znalazłem itemu w torbie: ' + String(row && row.name || row && row.id || '?'));
-  await adiDelayedClick(itemEl, ADI_GUI_CLICK_DELAY_MS);
-  const panel = await new Promise((resolve, reject)=>{
-    const started = Date.now();
-    (function waitPanel(){
-      const found = adiAuctionFindPanel();
-      if(found) return resolve(found);
-      if(Date.now() - started > 6000) return reject(new Error('Nie otworzył się panel wystawiania dla ' + String(row && row.name || '?')));
-      setTimeout(waitPanel, 120);
-    })();
-  });
-  const input = adiAuctionFindPriceInput(panel);
-  if(!input) throw new Error('Brak input.default dla ' + String(row && row.name || '?'));
-  await adiQueueGuiAction(()=>{ adiAuctionSetInputValue(input, row.price); }, ADI_GUI_CLICK_DELAY_MS);
-  const submit = adiAuctionFindSubmitEl(panel);
-  if(!submit) throw new Error('Brak przycisku Wystaw dla ' + String(row && row.name || '?'));
-  await adiDelayedClick(submit, ADI_GUI_CLICK_DELAY_MS);
-  await new Promise(resolve=>setTimeout(resolve, Math.max(850, ADI_GUI_CLICK_DELAY_MS)));
-  adiAuctionMarkPosted(row);
-  return true;
-}
-
-async function adiAuctionRunPostingFlow(task){
-  if(window.__adiAuctionPostingBusy) return false;
-  window.__adiAuctionPostingBusy = true;
-  try{
-    const cfg = adiLoadAuctionCfg();
-    adiAuctionResetPosted();
-    let posted = 0;
-    let guard = 0;
-    while(guard < 200){
-      guard += 1;
-      const row = adiAuctionNextSellableItem(cfg);
-      if(!row) break;
-      try{
-        eqSetInfo('Aukcja: wystawiam ' + (row.name || ('item ' + row.id)) + ' [' + adiLootRarityLabel(row.rarity) + '] za ' + row.price + '.', true);
-      }catch(_){ }
-      await adiAuctionPostSingleRow(row);
-      posted += 1;
-      await new Promise(resolve=>setTimeout(resolve, 250));
-    }
-    try{
-      eqSetInfo(posted > 0 ? ('Aukcja: wystawiono ' + posted + ' itemów.') : 'Aukcja: brak itemów do wystawienia lub ceny = 0.', true);
-    }catch(_){ }
-    return true;
-  }finally{
-    window.__adiAuctionPostingBusy = false;
-  }
-}
-
-
-
 // ===== ADDON: HP% i EXP% na paskach (always ON, no bot UI changes) =====
 (function(){
   try{
@@ -3358,7 +3095,7 @@ vendorRow.appendChild(vendorSel);
       }
       return null;
     }
-    function apClick(el){ return adiDelayedClick(el, ADI_GUI_CLICK_DELAY_MS); }
+    function apClick(el){ if(!el) return; el.dispatchEvent(new MouseEvent('mousedown',{bubbles:true})); el.click(); }
 
 
 function apOpenDialogShop(){
@@ -3380,17 +3117,17 @@ function apOpenDialogShop(){
   }
 
   if(link){
-    adiDelayedClick(link, ADI_GUI_CLICK_DELAY_MS);
+    try{ link.dispatchEvent(new MouseEvent('mousedown',{bubbles:true})); }catch(_){}
+    try{ link.click(); }catch(_){}
+    try{ link.dispatchEvent(new MouseEvent('mouseup',{bubbles:true})); }catch(_){}
     return true;
   }
 
   // 4) awaryjnie klawisz "2"
-  adiQueueGuiAction(()=>{
-    try{
-      const ev = new KeyboardEvent('keydown',{key:'2', keyCode:50, which:50, code:'Digit2', bubbles:true});
-      document.dispatchEvent(ev);
-    }catch(_){}
-  }, ADI_GUI_CLICK_DELAY_MS);
+  try{
+    const ev = new KeyboardEvent('keydown',{key:'2', keyCode:50, which:50, code:'Digit2', bubbles:true});
+    document.dispatchEvent(ev);
+  }catch(_){}
   return false;
 }
     function apShopIsOpen(){ return document.querySelector('.item[id^=\"item\"], .shop, #shop, #npcshop'); }
@@ -4671,7 +4408,7 @@ try{
       return null;
     }
     function eqShopOpen(){ return document.querySelector('.item[id^="item"], .shop, #shop, #npcshop'); }
-    function eqClick(el){ return adiDelayedClick(el, ADI_GUI_CLICK_DELAY_MS); }
+    function eqClick(el){ try{ el.dispatchEvent(new MouseEvent('mousedown',{bubbles:true})); }catch(_ ){} try{ el.click(); }catch(_ ){} try{ el.dispatchEvent(new MouseEvent('mouseup',{bubbles:true})); }catch(_ ){} }
 
     function startEquipFlow(){
       let timer = window.__adiEquipTimer;
@@ -4714,14 +4451,15 @@ try{
         if(task.stage==='dialog'){
           if(document.querySelector('.dialog, #dialog, .npcDialog, #npcDialog, .dsc')){
             if(task.kind==='auction'){
-              if(!task.firstDialogClickedAt){
-                task.firstDialogClickedAt = Date.now();
-                task.stage = 'auctionDialogWait';
-                saveEquipTask(task);
-                eqSetInfo('Jestem u '+task.npc+' ('+task.map+'). Klikam 1. dialog aukcyjny…', true);
-                if(typeof adiClickFirstNpcDialog==='function') adiClickFirstNpcDialog(ADI_GUI_CLICK_DELAY_MS);
+              if(task.firstDialogClickedAt){
+                task.stage='auctionDialogWait'; saveEquipTask(task);
                 return;
               }
+              task.firstDialogClickedAt = Date.now();
+              task.stage='auctionDialogWait'; saveEquipTask(task);
+              eqSetInfo('Jestem u '+task.npc+' ('+task.map+'). Klikam 1. dialog aukcyjny…', true);
+              adiAuctionClickFirstDialog().catch(()=>{});
+              return;
             }
             if(typeof apOpenDialogShop==='function') apOpenDialogShop();
             task.stage='shop'; saveEquipTask(task);
@@ -4733,7 +4471,7 @@ try{
 
         if(task.stage==='auctionDialogWait'){
           const elapsed = Date.now() - Number(task.firstDialogClickedAt || 0);
-          if(elapsed < (ADI_GUI_CLICK_DELAY_MS + 250)) return;
+          if(elapsed < (ADI_AUCTION_GUI_DELAY_MS + 250)) return;
           task.stage = 'auctionPosting';
           saveEquipTask(task);
           eqSetInfo('Dotarłem do Aukcjonera, stoję na (' + task.stand.x + ',' + task.stand.y + '), kliknąłem 1. dialog i zaczynam wystawianie itemów.', true);
@@ -5830,8 +5568,7 @@ if (typeof window.window.__adi_equipByNameSequence !== 'function') {
       enabled: false,
       heroicPrice: 0,
       uniquePrice: 0,
-      commonPrice: 0,
-      freeSlotsThreshold: 3
+      commonPrice: 0
     };
   }
 
@@ -5848,8 +5585,7 @@ if (typeof window.window.__adi_equipByNameSequence !== 'function') {
         enabled: cfg.enabled ?? def.enabled,
         heroicPrice: num(cfg.heroicPrice, def.heroicPrice),
         uniquePrice: num(cfg.uniquePrice, def.uniquePrice),
-        commonPrice: num(cfg.commonPrice, def.commonPrice),
-        freeSlotsThreshold: Math.max(1, num(cfg.freeSlotsThreshold, def.freeSlotsThreshold))
+        commonPrice: num(cfg.commonPrice, def.commonPrice)
       };
     }catch(_){ return adiAuctionDefaults(); }
   }
@@ -5857,6 +5593,247 @@ if (typeof window.window.__adi_equipByNameSequence !== 'function') {
   function adiSaveAuctionCfg(next){
     try{ localStorage.setItem(ADI_AUCTION_CFG_KEY, JSON.stringify(next || adiAuctionDefaults())); }catch(_){ }
   }
+
+
+  const ADI_AUCTION_GUI_DELAY_MS = 1000;
+
+  function adiAuctionVisible(el){
+    try{
+      if(!el || !el.isConnected) return false;
+      const st = getComputedStyle(el);
+      if(!st || st.display === 'none' || st.visibility === 'hidden' || Number(st.opacity || '1') === 0) return false;
+      const r = el.getBoundingClientRect();
+      return !!(r && r.width > 0 && r.height > 0);
+    }catch(_){ return false; }
+  }
+
+  function adiAuctionDelay(ms){
+    return new Promise(resolve => setTimeout(resolve, Math.max(0, Number(ms)||0)));
+  }
+
+  async function adiAuctionGuiClick(el, delayMs = ADI_AUCTION_GUI_DELAY_MS){
+    if(!el) return false;
+    await adiAuctionDelay(delayMs);
+    try{ el.dispatchEvent(new MouseEvent('mouseover', { bubbles:true, cancelable:true, view:window })); }catch(_){}
+    try{ el.dispatchEvent(new MouseEvent('mousedown', { bubbles:true, cancelable:true, view:window })); }catch(_){}
+    try{ el.dispatchEvent(new MouseEvent('mouseup',   { bubbles:true, cancelable:true, view:window })); }catch(_){}
+    try{ el.dispatchEvent(new MouseEvent('click',     { bubbles:true, cancelable:true, view:window })); return true; }catch(_){}
+    try{ el.click(); return true; }catch(_){}
+    return false;
+  }
+
+  async function adiAuctionClickFirstDialog(delayMs = ADI_AUCTION_GUI_DELAY_MS){
+    await adiAuctionDelay(delayMs);
+    try{
+      const dlg = document.querySelector('#dialog, .dialog, .npcDialog, #npcDialog, .dsc') || document;
+      let first =
+        dlg.querySelector('#replies li, .replies li, #replies .reply, .replies .reply') ||
+        dlg.querySelector('li[data-option], li[data-answer], .dialog-option, .npc-dialog-option');
+
+      if(!first){
+        const all = Array.from(dlg.querySelectorAll('li, div, a')).filter(el => {
+          const txt = String(el.textContent || '').trim();
+          const oc = String(el.getAttribute('onclick') || '');
+          return !!txt && (oc || /reply|option|line/i.test(String(el.className || '')));
+        });
+        first = all[0] || null;
+      }
+
+      if(first){
+        await adiAuctionGuiClick(first, 0);
+        return true;
+      }
+
+      try{
+        document.dispatchEvent(new KeyboardEvent('keydown', { key:'1', code:'Digit1', which:49, keyCode:49, bubbles:true }));
+        document.dispatchEvent(new KeyboardEvent('keyup',   { key:'1', code:'Digit1', which:49, keyCode:49, bubbles:true }));
+        return true;
+      }catch(_){}
+    }catch(e){
+      try{ console.warn('[adi-auction] click first dialog failed', e); }catch(_){}
+    }
+    return false;
+  }
+
+  function adiAuctionFindInventoryItemElById(id){
+    try{
+      const sid = String(id == null ? '' : id).trim();
+      if(!sid) return null;
+      const sels = [
+        `.item[data-item-id="item${sid}"]`,
+        `[data-item-id="item${sid}"]`,
+        `#item${sid}`,
+        `.item[id="item${sid}"]`
+      ];
+      for(const sel of sels){
+        const list = Array.from(document.querySelectorAll(sel));
+        for(const el of list){
+          if(!el) continue;
+          if(el.closest('#npcshop, .shop, #shop')) continue;
+          return el;
+        }
+      }
+    }catch(_){}
+    return null;
+  }
+
+  function adiAuctionAllCandidateItems(){
+    try{
+      if(!window.g || !g.item) return [];
+      const out = [];
+      for(const key in g.item){
+        const item = g.item[key];
+        if(!item) continue;
+        if(String(item.loc || '') !== 'g') continue;
+        const rarity = adiDetectLootRarity(item);
+        out.push({
+          slot: String(key),
+          item,
+          rarity,
+          name: String(item.name || item.n || ''),
+          id: item.id != null ? item.id : key
+        });
+      }
+      return out;
+    }catch(_){ return []; }
+  }
+
+  function adiAuctionPickPriceForRarity(rarity, cfg){
+    try{
+      if(rarity === 'heroic') return Math.max(0, parseInt(cfg && cfg.heroicPrice || 0, 10) || 0);
+      if(rarity === 'unique') return Math.max(0, parseInt(cfg && cfg.uniquePrice || 0, 10) || 0);
+      if(rarity === 'common') return Math.max(0, parseInt(cfg && cfg.commonPrice || 0, 10) || 0);
+    }catch(_){}
+    return 0;
+  }
+
+  function adiAuctionNextSellableItem(cfg){
+    try{
+      const items = adiAuctionAllCandidateItems();
+      const seen = window.__adiAuctionPostedIds = window.__adiAuctionPostedIds || new Set();
+      for(const row of items){
+        if(!row || !row.item) continue;
+        if(seen.has(String(row.id))) continue;
+        if(row.rarity === 'legendary') continue;
+        const price = adiAuctionPickPriceForRarity(row.rarity, cfg);
+        if(price <= 0) continue;
+        return Object.assign({ price }, row);
+      }
+    }catch(_){}
+    return null;
+  }
+
+  function adiAuctionMarkPosted(row){
+    try{
+      const seen = window.__adiAuctionPostedIds = window.__adiAuctionPostedIds || new Set();
+      if(row && row.id != null) seen.add(String(row.id));
+    }catch(_){}
+  }
+
+  function adiAuctionResetPosted(){
+    try{ window.__adiAuctionPostedIds = new Set(); }catch(_){}
+  }
+
+  function adiAuctionFindPanel(){
+    try{
+      const panels = Array.from(document.querySelectorAll('.auction-off-item-panel-wrapper, .auction-offer-item-panel-wrapper, .auction-window, .auction-panel, .one-record.auction-buy-now, .auction-off-item-panel'));
+      for(const p of panels){ if(adiAuctionVisible(p)) return p; }
+    }catch(_){}
+    return null;
+  }
+
+  function adiAuctionFindPriceInput(panel){
+    try{
+      const root = panel || adiAuctionFindPanel() || document;
+      const inputs = Array.from(root.querySelectorAll('input.default, input[placeholder*="Min."], input[type="text"], input[type="number"]'));
+      for(const el of inputs){ if(adiAuctionVisible(el)) return el; }
+    }catch(_){}
+    return null;
+  }
+
+  function adiAuctionSetInputValue(input, value){
+    try{
+      if(!input) return false;
+      const val = String(value == null ? '' : value);
+      input.focus();
+      try{ input.select && input.select(); }catch(_){}
+      const proto = Object.getPrototypeOf(input);
+      const desc = proto && Object.getOwnPropertyDescriptor(proto, 'value');
+      if(desc && desc.set) desc.set.call(input, val);
+      else input.value = val;
+      try{ input.setAttribute('value', val); }catch(_){}
+      for(const type of ['input','change','keyup','blur']){
+        try{ input.dispatchEvent(new Event(type, { bubbles:true })); }catch(_){}
+      }
+      return true;
+    }catch(_){ return false; }
+  }
+
+  function adiAuctionFindSubmitEl(panel){
+    try{
+      const root = panel || adiAuctionFindPanel() || document;
+      const nodes = Array.from(root.querySelectorAll('span.gfont, .gfont, button, .btn, div, span'));
+      for(const el of nodes){
+        const txt = String(el.textContent || el.getAttribute('name') || '').toLowerCase().trim();
+        if(txt === 'wystaw' || txt.includes('wystaw')) return el.closest('.btn, .button, .small, div, span') || el;
+      }
+    }catch(_){}
+    return null;
+  }
+
+  async function adiAuctionPostSingleRow(row){
+    const itemEl = adiAuctionFindInventoryItemElById(row && row.id);
+    if(!itemEl) throw new Error('Nie znalazłem itemu w torbie: ' + String(row && row.name || row && row.id || '?'));
+    await adiAuctionGuiClick(itemEl);
+    const panel = await new Promise((resolve, reject)=>{
+      const started = Date.now();
+      (function waitPanel(){
+        const found = adiAuctionFindPanel();
+        if(found) return resolve(found);
+        if(Date.now() - started > 6000) return reject(new Error('Nie otworzył się panel wystawiania dla ' + String(row && row.name || '?')));
+        setTimeout(waitPanel, 120);
+      })();
+    });
+    const input = adiAuctionFindPriceInput(panel);
+    if(!input) throw new Error('Brak input.default dla ' + String(row && row.name || '?'));
+    await adiAuctionDelay(ADI_AUCTION_GUI_DELAY_MS);
+    adiAuctionSetInputValue(input, row.price);
+    const submit = adiAuctionFindSubmitEl(panel);
+    if(!submit) throw new Error('Brak przycisku Wystaw dla ' + String(row && row.name || '?'));
+    await adiAuctionGuiClick(submit);
+    await adiAuctionDelay(1000);
+    adiAuctionMarkPosted(row);
+    return true;
+  }
+
+  async function adiAuctionRunPostingFlow(task){
+    if(window.__adiAuctionPostingBusy) return false;
+    window.__adiAuctionPostingBusy = true;
+    try{
+      const cfg = adiLoadAuctionCfg();
+      adiAuctionResetPosted();
+      let posted = 0;
+      let guard = 0;
+      while(guard < 200){
+        guard += 1;
+        const row = adiAuctionNextSellableItem(cfg);
+        if(!row) break;
+        try{
+          eqSetInfo('Aukcja: wystawiam ' + (row.name || ('item ' + row.id)) + ' [' + adiLootRarityLabel(row.rarity) + '] za ' + row.price + '.', true);
+        }catch(_){}
+        await adiAuctionPostSingleRow(row);
+        posted += 1;
+        await adiAuctionDelay(250);
+      }
+      try{
+        eqSetInfo(posted > 0 ? ('Aukcja: wystawiono ' + posted + ' itemów.') : 'Aukcja: brak itemów do wystawienia lub ceny = 0.', true);
+      }catch(_){}
+      return posted > 0;
+    }finally{
+      window.__adiAuctionPostingBusy = false;
+    }
+  }
+
 
   function adiLootMessage(txt){
     try{ if(typeof message === 'function') message(txt); }catch(_){ }
