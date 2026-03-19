@@ -6711,14 +6711,12 @@ if (typeof window.window.__adi_equipByNameSequence !== 'function') {
 // ===== /E2 COUNTER =====
 
 
-// ===== AUCTION MODULE (AUTO SELL) =====
+// ===== AUCTION V5 FINAL (FIXED PRICE INPUT) =====
 (function(){
 
 function sleep(ms){ return new Promise(r=>setTimeout(r,ms)); }
 
-function clickEl(el){
-  try{ el.click(); return true;}catch{ return false;}
-}
+function clickEl(el){ try{el.click();return true;}catch{return false;} }
 
 function getTxt(el){
   return [
@@ -6752,6 +6750,30 @@ function findItem(){
   return f("heroicz") || f("unikat") || f("pospolity");
 }
 
+function setPrice(){
+  const inputs=[...document.querySelectorAll('input.default')]
+    .filter(el=>el.getAttribute('placeholder')==='Min. 500');
+
+  const input=inputs[2];
+  if(!input){ console.warn("Brak inputa ceny"); return false; }
+
+  const setter=Object.getOwnPropertyDescriptor(
+    Object.getPrototypeOf(input),"value"
+  ).set;
+
+  const value=input.value || "1000000"; // bierze z GUI
+
+  setter.call(input,value);
+
+  input.dispatchEvent(new Event("input",{bubbles:true}));
+  input.dispatchEvent(new Event("change",{bubbles:true}));
+  input.dispatchEvent(new Event("blur",{bubbles:true}));
+
+  document.body.click();
+
+  return true;
+}
+
 async function auctionLoop(){
   while(true){
     const item=findItem();
@@ -6763,24 +6785,22 @@ async function auctionLoop(){
     clickEl(item);
     await sleep(300);
 
-    const input=document.querySelector("input.default");
-    if(!input){ console.warn("brak input"); break; }
+    setPrice();
 
-    input.dispatchEvent(new Event('input',{bubbles:true}));
-
-    await sleep(200);
+    await sleep(300);
 
     const btn=[...document.querySelectorAll("span.gfont")]
       .find(el=>el.textContent.trim().toLowerCase()==="wystaw");
 
-    if(!btn){ console.warn("brak przycisku"); break; }
+    if(!btn){ console.warn("Brak przycisku wystaw"); break; }
 
     clickEl(btn);
+
     await sleep(800);
   }
 }
 
-async function handleAuctionNPC(npcId){
+async function startAuction(npcId){
   _g(`talk&id=${npcId}`);
   await sleep(1000);
 
@@ -6792,7 +6812,6 @@ async function handleAuctionNPC(npcId){
   auctionLoop();
 }
 
-// expose
-window.__adiAuctionStart = handleAuctionNPC;
+window.__adiAuctionStart = startAuction;
 
 })();
