@@ -257,6 +257,69 @@
 var TpG3Y86zpgrtWMzb, ZHN4ekpZ5m95pFbJ, YQTtmEs6a5mTXE5a;
 
 
+// ===== GUI CLICK QUEUE + 1s DELAY =====
+const ADI_GUI_CLICK_DELAY_MS = 1000;
+let __adiGuiClickChain = Promise.resolve();
+
+function adiQueueGuiAction(fn, delayMs){
+  const wait = Math.max(0, Number(delayMs == null ? ADI_GUI_CLICK_DELAY_MS : delayMs) || 0);
+  __adiGuiClickChain = __adiGuiClickChain.then(()=>new Promise(resolve=>{
+    setTimeout(()=>{
+      try{ fn && fn(); }catch(e){ try{ console.warn('[adi-gui-delay] action failed', e); }catch(_ ){} }
+      resolve();
+    }, wait);
+  }));
+  return __adiGuiClickChain;
+}
+
+function adiDelayedClick(el, delayMs){
+  if(!el) return Promise.resolve(false);
+  return adiQueueGuiAction(()=>{
+    try{ el.dispatchEvent(new MouseEvent('mouseover',{bubbles:true,cancelable:true,view:window})); }catch(_ ){}
+    try{ el.dispatchEvent(new MouseEvent('mousedown',{bubbles:true,cancelable:true,view:window})); }catch(_ ){}
+    try{ el.dispatchEvent(new MouseEvent('mouseup',{bubbles:true,cancelable:true,view:window})); }catch(_ ){}
+    try{ el.dispatchEvent(new MouseEvent('click',{bubbles:true,cancelable:true,view:window})); return; }catch(_ ){}
+    try{ el.click(); }catch(_ ){}
+  }, delayMs).then(()=>true);
+}
+
+function adiClickFirstNpcDialog(delayMs){
+  return adiQueueGuiAction(()=>{
+    try{
+      const dlg = document.querySelector('#dialog, .dialog, .npcDialog, #npcDialog, .dsc') || document;
+      let first =
+        dlg.querySelector('#replies li, .replies li, #replies .reply, .replies .reply') ||
+        dlg.querySelector('li[data-option], li[data-answer], .dialog-option, .npc-dialog-option');
+
+      if(!first){
+        const all = Array.from(dlg.querySelectorAll('li, div, a')).filter(el => {
+          const txt = String((el.textContent || '')).trim();
+          const oc = String(el.getAttribute('onclick') || '');
+          return !!txt && (oc || /reply|option|line/i.test(String(el.className || '')));
+        });
+        first = all[0] || null;
+      }
+
+      if(first){
+        try{ console.log('[adi-auction] Klikam 1. dialog NPC:', (first.textContent||'').trim()); }catch(_ ){}
+        try{ first.dispatchEvent(new MouseEvent('mouseover',{bubbles:true,cancelable:true,view:window})); }catch(_ ){}
+        try{ first.dispatchEvent(new MouseEvent('mousedown',{bubbles:true,cancelable:true,view:window})); }catch(_ ){}
+        try{ first.dispatchEvent(new MouseEvent('mouseup',{bubbles:true,cancelable:true,view:window})); }catch(_ ){}
+        try{ first.dispatchEvent(new MouseEvent('click',{bubbles:true,cancelable:true,view:window})); return; }catch(_ ){}
+        try{ first.click(); return; }catch(_ ){}
+      }
+
+      try{
+        document.dispatchEvent(new KeyboardEvent('keydown', { key:'1', code:'Digit1', which:49, keyCode:49, bubbles:true }));
+        document.dispatchEvent(new KeyboardEvent('keyup',   { key:'1', code:'Digit1', which:49, keyCode:49, bubbles:true }));
+      }catch(_ ){}
+    }catch(e){
+      try{ console.warn('[adi-auction] click first dialog failed', e); }catch(_ ){}
+    }
+  }, delayMs);
+}
+
+
 // ===== ADDON: HP% i EXP% na paskach (always ON, no bot UI changes) =====
 (function(){
   try{
@@ -3095,7 +3158,7 @@ vendorRow.appendChild(vendorSel);
       }
       return null;
     }
-    function apClick(el){ if(!el) return; el.dispatchEvent(new MouseEvent('mousedown',{bubbles:true})); el.click(); }
+    function apClick(el){ return adiDelayedClick(el, ADI_GUI_CLICK_DELAY_MS); }
 
 
 function apOpenDialogShop(){
@@ -3117,17 +3180,17 @@ function apOpenDialogShop(){
   }
 
   if(link){
-    try{ link.dispatchEvent(new MouseEvent('mousedown',{bubbles:true})); }catch(_){}
-    try{ link.click(); }catch(_){}
-    try{ link.dispatchEvent(new MouseEvent('mouseup',{bubbles:true})); }catch(_){}
+    adiDelayedClick(link, ADI_GUI_CLICK_DELAY_MS);
     return true;
   }
 
   // 4) awaryjnie klawisz "2"
-  try{
-    const ev = new KeyboardEvent('keydown',{key:'2', keyCode:50, which:50, code:'Digit2', bubbles:true});
-    document.dispatchEvent(ev);
-  }catch(_){}
+  adiQueueGuiAction(()=>{
+    try{
+      const ev = new KeyboardEvent('keydown',{key:'2', keyCode:50, which:50, code:'Digit2', bubbles:true});
+      document.dispatchEvent(ev);
+    }catch(_){}
+  }, ADI_GUI_CLICK_DELAY_MS);
   return false;
 }
     function apShopIsOpen(){ return document.querySelector('.item[id^=\"item\"], .shop, #shop, #npcshop'); }
@@ -4408,7 +4471,7 @@ try{
       return null;
     }
     function eqShopOpen(){ return document.querySelector('.item[id^="item"], .shop, #shop, #npcshop'); }
-    function eqClick(el){ try{ el.dispatchEvent(new MouseEvent('mousedown',{bubbles:true})); }catch(_ ){} try{ el.click(); }catch(_ ){} try{ el.dispatchEvent(new MouseEvent('mouseup',{bubbles:true})); }catch(_ ){} }
+    function eqClick(el){ return adiDelayedClick(el, ADI_GUI_CLICK_DELAY_MS); }
 
     function startEquipFlow(){
       let timer = window.__adiEquipTimer;
@@ -4451,17 +4514,30 @@ try{
         if(task.stage==='dialog'){
           if(document.querySelector('.dialog, #dialog, .npcDialog, #npcDialog, .dsc')){
             if(task.kind==='auction'){
-              eqSetInfo('Dotarłem do Aukcjonera i stoję na (' + task.stand.x + ',' + task.stand.y + ').', true);
-              clearEquipTask();
-              setTempTarget(null);
-              clearInterval(window.__adiEquipTimer);
-              return;
+              if(!task.firstDialogClickedAt){
+                task.firstDialogClickedAt = Date.now();
+                task.stage = 'auctionDialogWait';
+                saveEquipTask(task);
+                eqSetInfo('Jestem u '+task.npc+' ('+task.map+'). Klikam 1. dialog aukcyjny…', true);
+                if(typeof adiClickFirstNpcDialog==='function') adiClickFirstNpcDialog(ADI_GUI_CLICK_DELAY_MS);
+                return;
+              }
             }
             if(typeof apOpenDialogShop==='function') apOpenDialogShop();
             task.stage='shop'; saveEquipTask(task);
           } else {
             const npc = eqFindNpcByName(task.npc); if(npc) eqClick(npc);
           }
+          return;
+        }
+
+        if(task.stage==='auctionDialogWait'){
+          const elapsed = Date.now() - Number(task.firstDialogClickedAt || 0);
+          if(elapsed < (ADI_GUI_CLICK_DELAY_MS + 250)) return;
+          eqSetInfo('Dotarłem do Aukcjonera, stoję na (' + task.stand.x + ',' + task.stand.y + ') i kliknąłem 1. dialog.', true);
+          clearEquipTask();
+          setTempTarget(null);
+          clearInterval(window.__adiEquipTimer);
           return;
         }
 
