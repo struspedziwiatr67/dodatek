@@ -4538,6 +4538,31 @@ try{
       return null;
     }
 
+    function eqCloseAuctionWindow(){
+      try{
+        const candidates = [
+          document.querySelector('div.auction-close-button'),
+          document.querySelector('#auction-window .auction-close-button'),
+          document.querySelector('#auction-window .close-button'),
+          document.querySelector('#auction-window .close-wrapper'),
+          document.querySelector('#auction-window [class*="close"]')
+        ].filter(Boolean);
+
+        const btn = candidates[0] || null;
+        if(!btn) return false;
+
+        try{ btn.scrollIntoView({block:'center', inline:'center'}); }catch(_ ){}
+        try{ btn.dispatchEvent(new MouseEvent('mouseover', { bubbles:true, cancelable:true, view:window })); }catch(_ ){}
+        try{ btn.dispatchEvent(new MouseEvent('mousedown', { bubbles:true, cancelable:true, view:window })); }catch(_ ){}
+        try{ btn.dispatchEvent(new MouseEvent('mouseup', { bubbles:true, cancelable:true, view:window })); }catch(_ ){}
+        try{ btn.dispatchEvent(new MouseEvent('click', { bubbles:true, cancelable:true, view:window })); }catch(_ ){}
+        try{ btn.click(); }catch(_ ){}
+        return true;
+      }catch(_ ){}
+      return false;
+    }
+
+
     function startEquipFlow(){
       let timer = window.__adiEquipTimer;
       if(timer) clearInterval(timer);
@@ -4705,7 +4730,8 @@ try{
             eqSetInfo('Wybrano kolejny item do wystawienia na aukcję. Czekam na pole ceny…', true);
           }else{
             const total = Number(task.auctionListedCount || 0);
-            eqSetInfo('Nie ma już więcej itemów do wystawienia. Wystawiono łącznie: ' + total + '.', true);
+            const closed = eqCloseAuctionWindow();
+            eqSetInfo('Nie ma już więcej itemów do wystawienia. Wystawiono łącznie: ' + total + '.' + (closed ? ' Zamykam okno aukcji.' : ' Nie udało się zamknąć okna aukcji.'), true);
             clearEquipTask();
             setTempTarget(null);
             clearInterval(window.__adiEquipTimer);
