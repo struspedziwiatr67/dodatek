@@ -4661,7 +4661,7 @@ try{
           return;
         }
 
-        // 4d) Kliknij przycisk Wystaw i zakończ task
+        // 4d) Kliknij przycisk Wystaw i przejdź do kolejnego itemu
         if(task.stage==='confirmAuction'){
           if(Date.now() - Number(task.priceFilledAt || 0) < 250) return;
           const btn = eqFindAuctionSubmitButton();
@@ -4679,10 +4679,37 @@ try{
             return;
           }
           eqClick(btn);
-          eqSetInfo('Item został wystawiony na aukcję.', true);
-          clearEquipTask();
-          setTempTarget(null);
-          clearInterval(window.__adiEquipTimer);
+          task.auctionListedCount = Number(task.auctionListedCount || 0) + 1;
+          task.afterAuctionSubmitAt = Date.now();
+          task.stage = 'afterAuctionSubmit';
+          task.confirmRetry = 0;
+          task.priceRetry = 0;
+          task.priceFilledAt = 0;
+          saveEquipTask(task);
+          eqSetInfo('Item został wystawiony na aukcję. Szukam kolejnego…', true);
+          return;
+        }
+
+        // 4e) Po wystawieniu itemu wróć do wyboru kolejnego aż torba będzie pusta
+        if(task.stage==='afterAuctionSubmit'){
+          if(Date.now() - Number(task.afterAuctionSubmitAt || 0) < 900) return;
+          const nextItem = eqFindAuctionItemInBag();
+          if(nextItem){
+            task.lastAuctionRarity = eqDetectAuctionRarity(nextItem);
+            task.itemPickedAt = Date.now();
+            task.stage = 'setAuctionPrice';
+            task.priceRetry = 0;
+            task.confirmRetry = 0;
+            saveEquipTask(task);
+            eqClick(nextItem);
+            eqSetInfo('Wybrano kolejny item do wystawienia na aukcję. Czekam na pole ceny…', true);
+          }else{
+            const total = Number(task.auctionListedCount || 0);
+            eqSetInfo('Nie ma już więcej itemów do wystawienia. Wystawiono łącznie: ' + total + '.', true);
+            clearEquipTask();
+            setTempTarget(null);
+            clearInterval(window.__adiEquipTimer);
+          }
           return;
         }
 
