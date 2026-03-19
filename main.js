@@ -4477,6 +4477,66 @@ try{
       }catch(_ ){}
       return null;
     }
+    function eqDetectAuctionRarity(el){
+      try{
+        const t = [el?.getAttribute('tip'), el?.getAttribute('data-tip'), el?.getAttribute('title'), el?.textContent].join(' | ').toLowerCase();
+        if(t.includes('heroicz')) return 'heroic';
+        if(t.includes('unikat')) return 'unique';
+        if(t.includes('pospolity')) return 'common';
+      }catch(_ ){}
+      return 'common';
+    }
+    function eqGetGuiAuctionPrice(rarity){
+      try{
+        const map = {
+          heroic: '#adi-auction-heroic-price',
+          unique: '#adi-auction-unique-price',
+          common: '#adi-auction-common-price'
+        };
+        const el = document.querySelector(map[rarity] || '');
+        return el ? String(el.value || '').trim() : '';
+      }catch(_ ){}
+      return '';
+    }
+    function eqGetAuctionPriceInput(){
+      try{
+        const preferred = [
+          'input[name="price"]',
+          '#auction-price',
+          '.auction input[type="text"]'
+        ];
+        for(const sel of preferred){
+          const el = document.querySelector(sel);
+          if(el) return el;
+        }
+        const inputs = Array.from(document.querySelectorAll('input.default'))
+          .filter(el => String(el.getAttribute('placeholder') || '').trim() === 'Min. 500');
+        if(inputs[2]) return inputs[2];
+        return inputs[0] || null;
+      }catch(_ ){}
+      return null;
+    }
+    function eqSetNativeInputValue(input, value){
+      try{
+        const proto = Object.getPrototypeOf(input);
+        const desc = proto ? Object.getOwnPropertyDescriptor(proto, 'value') : null;
+        if(desc && typeof desc.set === 'function') desc.set.call(input, value);
+        else input.value = value;
+      }catch(_ ){
+        try{ input.value = value; }catch(__){}
+      }
+      try{ input.dispatchEvent(new Event('input', { bubbles:true })); }catch(_ ){}
+      try{ input.dispatchEvent(new Event('change', { bubbles:true })); }catch(_ ){}
+      try{ input.dispatchEvent(new Event('blur', { bubbles:true })); }catch(_ ){}
+      try{ input.dispatchEvent(new KeyboardEvent('keyup', { bubbles:true, key:'Enter' })); }catch(_ ){}
+    }
+    function eqFindAuctionSubmitButton(){
+      try{
+        const candidates = Array.from(document.querySelectorAll('button, span.gfont, div.button, .button, .btn'));
+        return candidates.find(el => /^(wystaw|wystaw item|sprzedaj)$/i.test(String((el.textContent || el.innerText || '')).trim())) || null;
+      }catch(_ ){}
+      return null;
+    }
 
     function startEquipFlow(){
       let timer = window.__adiEquipTimer;
@@ -4551,11 +4611,75 @@ try{
         if(task.stage==='pickItem'){
           const itemEl = eqFindAuctionItemInBag();
           if(itemEl){
+            task.lastAuctionRarity = eqDetectAuctionRarity(itemEl);
+            task.itemPickedAt = Date.now();
+            task.stage = 'setAuctionPrice';
+            saveEquipTask(task);
             eqClick(itemEl);
-            eqSetInfo('Wybrano item do wystawienia na aukcję.', true);
+            eqSetInfo('Wybrano item do wystawienia na aukcję. Czekam na pole ceny…', true);
           }else{
             eqSetInfo('Brak pasującego itemu do wystawienia (Heroiczny/Unikat/Pospolity bez ignorowanych typów).', true);
+            clearEquipTask();
+            setTempTarget(null);
+            clearInterval(window.__adiEquipTimer);
           }
+          return;
+        }
+
+        // 4c) Ustaw cenę z GUI dla wybranego itemu
+        if(task.stage==='setAuctionPrice'){
+          if(Date.now() - Number(task.itemPickedAt || 0) < 450) return;
+          const rarity = String(task.lastAuctionRarity || 'common');
+          const guiPrice = eqGetGuiAuctionPrice(rarity);
+          if(!guiPrice){
+            eqSetInfo('Brak ceny w GUI dla rarity: ' + rarity + '.', false);
+            clearEquipTask();
+            setTempTarget(null);
+            clearInterval(window.__adiEquipTimer);
+            return;
+          }
+          const input = eqGetAuctionPriceInput();
+          if(!input){
+            task.priceRetry = Number(task.priceRetry || 0) + 1;
+            saveEquipTask(task);
+            if(task.priceRetry >= 20){
+              eqSetInfo('Nie znalazłem pola ceny aukcji.', false);
+              clearEquipTask();
+              setTempTarget(null);
+              clearInterval(window.__adiEquipTimer);
+            }else{
+              eqSetInfo('Czekam na pole ceny aukcji… (' + task.priceRetry + '/20)', false);
+            }
+            return;
+          }
+          try{ input.focus(); }catch(_ ){}
+          eqSetNativeInputValue(input, guiPrice);
+          task.priceFilledAt = Date.now();
+          task.stage = 'confirmAuction';
+          saveEquipTask(task);
+          eqSetInfo('Ustawiono cenę ' + guiPrice + ' dla rarity: ' + rarity + '.', true);
+          return;
+        }
+
+        // 4d) Kliknij przycisk Wystaw i zakończ task
+        if(task.stage==='confirmAuction'){
+          if(Date.now() - Number(task.priceFilledAt || 0) < 250) return;
+          const btn = eqFindAuctionSubmitButton();
+          if(!btn){
+            task.confirmRetry = Number(task.confirmRetry || 0) + 1;
+            saveEquipTask(task);
+            if(task.confirmRetry >= 12){
+              eqSetInfo('Nie znalazłem przycisku „Wystaw”. Cena została wpisana.', false);
+              clearEquipTask();
+              setTempTarget(null);
+              clearInterval(window.__adiEquipTimer);
+            }else{
+              eqSetInfo('Czekam na przycisk „Wystaw”… (' + task.confirmRetry + '/12)', false);
+            }
+            return;
+          }
+          eqClick(btn);
+          eqSetInfo('Item został wystawiony na aukcję.', true);
           clearEquipTask();
           setTempTarget(null);
           clearInterval(window.__adiEquipTimer);
