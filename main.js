@@ -319,6 +319,206 @@ function adiClickFirstNpcDialog(delayMs){
   }, delayMs);
 }
 
+function adiAuctionNorm(s){
+  try{ return String(s || '').toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g,'').trim(); }catch(_){ return String(s || '').toLowerCase().trim(); }
+}
+
+function adiAuctionVisible(el){
+  try{
+    if(!el || !el.isConnected) return false;
+    const st = window.getComputedStyle(el);
+    if(!st || st.display === 'none' || st.visibility === 'hidden' || Number(st.opacity || '1') === 0) return false;
+    const r = el.getBoundingClientRect();
+    return !!(r && r.width > 0 && r.height > 0);
+  }catch(_){ return false; }
+}
+
+function adiAuctionFindInventoryItemElById(id){
+  try{
+    const sid = String(id == null ? '' : id).trim();
+    if(!sid) return null;
+    const sels = [
+      `.item[data-item-id="item${sid}"]`,
+      `[data-item-id="item${sid}"]`,
+      `#item${sid}`,
+      `.item[id="item${sid}"]`
+    ];
+    for(const sel of sels){
+      const list = Array.from(document.querySelectorAll(sel));
+      for(const el of list){
+        if(!el) continue;
+        if(el.closest('#npcshop, .shop, #shop')) continue;
+        return el;
+      }
+    }
+  }catch(_){ }
+  return null;
+}
+
+function adiAuctionAllCandidateItems(){
+  try{
+    if(!window.g || !g.item) return [];
+    const out = [];
+    for(const key in g.item){
+      const item = g.item[key];
+      if(!item) continue;
+      const loc = String(item.loc || '');
+      if(loc !== 'g') continue;
+      const rarity = adiDetectLootRarity(item);
+      out.push({
+        slot: String(key),
+        item,
+        rarity,
+        name: String(item.name || item.n || ''),
+        id: item.id != null ? item.id : key
+      });
+    }
+    return out;
+  }catch(_){ return []; }
+}
+
+function adiAuctionPickPriceForRarity(rarity, cfg){
+  try{
+    if(rarity === 'heroic') return Math.max(0, parseInt(cfg && cfg.heroicPrice || 0, 10) || 0);
+    if(rarity === 'unique') return Math.max(0, parseInt(cfg && cfg.uniquePrice || 0, 10) || 0);
+    if(rarity === 'common') return Math.max(0, parseInt(cfg && cfg.commonPrice || 0, 10) || 0);
+  }catch(_){ }
+  return 0;
+}
+
+function adiAuctionNextSellableItem(cfg){
+  try{
+    const items = adiAuctionAllCandidateItems();
+    const seen = window.__adiAuctionPostedIds = window.__adiAuctionPostedIds || new Set();
+    for(const row of items){
+      if(!row || !row.item) continue;
+      if(seen.has(String(row.id))) continue;
+      if(row.rarity === 'legendary') continue;
+      const price = adiAuctionPickPriceForRarity(row.rarity, cfg);
+      if(price <= 0) continue;
+      return Object.assign({ price }, row);
+    }
+  }catch(_){ }
+  return null;
+}
+
+function adiAuctionMarkPosted(row){
+  try{
+    const seen = window.__adiAuctionPostedIds = window.__adiAuctionPostedIds || new Set();
+    if(row && row.id != null) seen.add(String(row.id));
+  }catch(_){ }
+}
+
+function adiAuctionResetPosted(){
+  try{ window.__adiAuctionPostedIds = new Set(); }catch(_){ }
+}
+
+function adiAuctionFindPanel(){
+  try{
+    const panels = Array.from(document.querySelectorAll('.auction-off-item-panel-wrapper, .auction-offer-item-panel-wrapper, .auction-window, .auction-panel, .one-record.auction-buy-now, .auction-off-item-panel'));
+    for(const p of panels){ if(adiAuctionVisible(p)) return p; }
+  }catch(_){ }
+  return null;
+}
+
+function adiAuctionFindPriceInput(panel){
+  try{
+    const root = panel || adiAuctionFindPanel() || document;
+    const inputs = Array.from(root.querySelectorAll('input.default, input[placeholder*="Min."], input[type="text"], input[type="number"]'));
+    for(const el of inputs){ if(adiAuctionVisible(el)) return el; }
+  }catch(_){ }
+  return null;
+}
+
+function adiAuctionSetInputValue(input, value){
+  try{
+    if(!input) return false;
+    const val = String(value == null ? '' : value);
+    input.focus();
+    try{ input.select && input.select(); }catch(_){ }
+    const proto = Object.getPrototypeOf(input);
+    const desc = proto && Object.getOwnPropertyDescriptor(proto, 'value');
+    if(desc && desc.set) desc.set.call(input, val);
+    else input.value = val;
+    try{ input.setAttribute('value', val); }catch(_){ }
+    for(const type of ['input','change','keyup','blur']){
+      try{ input.dispatchEvent(new Event(type, { bubbles:true })); }catch(_){ }
+    }
+    return true;
+  }catch(_){ return false; }
+}
+
+function adiAuctionFindSubmitEl(panel){
+  try{
+    const root = panel || adiAuctionFindPanel() || document;
+    const spans = Array.from(root.querySelectorAll('span.gfont, .gfont, .font[name="Wystaw"], span[name="Wystaw"]'));
+    for(const el of spans){
+      const txt = adiAuctionNorm(el.textContent || el.getAttribute('name') || '');
+      if(txt === 'wystaw' || txt.includes('wystaw')) return el.closest('.btn, .button, .small, div, span') || el;
+    }
+    const generic = Array.from(root.querySelectorAll('button, .btn, div, span')).find(el => adiAuctionNorm(el.textContent || '').includes('wystaw'));
+    if(generic) return generic;
+  }catch(_){ }
+  return null;
+}
+
+function adiAuctionDialogClosed(){
+  try{ return !document.querySelector('.dialog, #dialog, .npcDialog, #npcDialog, .dsc'); }catch(_){ return false; }
+}
+
+async function adiAuctionPostSingleRow(row){
+  const itemEl = adiAuctionFindInventoryItemElById(row && row.id);
+  if(!itemEl) throw new Error('Nie znalazłem itemu w torbie: ' + String(row && row.name || row && row.id || '?'));
+  await adiDelayedClick(itemEl, ADI_GUI_CLICK_DELAY_MS);
+  const panel = await new Promise((resolve, reject)=>{
+    const started = Date.now();
+    (function waitPanel(){
+      const found = adiAuctionFindPanel();
+      if(found) return resolve(found);
+      if(Date.now() - started > 6000) return reject(new Error('Nie otworzył się panel wystawiania dla ' + String(row && row.name || '?')));
+      setTimeout(waitPanel, 120);
+    })();
+  });
+  const input = adiAuctionFindPriceInput(panel);
+  if(!input) throw new Error('Brak input.default dla ' + String(row && row.name || '?'));
+  await adiQueueGuiAction(()=>{ adiAuctionSetInputValue(input, row.price); }, ADI_GUI_CLICK_DELAY_MS);
+  const submit = adiAuctionFindSubmitEl(panel);
+  if(!submit) throw new Error('Brak przycisku Wystaw dla ' + String(row && row.name || '?'));
+  await adiDelayedClick(submit, ADI_GUI_CLICK_DELAY_MS);
+  await new Promise(resolve=>setTimeout(resolve, Math.max(850, ADI_GUI_CLICK_DELAY_MS)));
+  adiAuctionMarkPosted(row);
+  return true;
+}
+
+async function adiAuctionRunPostingFlow(task){
+  if(window.__adiAuctionPostingBusy) return false;
+  window.__adiAuctionPostingBusy = true;
+  try{
+    const cfg = adiLoadAuctionCfg();
+    adiAuctionResetPosted();
+    let posted = 0;
+    let guard = 0;
+    while(guard < 200){
+      guard += 1;
+      const row = adiAuctionNextSellableItem(cfg);
+      if(!row) break;
+      try{
+        eqSetInfo('Aukcja: wystawiam ' + (row.name || ('item ' + row.id)) + ' [' + adiLootRarityLabel(row.rarity) + '] za ' + row.price + '.', true);
+      }catch(_){ }
+      await adiAuctionPostSingleRow(row);
+      posted += 1;
+      await new Promise(resolve=>setTimeout(resolve, 250));
+    }
+    try{
+      eqSetInfo(posted > 0 ? ('Aukcja: wystawiono ' + posted + ' itemów.') : 'Aukcja: brak itemów do wystawienia lub ceny = 0.', true);
+    }catch(_){ }
+    return true;
+  }finally{
+    window.__adiAuctionPostingBusy = false;
+  }
+}
+
+
 
 // ===== ADDON: HP% i EXP% na paskach (always ON, no bot UI changes) =====
 (function(){
@@ -4534,10 +4734,28 @@ try{
         if(task.stage==='auctionDialogWait'){
           const elapsed = Date.now() - Number(task.firstDialogClickedAt || 0);
           if(elapsed < (ADI_GUI_CLICK_DELAY_MS + 250)) return;
-          eqSetInfo('Dotarłem do Aukcjonera, stoję na (' + task.stand.x + ',' + task.stand.y + ') i kliknąłem 1. dialog.', true);
-          clearEquipTask();
-          setTempTarget(null);
-          clearInterval(window.__adiEquipTimer);
+          task.stage = 'auctionPosting';
+          saveEquipTask(task);
+          eqSetInfo('Dotarłem do Aukcjonera, stoję na (' + task.stand.x + ',' + task.stand.y + '), kliknąłem 1. dialog i zaczynam wystawianie itemów.', true);
+          return;
+        }
+
+        if(task.stage==='auctionPosting'){
+          if(task.__postingStarted) return;
+          task.__postingStarted = true;
+          saveEquipTask(task);
+          (async ()=>{
+            try{
+              await adiAuctionRunPostingFlow(task);
+            }catch(e){
+              try{ console.warn('[adi-auction] posting flow failed', e); }catch(_ ){}
+              try{ eqSetInfo('Aukcja: błąd wystawiania - ' + String((e && e.message) || e || 'nieznany'), true); }catch(_ ){}
+            }finally{
+              try{ clearEquipTask(); }catch(_ ){}
+              try{ setTempTarget(null); }catch(_ ){}
+              try{ clearInterval(window.__adiEquipTimer); }catch(_ ){}
+            }
+          })();
           return;
         }
 
@@ -5612,7 +5830,8 @@ if (typeof window.window.__adi_equipByNameSequence !== 'function') {
       enabled: false,
       heroicPrice: 0,
       uniquePrice: 0,
-      commonPrice: 0
+      commonPrice: 0,
+      freeSlotsThreshold: 3
     };
   }
 
@@ -5629,7 +5848,8 @@ if (typeof window.window.__adi_equipByNameSequence !== 'function') {
         enabled: cfg.enabled ?? def.enabled,
         heroicPrice: num(cfg.heroicPrice, def.heroicPrice),
         uniquePrice: num(cfg.uniquePrice, def.uniquePrice),
-        commonPrice: num(cfg.commonPrice, def.commonPrice)
+        commonPrice: num(cfg.commonPrice, def.commonPrice),
+        freeSlotsThreshold: Math.max(1, num(cfg.freeSlotsThreshold, def.freeSlotsThreshold))
       };
     }catch(_){ return adiAuctionDefaults(); }
   }
