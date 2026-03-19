@@ -4409,48 +4409,73 @@ try{
     }
     function eqShopOpen(){ return document.querySelector('.item[id^="item"], .shop, #shop, #npcshop'); }
     function eqClick(el){ try{ el.dispatchEvent(new MouseEvent('mousedown',{bubbles:true})); }catch(_ ){} try{ el.click(); }catch(_ ){} try{ el.dispatchEvent(new MouseEvent('mouseup',{bubbles:true})); }catch(_ ){} }
-    function eqFindAuctionFirstDialogOption(){
+    function eqClickFirstAuctionDialog(){
       try{
-        const selectors = [
-          '#dialog .replies li.LINE_OPTION',
-          '#dialog .replies li',
-          '#dialog .replyes li',
-          '#dialog .replyes .icon.LINE_OPTION',
-          '#dialog li[onclick*="talk&id="][onclick*="&c="]',
-          '.dialog .replies li.LINE_OPTION',
-          '.dialog .replies li',
-          '.dialog li[onclick*="talk&id="][onclick*="&c="]',
-          '#dialog .icon.LINE_OPTION',
-          '.icon.LINE_OPTION'
-        ];
-        for(const sel of selectors){
-          const list = Array.from(document.querySelectorAll(sel)).filter(el => {
+        const docs = [document];
+        for(const fr of Array.from(document.querySelectorAll('iframe'))){
+          try{
+            const d = fr.contentDocument || (fr.contentWindow && fr.contentWindow.document);
+            if(d) docs.push(d);
+          }catch(_ ){}
+        }
+        for(const d of docs){
+          const opts = Array.from(d.querySelectorAll('li.LINE_OPTION, .icon.LINE_OPTION, .LINE_OPTION'));
+          for(const el of opts){
             try{
-              const txt = String(el.textContent || '').trim();
-              const oc = String(el.getAttribute('onclick') || '');
-              const st = getComputedStyle(el);
-              return st.display !== 'none' && st.visibility !== 'hidden' && (txt || oc);
-            }catch(_){ return false; }
+              const txt = String((el.textContent || el.innerText || '').trim());
+              if(!txt) continue;
+              const onclick = String(el.getAttribute('onclick') || '');
+              const m = onclick.match(/_g\((['"])\s*([^'"]+?)\s*\1\)/);
+              if(m && m[2]){
+                try{ _g(m[2]); return true; }catch(_ ){}
+              }
+              eqClick(el);
+              return true;
+            }catch(_ ){}
+          }
+        }
+      }catch(_ ){}
+      return false;
+    }
+    function eqAuctionEligibleBagItems(){
+      try{
+        const bag = document.querySelector('#bagc');
+        if(!bag) return [];
+        const all = Array.from(bag.querySelectorAll('*'));
+        const seen = new Set();
+        const deny = ['konsumpcyjne','błogosławień','teleport'];
+        function txt(el){
+          return [el.getAttribute('tip'), el.getAttribute('data-tip'), el.getAttribute('title'), el.textContent].join(' | ').toLowerCase();
+        }
+        return all.filter(el=>{
+          try{
+            if(!el || seen.has(el)) return false;
+            const t = txt(el);
+            if(!t.trim()) return false;
+            if(deny.some(x=>t.includes(x))) return false;
+            if(!(t.includes('heroicz') || t.includes('unikat') || t.includes('pospolity'))) return false;
+            seen.add(el);
+            return true;
+          }catch(_ ){ return false; }
+        });
+      }catch(_ ){}
+      return [];
+    }
+    function eqFindAuctionItemInBag(){
+      try{
+        const items = eqAuctionEligibleBagItems();
+        const order = ['heroicz','unikat','pospolity'];
+        for(const key of order){
+          const found = items.find(el=>{
+            try{
+              const t = [el.getAttribute('tip'), el.getAttribute('data-tip'), el.getAttribute('title'), el.textContent].join(' | ').toLowerCase();
+              return t.includes(key);
+            }catch(_ ){ return false; }
           });
-          if(list.length) return list[0];
+          if(found) return found;
         }
       }catch(_ ){}
       return null;
-    }
-    function eqClickAuctionFirstDialog(){
-      try{
-        const opt = eqFindAuctionFirstDialogOption();
-        if(!opt) return false;
-        const oc = String(opt.getAttribute('onclick') || '');
-        if(oc && typeof window._g === 'function'){
-          const m = oc.match(/_g\((['"])(.*?)\1\)/);
-          if(m && m[2]){
-            try{ window._g(m[2]); return true; }catch(_ ){}
-          }
-        }
-        eqClick(opt);
-        return true;
-      }catch(_ ){ return false; }
     }
 
     function startEquipFlow(){
@@ -4490,29 +4515,26 @@ try{
           }
           return;
         }
-        // 4) Klik w „Pokaż towary” / „Sklep”
+        // 4) Klik w „Pokaż towary” / „Sklep” albo pierwszy dialog Aukcjonera
         if(task.stage==='dialog'){
           if(document.querySelector('.dialog, #dialog, .npcDialog, #npcDialog, .dsc')){
             if(task.kind==='auction'){
               if(!task.dialogOpenedAt){
                 task.dialogOpenedAt = Date.now();
                 saveEquipTask(task);
-                eqSetInfo('Dialog Aukcjonera otwarty. Czekam 1s przed kliknięciem pierwszej opcji…', true);
+                eqSetInfo('Dialog Aukcjonera otwarty. Czekam 1s na pierwszy wybór…', true);
                 return;
               }
-              if(Date.now() - Number(task.dialogOpenedAt || 0) < 1000){
-                eqSetInfo('Dialog Aukcjonera otwarty. Czekam 1s przed kliknięciem pierwszej opcji…', true);
-                return;
-              }
+              if(Date.now() - Number(task.dialogOpenedAt || 0) < 1000) return;
               if(!task.dialogClicked){
-                const clicked = eqClickAuctionFirstDialog();
-                if(clicked){
+                const ok = eqClickFirstAuctionDialog();
+                if(ok){
                   task.dialogClicked = true;
-                  task.stage = 'auctionMenu';
+                  task.stage = 'pickItem';
                   saveEquipTask(task);
-                  eqSetInfo('Kliknąłem pierwszy dialog u Aukcjonera.', true);
+                  eqSetInfo('Kliknięto pierwszy dialog Aukcjonera. Szukam itemu do wystawienia…', true);
                 }else{
-                  eqSetInfo('Nie widzę jeszcze pierwszej opcji dialogowej u Aukcjonera…', false);
+                  eqSetInfo('Nie widzę jeszcze pierwszego dialogu Aukcjonera — próbuję ponownie…', false);
                 }
                 return;
               }
@@ -4525,8 +4547,15 @@ try{
           return;
         }
 
-        if(task.stage==='auctionMenu'){
-          eqSetInfo('Pierwszy dialog Aukcjonera kliknięty.', true);
+        // 4b) Wybór itemu do wystawienia na aukcję (Heroiczny -> Unikat -> Pospolity; bez Konsumpcyjnych/Błogosławieństw/Teleportów)
+        if(task.stage==='pickItem'){
+          const itemEl = eqFindAuctionItemInBag();
+          if(itemEl){
+            eqClick(itemEl);
+            eqSetInfo('Wybrano item do wystawienia na aukcję.', true);
+          }else{
+            eqSetInfo('Brak pasującego itemu do wystawienia (Heroiczny/Unikat/Pospolity bez ignorowanych typów).', true);
+          }
           clearEquipTask();
           setTempTarget(null);
           clearInterval(window.__adiEquipTimer);
