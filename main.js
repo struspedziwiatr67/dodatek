@@ -4937,17 +4937,7 @@ if(task.stage==='equip'){
 
       const bagSpace = (typeof window.adiGetTotalBagSpace === 'function') ? window.adiGetTotalBagSpace() : null;
       adiAuctionLog('bagSpace=', bagSpace);
-      if(!bagSpace || !Number.isFinite(Number(bagSpace.free))){
-        try{
-          const now = Date.now();
-          const last = Number(window.__adiAuctionBagSpaceWarnAt || 0);
-          if(now - last > 10000){
-            window.__adiAuctionBagSpaceWarnAt = now;
-            adiAuctionLog('exit: invalid bagSpace');
-          }
-        }catch(_){ adiAuctionLog('exit: invalid bagSpace'); }
-        return;
-      }
+      if(!bagSpace || !Number.isFinite(Number(bagSpace.free))){ adiAuctionLog('exit: invalid bagSpace'); return; }
 
       const threshold = Math.max(1, parseInt(cfg.freeSlotsThreshold || 3, 10) || 3);
       adiAuctionLog('threshold=', threshold);
@@ -6475,55 +6465,41 @@ if (typeof window.window.__adi_equipByNameSequence !== 'function') {
 
   function adiGetTotalBagSpace(){
     try{
-      const docs = [];
-      try{ docs.push(document); }catch(_){ }
-      try{
-        const frames = window.frames || [];
-        for(let i=0;i<frames.length;i++){
-          try{
-            const d = frames[i] && frames[i].document;
-            if(d && !docs.includes(d)) docs.push(d);
-          }catch(_){ }
-        }
-      }catch(_){ }
+      let free = 0;
+      let total = 0;
 
-      const ids = ['bs0','bs1','bs2','bs3'];
-      const rows = [];
+      for(const id of ['bs0','bs1','bs2']){
+        const el = document.querySelector(`small#${id}`) || document.getElementById(id);
+        if(!el) continue;
 
-      for(const doc of docs){
-        for(const id of ids){
-          let el = null;
-          try{ el = doc.getElementById(id) || doc.querySelector(`small#${id}`); }catch(_){ }
-          if(!el) continue;
+        const t = String(el.textContent || el.innerText || '').trim();
+        if(!t) continue;
 
-          const raw = String(el.textContent || el.innerText || '').replace(/\s+/g, ' ').trim();
-          if(!raw) continue;
+        const m = t.match(/(\d+)\/(\d+)/);
+        if(m){
+          const first = Number(m[1] || 0);
+          const second = Number(m[2] || 0);
 
-          const m = raw.match(/^(\d+)\s*\/\s*(\d+)$/);
-          if(!m) continue;
-
-          const free = Number(m[1] || 0);
-          const total = Number(m[2] || 0);
-          if(!Number.isFinite(free) || !Number.isFinite(total) || total <= 0) continue;
-
-          rows.push({ id, free, total, raw });
+          // Licznik bsX pokazuje wolne/łączne miejsca.
+          // Przykład: 0/30 = torba pełna, 1/30 = jedno wolne miejsce.
+          free += first;
+          total += second;
+        }else{
+          const n = parseInt(t, 10);
+          if(!isNaN(n)){
+            free += n;
+            total += 30;
+          }
         }
       }
 
-      if(!rows.length) return null;
-
-      const sumFree = rows.reduce((a, x)=> a + Math.max(0, x.free), 0);
-      const sumTotal = rows.reduce((a, x)=> a + Math.max(0, x.total), 0);
-      const result = {
-        free: Math.max(0, sumFree),
-        total: Math.max(0, sumTotal),
-        used: Math.max(0, sumTotal - sumFree),
-        text: `${Math.max(0, sumFree)} / ${Math.max(0, sumTotal)}`,
-        parts: rows
+      if(total <= 0) return null;
+      return {
+        free: Math.max(0, free),
+        total,
+        used: Math.max(0, total - free),
+        text: `${Math.max(0, free)} / ${total}`
       };
-
-      try{ window.__adiLastBagSpace = result; }catch(_){ }
-      return result;
     }catch(_){ return null; }
   }
 
