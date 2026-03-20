@@ -77,7 +77,7 @@
   }, 500);
 })();
 
-// ===== Auto refresh: Too Many Requests + biały ekran po wylogowaniu =====
+// ===== Auto refresh: Too Many Requests + 404 + biały ekran po wylogowaniu =====
 (function(){
   const CHECK_MS = 300;
   const RELOAD_DELAY_MS = 1000;
@@ -107,6 +107,16 @@
       if(!txt) return false;
       if(/^Too Many Requests$/i.test(txt)) return true;
       return /^Too Many Requests\b/i.test(txt);
+    }catch(_){ return false; }
+  }
+
+  function is404Screen(doc){
+    try{
+      if(!doc || !doc.body) return false;
+      const pre = doc.querySelector('body > pre, pre');
+      const txt = String((pre && pre.textContent) || doc.body.innerText || doc.body.textContent || '').toLowerCase();
+      if(!txt) return false;
+      return /404\s*page\s*not\s*found/i.test(txt);
     }catch(_){ return false; }
   }
 
@@ -142,6 +152,10 @@
       if(!isMargonemHost()) return;
       if(isTooManyRequestsScreen(document)){
         scheduleReload('ekran "Too Many Requests"');
+        return;
+      }
+      if(is404Screen(document)){
+        scheduleReload('ekran "404 page not found"');
         return;
       }
       if(isBlankWhiteScreen(document)){
