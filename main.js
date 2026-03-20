@@ -4889,9 +4889,11 @@ if(task.stage==='equip'){
       if(!bagSpace || !Number.isFinite(Number(bagSpace.free))) return;
 
       const threshold = Math.max(1, parseInt(cfg.freeSlotsThreshold || 3, 10) || 3);
-      if(Number(bagSpace.free) >= threshold) return;
+      const freeSlots = Number(bagSpace.free);
+      if(!Number.isFinite(freeSlots)) return;
+      if(freeSlots > threshold) return;
 
-      adiStartAuctionWalk('free<' + threshold);
+      adiStartAuctionWalk('free<=' + threshold);
     }catch(_){ }
   }, CHECK_MS);
 })();
