@@ -4836,7 +4836,6 @@ if(task.stage==='equip'){
 
 
 // ===== AUTO AUCTION WALKER (free slots threshold -> Aukcjoner Torneg) =====
-// ===== AUTO AUCTION WALKER (free slots threshold -> Aukcjoner Torneg) =====
 (function(){
   const CHECK_MS = 1200;
   const START_COOLDOWN_MS = 15000;
@@ -4894,92 +4893,6 @@ if(task.stage==='equip'){
 
       adiStartAuctionWalk('free<=' + threshold);
     }catch(_){ }
-  }, CHECK_MS);
-})();
-
-  function adiStartAuctionWalk(reason){
-    try{
-      const now = Date.now();
-      if(now - lastStartAt < START_COOLDOWN_MS) return false;
-
-      const existing = loadEquipTask();
-      if(existing) return false;
-
-      const v = findNearestAuctionVendor();
-      if(!v) return false;
-
-      lastStartAt = now;
-
-      const task = {
-        kind: 'auction',
-        stage: 'toCity',
-        map: v.map,
-        npc: v.npc,
-        stand: { x: Number(v.stand.x), y: Number(v.stand.y) },
-        pos: { x: Number(v.pos.x), y: Number(v.pos.y) },
-        createdAt: now,
-        reason: String(reason || 'free-slots'),
-        vendorKey: String(v.key || ''),
-        vendorChosenAt: now
-      };
-
-      saveEquipTask(task);
-      setTempTarget(v.map);
-      startEquipFlow();
-      eqSetInfo('Idę do najbliższego Aukcjonera: ' + v.map + ' (' + v.stand.x + ',' + v.stand.y + ').', true);
-
-      const btn = document.querySelector('#adi-bot_toggle');
-      if(btn && btn.innerText === 'START') btn.click();
-
-      console.log('[adi-auction] START', {
-        reason,
-        freeSlots: null,
-        threshold: null,
-        vendor: v
-      });
-
-      return true;
-    }catch(e){
-      console.warn('[adi-auction] start failed', e);
-      return false;
-    }
-  }
-
-  window.__adiStartAuctionWalk = adiStartAuctionWalk;
-
-  setInterval(() => {
-    try{
-      const cfg = adiLoadAuctionCfg();
-      if(!cfg || !cfg.enabled) return;
-      if(!window.hero || !window.map || !window.g) return;
-      if(g.dead || g.resp || g.reload || g.battle) return;
-
-      const task = loadEquipTask();
-      if(task && task.kind !== 'auction') return;
-      if(task && task.kind === 'auction') return;
-
-      const bagSpace = adiReadBagSpaceForAuction();
-      if(!bagSpace || !Number.isFinite(Number(bagSpace.free))) {
-        console.log('[adi-auction] skip: invalid bagSpace', bagSpace);
-        return;
-      }
-
-      const threshold = Math.max(1, parseInt(cfg.freeSlotsThreshold || 3, 10) || 3);
-
-      console.log('[adi-auction] check', {
-        enabled: !!cfg.enabled,
-        free: Number(bagSpace.free),
-        threshold,
-        shouldStart: Number(bagSpace.free) <= threshold
-      });
-
-      if(Number(bagSpace.free) > threshold) return;
-
-      const ok = adiStartAuctionWalk('free<=' + threshold);
-      console.log('[adi-auction] autostart result =', ok);
-    }catch(e){
-      console.warn('[adi-auction] loop failed', e);
-    }
   }, CHECK_MS);
 })();
 
