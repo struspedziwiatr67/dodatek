@@ -4889,10 +4889,10 @@ if(task.stage==='equip'){
       if(!bagSpace || !Number.isFinite(Number(bagSpace.free))) return;
 
       const threshold = Math.max(1, parseInt(cfg.freeSlotsThreshold || 3, 10) || 3);
-      if(Number(bagSpace.free) >= threshold) return;
+      if(Number(bagSpace.free) > threshold) return;
 
-      adiStartAuctionWalk('free<' + threshold);
-    }catch(_){ }
+      adiStartAuctionWalk('free<=' + threshold);
+    }catch(e){ console.warn('[adi-auction-auto]', e); }
   }, CHECK_MS);
 })();
 
@@ -6079,7 +6079,7 @@ if (typeof window.window.__adi_equipByNameSequence !== 'function') {
           </label>
           <label class="adi-settings-line" for="adi-auction-free-threshold">
             <input type="number" min="1" step="1" id="adi-auction-free-threshold" class="adi-bot_inputs adi-inline-input" value="${Math.max(1, Number(cfg.freeSlotsThreshold || 3))}">
-            <span class="adi-settings-label">Auto-podejście do Aukcjonera poniżej tylu wolnych miejsc</span>
+            <span class="adi-settings-label">Auto-podejście do Aukcjonera przy tylu lub mniejszej liczbie wolnych miejsc</span>
           </label>
           <div id="adi-auction-bag-space" class="adi-auction-space">Aktualna ilość wolnych miejsc w torbach: —</div>
           <div class="adi-settings-line" style="margin-top:12px;justify-content:flex-start;">
@@ -7069,36 +7069,4 @@ async function startAuction(npcId){
 
 window.__adiAuctionStart = startAuction;
 
-})();
-
-
-// === AUTO AUCTION TRIGGER (FREE SLOTS) ===
-(function(){
-  const CHECK_MS = 2000;
-
-  function getCfg(){
-    try{
-      return JSON.parse(localStorage.getItem('adi-bot_auction_cfg') || '{}');
-    }catch(_){ return {}; }
-  }
-
-  function tick(){
-    try{
-      const cfg = getCfg();
-      if(!cfg || !cfg.enabled) return;
-
-      const bag = (typeof adiGetTotalBagSpace === 'function') ? adiGetTotalBagSpace() : null;
-      if(!bag) return;
-
-      const threshold = Number(cfg.freeSlotsThreshold ?? 3);
-      if(bag.free <= threshold){
-        if(typeof window.__adiStartAuctionWalk === 'function'){
-          console.log('[adi-bot] AUTO AUKCJA: mało miejsca ('+bag.free+') -> idę do Aukcjonera');
-          window.__adiStartAuctionWalk('auto-free-slots');
-        }
-      }
-    }catch(e){}
-  }
-
-  setInterval(tick, CHECK_MS);
 })();
