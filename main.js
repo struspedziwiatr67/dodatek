@@ -4839,51 +4839,19 @@ if(task.stage==='equip'){
 (function(){
   const CHECK_MS = 1200;
   const START_COOLDOWN_MS = 15000;
-  const STALE_TASK_MS = 2 * 60 * 1000;
   let lastStartAt = 0;
-
-  function adiAuctionLog(){
-    try{ console.log('[AUKCJA]', ...arguments); }catch(_){ }
-  }
-
-  function adiMaybeClearStaleAuctionTask(task){
-    try{
-      if(!task) return false;
-      const age = Date.now() - Number(task.createdAt || 0);
-      if(age > STALE_TASK_MS){
-        console.warn('[AUKCJA] Usuwam stary task blokujący autoaukcję:', task);
-        try{ clearEquipTask(); }catch(_){ }
-        try{ setTempTarget(null); }catch(_){ }
-        try{ if(window.__adiEquipTimer) clearInterval(window.__adiEquipTimer); }catch(_){ }
-        return true;
-      }
-    }catch(_){ }
-    return false;
-  }
 
   function adiStartAuctionWalk(reason){
     try{
       const now = Date.now();
-      if(now - lastStartAt < START_COOLDOWN_MS){
-        adiAuctionLog('start zablokowany przez cooldown', { msLeft: START_COOLDOWN_MS - (now - lastStartAt) });
-        return false;
-      }
+      if(now - lastStartAt < START_COOLDOWN_MS) return false;
+      lastStartAt = now;
 
       const existing = loadEquipTask();
-      if(existing){
-        if(!adiMaybeClearStaleAuctionTask(existing)){
-          adiAuctionLog('start zablokowany przez aktywny task', existing);
-          return false;
-        }
-      }
+      if(existing) return false;
 
       const v = findNearestAuctionVendor();
-      if(!v){
-        adiAuctionLog('Nie znaleziono Aukcjonera dla mapy', map?.name || 'unknown');
-        return false;
-      }
-
-      lastStartAt = now;
+      if(!v) return false;
       const task = {
         kind: 'auction',
         stage: 'toCity',
@@ -4900,57 +4868,62 @@ if(task.stage==='equip'){
       setTempTarget(v.map);
       startEquipFlow();
       eqSetInfo('Idę do najbliższego Aukcjonera: ' + v.map + ' (' + v.stand.x + ',' + v.stand.y + ').', true);
-      adiAuctionLog('Wystartowano autoaukcję', { reason: task.reason, vendor: v.map + ' / ' + v.npc, freeSlotsTaskAt: now });
       const btn=document.querySelector('#adi-bot_toggle'); if(btn && btn.innerText==='START') btn.click();
       return true;
-    }catch(e){
-      console.warn('[AUKCJA] Exception w adiStartAuctionWalk', e);
-      return false;
-    }
+    }catch(_){ return false; }
   }
   window.__adiStartAuctionWalk = adiStartAuctionWalk;
 
-  setInterval(()=>{
+  if(window.__adiAuctionAutoTimer) clearInterval(window.__adiAuctionAutoTimer);
+  window.__adiAuctionAutoTimer = setInterval(()=>{
     try{
-      const cfg = adiLoadAuctionCfg();
-      adiAuctionLog('cfg=', cfg);
-      if(!cfg || !cfg.enabled){ adiAuctionLog('exit: disabled'); return; }
-      if(!window.hero || !window.map || !window.g){ adiAuctionLog('exit: no hero/map/g'); return; }
-      if(g.dead || g.resp || g.reload || g.battle){
-        adiAuctionLog('exit: blocked by state', { dead:g.dead, resp:g.resp, reload:g.reload, battle:g.battle });
-        return;
+      const rawCfg = localStorage.getItem('adi-bot_auction_cfg');
+      const cfg = rawCfg ? JSON.parse(rawCfg) : {};
+      if(!cfg || !cfg.enabled) return;
+      if(!window.hero || !window.map || !window.g) return;
+      if(g.dead || g.resp || g.reload || g.battle) return;
+
+      let task = null;
+      try{
+        const rawTask = localStorage.getItem('adi-bot_equip_task');
+        task = rawTask ? JSON.parse(rawTask) : null;
+      }catch(_){ task = null; }
+
+      if(task && task.kind !== 'auction') return;
+      if(task && task.kind === 'auction') return;
+
+      let free = null;
+      try{
+        let sum = 0, seen = 0;
+        for(const id of ['bs0','bs1','bs2']){
+          const el = document.querySelector('small#' + id) || document.getElementById(id);
+          if(!el) continue;
+          const t = String(el.textContent || el.innerText || '').trim();
+          const m = t.match(/(\d+)\/(\d+)/);
+          if(m){
+            sum += Number(m[1] || 0);
+            seen++;
+          }
+        }
+        if(seen > 0) free = sum;
+      }catch(_){}
+
+      if(free === null){
+        try{
+          const el = document.querySelector('#adi-auction-bag-space');
+          const txt = String((el && (el.textContent || el.innerText)) || '');
+          const m = txt.match(/Aktualna ilość wolnych miejsc w torbach:\s*(\d+)/i);
+          if(m) free = Number(m[1]);
+        }catch(_){}
       }
 
-      let task = loadEquipTask();
-      if(task){
-        const cleared = adiMaybeClearStaleAuctionTask(task);
-        if(cleared) task = null;
-      }
-      if(task && task.kind !== 'auction'){
-        adiAuctionLog('exit: blocked by non-auction task', task);
-        return;
-      }
-      if(task && task.kind === 'auction'){
-        adiAuctionLog('exit: auction task already running', task);
-        return;
-      }
-
-      const bagSpace = adiGetTotalBagSpace();
-      adiAuctionLog('bagSpace=', bagSpace);
-      if(!bagSpace || !Number.isFinite(Number(bagSpace.free))){ adiAuctionLog('exit: invalid bagSpace'); return; }
+      if(!Number.isFinite(Number(free))) return;
 
       const threshold = Math.max(1, parseInt(cfg.freeSlotsThreshold || 3, 10) || 3);
-      adiAuctionLog('threshold=', threshold);
-      if(Number(bagSpace.free) > threshold){
-        adiAuctionLog('exit: free > threshold', { free: Number(bagSpace.free), threshold });
-        return;
-      }
+      if(Number(free) > threshold) return;
 
-      const started = adiStartAuctionWalk('free<=' + threshold);
-      adiAuctionLog('start result=', started);
-    }catch(e){
-      console.warn('[AUKCJA] exception w checkerze', e);
-    }
+      adiStartAuctionWalk('free<=' + threshold);
+    }catch(e){ console.warn('[adi-auction-auto]', e); }
   }, CHECK_MS);
 })();
 
@@ -5898,7 +5871,8 @@ if (typeof window.window.__adi_equipByNameSequence !== 'function') {
       enabled: false,
       heroicPrice: 0,
       uniquePrice: 0,
-      commonPrice: 0
+      commonPrice: 0,
+      freeSlotsThreshold: 3
     };
   }
 
@@ -5915,7 +5889,8 @@ if (typeof window.window.__adi_equipByNameSequence !== 'function') {
         enabled: cfg.enabled ?? def.enabled,
         heroicPrice: num(cfg.heroicPrice, def.heroicPrice),
         uniquePrice: num(cfg.uniquePrice, def.uniquePrice),
-        commonPrice: num(cfg.commonPrice, def.commonPrice)
+        commonPrice: num(cfg.commonPrice, def.commonPrice),
+        freeSlotsThreshold: Math.max(1, num(cfg.freeSlotsThreshold, def.freeSlotsThreshold))
       };
     }catch(_){ return adiAuctionDefaults(); }
   }
@@ -6137,7 +6112,7 @@ if (typeof window.window.__adi_equipByNameSequence !== 'function') {
           </label>
           <label class="adi-settings-line" for="adi-auction-free-threshold">
             <input type="number" min="1" step="1" id="adi-auction-free-threshold" class="adi-bot_inputs adi-inline-input" value="${Math.max(1, Number(cfg.freeSlotsThreshold || 3))}">
-            <span class="adi-settings-label">Auto-podejście do Aukcjonera poniżej tylu wolnych miejsc</span>
+            <span class="adi-settings-label">Auto-podejście do Aukcjonera przy tylu lub mniejszej liczbie wolnych miejsc</span>
           </label>
           <div id="adi-auction-bag-space" class="adi-auction-space">Aktualna ilość wolnych miejsc w torbach: —</div>
           <div class="adi-settings-line" style="margin-top:12px;justify-content:flex-start;">
