@@ -6475,70 +6475,55 @@ if (typeof window.window.__adi_equipByNameSequence !== 'function') {
 
   function adiGetTotalBagSpace(){
     try{
-      let free = 0;
-      let total = 0;
       const docs = [];
       try{ docs.push(document); }catch(_){ }
       try{
-        for(let i=0;i<window.frames.length;i++){
+        const frames = window.frames || [];
+        for(let i=0;i<frames.length;i++){
           try{
-            const d = window.frames[i] && window.frames[i].document;
+            const d = frames[i] && frames[i].document;
             if(d && !docs.includes(d)) docs.push(d);
           }catch(_){ }
         }
       }catch(_){ }
 
-      const ids = ['bs0','bs1','bs2','bs3','bag-space-0','bag-space-1','bag-space-2','bag-space-3'];
-      const seen = new Set();
-
-      function addFromText(raw){
-        const t = String(raw || '').replace(/\s+/g, ' ').trim();
-        if(!t) return false;
-        const m = t.match(/(\d+)\s*\/\s*(\d+)/);
-        if(m){
-          const first = Number(m[1] || 0);
-          const second = Number(m[2] || 0);
-          if(Number.isFinite(first) && Number.isFinite(second) && second > 0){
-            free += first;
-            total += second;
-            return true;
-          }
-        }
-        return false;
-      }
+      const ids = ['bs0','bs1','bs2','bs3'];
+      const rows = [];
 
       for(const doc of docs){
         for(const id of ids){
           let el = null;
-          try{ el = doc.querySelector(`small#${id}, #${id}`); }catch(_){ }
+          try{ el = doc.getElementById(id) || doc.querySelector(`small#${id}`); }catch(_){ }
           if(!el) continue;
-          if(seen.has(el)) continue;
-          seen.add(el);
-          addFromText(el.textContent || el.innerText || '');
+
+          const raw = String(el.textContent || el.innerText || '').replace(/\s+/g, ' ').trim();
+          if(!raw) continue;
+
+          const m = raw.match(/^(\d+)\s*\/\s*(\d+)$/);
+          if(!m) continue;
+
+          const free = Number(m[1] || 0);
+          const total = Number(m[2] || 0);
+          if(!Number.isFinite(free) || !Number.isFinite(total) || total <= 0) continue;
+
+          rows.push({ id, free, total, raw });
         }
       }
 
-      if(total <= 0){
-        for(const doc of docs){
-          let nodes = [];
-          try{ nodes = Array.from(doc.querySelectorAll('small, span, div')); }catch(_){ nodes = []; }
-          for(const el of nodes){
-            if(seen.has(el)) continue;
-            const txt = String(el.textContent || el.innerText || '').trim();
-            if(!/^\d+\s*\/\s*\d+$/.test(txt)) continue;
-            if(addFromText(txt)) seen.add(el);
-          }
-          if(total > 0) break;
-        }
-      }
+      if(!rows.length) return null;
 
-      if(total <= 0) return null;
-      return {
-        free: Math.max(0, free),
-        total,
-        used: Math.max(0, total - free),
-        text: `${Math.max(0, free)} / ${total}`
+      const sumFree = rows.reduce((a, x)=> a + Math.max(0, x.free), 0);
+      const sumTotal = rows.reduce((a, x)=> a + Math.max(0, x.total), 0);
+      const result = {
+        free: Math.max(0, sumFree),
+        total: Math.max(0, sumTotal),
+        used: Math.max(0, sumTotal - sumFree),
+        text: `${Math.max(0, sumFree)} / ${Math.max(0, sumTotal)}`,
+        parts: rows
       };
+
+      try{ window.__adiLastBagSpace = result; }catch(_){ }
+      return result;
     }catch(_){ return null; }
   }
 
