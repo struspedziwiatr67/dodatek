@@ -4836,48 +4836,66 @@ if(task.stage==='equip'){
 
 
 // ===== AUTO AUCTION WALKER (free slots threshold -> Aukcjoner Torneg) =====
-// ===== AUTO AUCTION WALKER (free slots threshold -> nearest auctioneer) =====
+// ===== AUTO AUCTION WALKER (free slots threshold -> Aukcjoner Torneg) =====
 (function(){
   const CHECK_MS = 1200;
   const START_COOLDOWN_MS = 15000;
   let lastStartAt = 0;
 
-  function adiReadBagSpaceForAuction(){
+  function adiStartAuctionWalk(reason){
     try{
-      let free = 0;
-      let total = 0;
+      const now = Date.now();
+      if(now - lastStartAt < START_COOLDOWN_MS) return false;
+      lastStartAt = now;
 
-      for(const id of ['bs0','bs1','bs2']){
-        const el = document.querySelector(`small#${id}`) || document.getElementById(id);
-        if(!el) continue;
+      const existing = loadEquipTask();
+      if(existing) return false;
 
-        const t = String(el.textContent || el.innerText || '').trim();
-        if(!t) continue;
-
-        const m = t.match(/(\d+)\s*\/\s*(\d+)/);
-        if(m){
-          free += Number(m[1] || 0);
-          total += Number(m[2] || 0);
-        }else{
-          const n = parseInt(t, 10);
-          if(Number.isFinite(n)){
-            free += n;
-            total += 30;
-          }
-        }
-      }
-
-      if(total <= 0) return null;
-      return {
-        free: Math.max(0, free),
-        total,
-        used: Math.max(0, total - free)
+      const v = findNearestAuctionVendor();
+      if(!v) return false;
+      const task = {
+        kind: 'auction',
+        stage: 'toCity',
+        map: v.map,
+        npc: v.npc,
+        stand: { x: Number(v.stand.x), y: Number(v.stand.y) },
+        pos: { x: Number(v.pos.x), y: Number(v.pos.y) },
+        createdAt: now,
+        reason: String(reason || 'free-slots'),
+        vendorKey: String(v.key || ''),
+        vendorChosenAt: now
       };
-    }catch(e){
-      console.warn('[adi-auction] bag-space read failed', e);
-      return null;
-    }
+      saveEquipTask(task);
+      setTempTarget(v.map);
+      startEquipFlow();
+      eqSetInfo('Idę do najbliższego Aukcjonera: ' + v.map + ' (' + v.stand.x + ',' + v.stand.y + ').', true);
+      const btn=document.querySelector('#adi-bot_toggle'); if(btn && btn.innerText==='START') btn.click();
+      return true;
+    }catch(_){ return false; }
   }
+  window.__adiStartAuctionWalk = adiStartAuctionWalk;
+
+  setInterval(()=>{
+    try{
+      const cfg = adiLoadAuctionCfg();
+      if(!cfg || !cfg.enabled) return;
+      if(!window.hero || !window.map || !window.g) return;
+      if(g.dead || g.resp || g.reload || g.battle) return;
+
+      const task = loadEquipTask();
+      if(task && task.kind !== 'auction') return;
+      if(task && task.kind === 'auction') return;
+
+      const bagSpace = adiGetTotalBagSpace();
+      if(!bagSpace || !Number.isFinite(Number(bagSpace.free))) return;
+
+      const threshold = Math.max(1, parseInt(cfg.freeSlotsThreshold || 3, 10) || 3);
+      if(Number(bagSpace.free) > threshold) return;
+
+      adiStartAuctionWalk('free<=' + threshold);
+    }catch(_){ }
+  }, CHECK_MS);
+})();
 
   function adiStartAuctionWalk(reason){
     try{
