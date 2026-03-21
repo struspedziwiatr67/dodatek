@@ -4839,79 +4839,19 @@ if(task.stage==='equip'){
 (function(){
   const CHECK_MS = 1200;
   const START_COOLDOWN_MS = 15000;
-  const DEBUG_KEY = 'adi-bot_auction_debug';
   let lastStartAt = 0;
-
-  function adiAuctionDebugEnabled(){
-    try{ return localStorage.getItem(DEBUG_KEY) === '1'; }catch(_){ return false; }
-  }
-
-  function adiAuctionLog(){
-    try{
-      if(!adiAuctionDebugEnabled()) return;
-      const args = Array.from(arguments || []);
-      args.unshift('[AUKCJA]');
-      console.log.apply(console, args);
-    }catch(_){ }
-  }
-
-  function adiSetAuctionDebug(enabled){
-    try{
-      if(enabled) localStorage.setItem(DEBUG_KEY, '1');
-      else localStorage.removeItem(DEBUG_KEY);
-      console.log('[AUKCJA]', 'debug', enabled ? 'ON' : 'OFF');
-      return true;
-    }catch(_){ return false; }
-  }
-
-  function adiGetAuctionStartBlocker(){
-    try{
-      const cfg = adiLoadAuctionCfg();
-      if(!cfg || !cfg.enabled) return { ok:false, code:'disabled', details:{ cfg } };
-      if(!window.hero || !window.map || !window.g) return { ok:false, code:'missing-globals' };
-      if(g.dead || g.resp || g.reload || g.battle){
-        return { ok:false, code:'game-state', details:{ dead:!!g.dead, resp:!!g.resp, reload:!!g.reload, battle:!!g.battle } };
-      }
-
-      const task = loadEquipTask();
-      if(task) return { ok:false, code:'active-task', details: task };
-
-      const bagSpace = adiGetTotalBagSpace();
-      if(!bagSpace || !Number.isFinite(Number(bagSpace.free))){
-        return { ok:false, code:'bag-space-unreadable', details:{ bagSpace } };
-      }
-
-      const threshold = Math.max(1, parseInt(cfg.freeSlotsThreshold || 3, 10) || 3);
-      if(Number(bagSpace.free) > threshold){
-        return { ok:false, code:'above-threshold', details:{ free:Number(bagSpace.free), threshold, bagSpace } };
-      }
-
-      const vendor = findNearestAuctionVendor();
-      if(!vendor) return { ok:false, code:'no-vendor-route' };
-
-      const now = Date.now();
-      if(now - lastStartAt < START_COOLDOWN_MS){
-        return { ok:false, code:'cooldown', details:{ remainingMs: Math.max(0, START_COOLDOWN_MS - (now - lastStartAt)) } };
-      }
-
-      return { ok:true, cfg, bagSpace, threshold, vendor };
-    }catch(e){
-      return { ok:false, code:'exception', details:e };
-    }
-  }
 
   function adiStartAuctionWalk(reason){
     try{
-      const check = adiGetAuctionStartBlocker();
-      if(!check.ok){
-        adiAuctionLog('start blocked:', check.code, check.details || null);
-        return false;
-      }
-
       const now = Date.now();
+      if(now - lastStartAt < START_COOLDOWN_MS) return false;
       lastStartAt = now;
 
-      const v = check.vendor;
+      const existing = loadEquipTask();
+      if(existing) return false;
+
+      const v = findNearestAuctionVendor();
+      if(!v) return false;
       const task = {
         kind: 'auction',
         stage: 'toCity',
@@ -4929,29 +4869,30 @@ if(task.stage==='equip'){
       startEquipFlow();
       eqSetInfo('Idę do najbliższego Aukcjonera: ' + v.map + ' (' + v.stand.x + ',' + v.stand.y + ').', true);
       const btn=document.querySelector('#adi-bot_toggle'); if(btn && btn.innerText==='START') btn.click();
-      adiAuctionLog('start OK', { reason: String(reason || 'free-slots'), vendor: v, threshold: check.threshold, bagSpace: check.bagSpace });
       return true;
-    }catch(e){
-      adiAuctionLog('start exception', e);
-      return false;
-    }
+    }catch(_){ return false; }
   }
   window.__adiStartAuctionWalk = adiStartAuctionWalk;
-  window.__adiSetAuctionDebug = adiSetAuctionDebug;
-  window.__adiGetAuctionStartBlocker = adiGetAuctionStartBlocker;
 
   setInterval(()=>{
     try{
-      const check = adiGetAuctionStartBlocker();
-      if(!check.ok){
-        adiAuctionLog('tick blocked:', check.code, check.details || null);
-        return;
-      }
-      adiAuctionLog('tick start attempt', { threshold: check.threshold, bagSpace: check.bagSpace, vendor: check.vendor });
-      adiStartAuctionWalk('free<=' + check.threshold);
-    }catch(e){
-      adiAuctionLog('tick exception', e);
-    }
+      const cfg = adiLoadAuctionCfg();
+      if(!cfg || !cfg.enabled) return;
+      if(!window.hero || !window.map || !window.g) return;
+      if(g.dead || g.resp || g.reload || g.battle) return;
+
+      const task = loadEquipTask();
+      if(task && task.kind !== 'auction') return;
+      if(task && task.kind === 'auction') return;
+
+      const bagSpace = adiGetTotalBagSpace();
+      if(!bagSpace || !Number.isFinite(Number(bagSpace.free))) return;
+
+      const threshold = Math.max(1, parseInt(cfg.freeSlotsThreshold || 3, 10) || 3);
+      if(Number(bagSpace.free) >= threshold) return;
+
+      adiStartAuctionWalk('free<' + threshold);
+    }catch(_){ }
   }, CHECK_MS);
 })();
 
