@@ -3195,6 +3195,10 @@ function apOpenDialogShop(){
         try{ setTempTarget(v.map); }catch(_){}
 
         if(task.stage==='toMap'){
+          if(__adiTaskAlreadyHasPotions(task)){
+            __adiClearPotionBuyTask('Task kupna anulowany: mikstury są już w ekwipunku.');
+            return;
+          }
           if(here===normMapName(v.map)){
             a_goTo(standX, standY);
             apSetInfo('Podchodzę do kapłanki...', true);
@@ -3212,6 +3216,10 @@ function apOpenDialogShop(){
         }
 
         if(task.stage==='toStand'){
+          if(__adiTaskAlreadyHasPotions(task)){
+            __adiClearPotionBuyTask('Task kupna anulowany przy handlarzu: mikstury są już w ekwipunku.');
+            return;
+          }
           if(typeof hero!=='undefined' && hero.x===standX && hero.y===standY){
             task.stage='toNpc'; saveBuyTask(task);
             const npc = apFindNpcByName(v.npc); if(npc) apClick(npc);
@@ -3222,6 +3230,10 @@ function apOpenDialogShop(){
         }
 
         if(task.stage==='toNpc'){
+          if(__adiTaskAlreadyHasPotions(task)){
+            __adiClearPotionBuyTask('Task kupna anulowany przed otwarciem sklepu: mikstury są już w ekwipunku.');
+            return;
+          }
           if(document.querySelector('.dialog, #dialog, .npcDialog, #npcDialog, .dsc')){
             apOpenDialogShop();
             task.stage='shop'; saveBuyTask(task);
@@ -3232,6 +3244,14 @@ function apOpenDialogShop(){
         }
 
         if(task.stage==='shop'){
+          if(__adiTaskAlreadyHasPotions(task)){
+            __adiClearPotionBuyTask('Task kupna anulowany w sklepie: mikstury są już w ekwipunku.');
+            try{
+              const closeBtn = document.querySelector('#shop_close');
+              if(closeBtn) closeBtn.click();
+            }catch(_){}
+            return;
+          }
           if(apShopIsOpen()){
             apBuyByName(want, qtyN);
             // after clicks, accept and close
@@ -3367,6 +3387,32 @@ try{ window.__adi_normTxt = __adi_normTxt; window.getPotionCountByName = getPoti
     }catch(_){ return 5; }
   }
 
+  function __adiClearPotionBuyTask(reason){
+    try{ clearBuyTask(); }catch(_){}
+    try{ stopBuyFlow(); }catch(_){}
+    try{
+      setTempTarget(null);
+      window.__tempRoute = null;
+      window.__tempRouteTarget = null;
+      window.__graphRoute = null;
+      window.__graphRouteTarget = null;
+    }catch(_){}
+    try{ if(reason) apSetInfo(reason, true); }catch(_){}
+  }
+
+  function __adiTaskAlreadyHasPotions(task){
+    try{
+      const taskName = String(task?.name || '').trim();
+      const selectedName = String(getSelectedPotion() || '').trim();
+      const name = taskName || selectedName;
+      if(!name) return false;
+      const have = (window.getPotionCountByName ? window.getPotionCountByName(name) : 0);
+      return Number(have) > 0;
+    }catch(_){
+      return false;
+    }
+  }
+
   let __autoBuyGuard = false;
   let __lastPotionDetectAt = 0;
 
@@ -3412,18 +3458,31 @@ try{ window.__adi_normTxt = __adi_normTxt; window.getPotionCountByName = getPoti
 
       __autoBuyGuard = true;
 
-      const qtyN = getDesiredQty();
-      const v = getSelectedVendor();
-      // utwórz task jak przy ręcznym kliknięciu (freeze vendor to avoid 'auto' switching mid-task)
-      try{ localStorage.setItem('adi-bot_buy_task', JSON.stringify({ active:true, name, qty:qtyN, stage:'toMap', createdAt: Date.now(), vendor: { key: v.key, map: v.map, npc: v.npc, stand: v.stand } })); }catch(_){ }
+      setTimeout(()=>{
+        try{
+          if(window.g?.battle || window.g?.dead) return;
+          if(localStorage.getItem('adi-bot_potion_autobuy')!=='1') return;
 
-      setTempTarget(v.map);
+          const haveRetry = getPotionCountByName(name);
+          if(haveRetry > 0){
+            apSetInfo('Ponowny check: mikstury jednak są w ekwipunku — anuluję auto-zakup.', true);
+            return;
+          }
 
-      startBuyFlow();
-      try{ const elInfo = document.querySelector('#adi-bot_potion_name'); if(elInfo) { /* apSetInfo should exist in closure scope */ } }catch(_){ }
+          const qtyN = getDesiredQty();
+          const v = getSelectedVendor();
+          // utwórz task jak przy ręcznym kliknięciu (freeze vendor to avoid 'auto' switching mid-task)
+          try{ localStorage.setItem('adi-bot_buy_task', JSON.stringify({ active:true, name, qty:qtyN, stage:'toMap', createdAt: Date.now(), vendor: { key: v.key, map: v.map, npc: v.npc, stand: v.stand } })); }catch(_){ }
 
-      // upewnij się, że bot pracuje
-      const btn=document.querySelector('#adi-bot_toggle'); if(btn && btn.innerText==='START'){ btn.click(); }
+          setTempTarget(v.map);
+
+          startBuyFlow();
+          try{ const elInfo = document.querySelector('#adi-bot_potion_name'); if(elInfo) { /* apSetInfo should exist in closure scope */ } }catch(_){ }
+
+          // upewnij się, że bot pracuje
+          const btn=document.querySelector('#adi-bot_toggle'); if(btn && btn.innerText==='START'){ btn.click(); }
+        }catch(_){}
+      }, 700);
     }catch(_){
     }finally{
       // pozwól na kolejne sprawdzenie po krótkiej pauzie
