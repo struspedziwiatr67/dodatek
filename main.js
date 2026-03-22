@@ -3195,16 +3195,10 @@ function apOpenDialogShop(){
         try{ setTempTarget(v.map); }catch(_){}
 
         if(task.stage==='toMap'){
-          if(__adiTaskAlreadyHasPotions(task)){
-            __adiClearPotionBuyTask('Task kupna anulowany: mikstury są już w ekwipunku.');
-            return;
-          }
           if(here===normMapName(v.map)){
             a_goTo(standX, standY);
             apSetInfo('Podchodzę do kapłanki...', true);
-            task.stage='toStand';
-            task._progress = null;
-            saveBuyTask(task);
+            task.stage='toStand'; saveBuyTask(task);
           }else{
             // move along the graph towards vendor map
             const via = followGraphTo(v.map);
@@ -3212,83 +3206,32 @@ function apOpenDialogShop(){
               if(hero.x===via.x && hero.y===via.y){ _g('walk'); }
               else { a_goTo(via.x, via.y); }
             }
-            __adiMarkPotionTaskProgress(task, 'walk-map');
             apSetInfo('Wyznaczam trasę do ' + v.map + '...', true);
           }
           return;
         }
 
         if(task.stage==='toStand'){
-          if(__adiTaskAlreadyHasPotions(task)){
-            __adiClearPotionBuyTask('Task kupna anulowany przy handlarzu: mikstury są już w ekwipunku.');
-            return;
+          if(typeof hero!=='undefined' && hero.x===standX && hero.y===standY){
+            task.stage='toNpc'; saveBuyTask(task);
+            const npc = apFindNpcByName(v.npc); if(npc) apClick(npc);
+          }else{
+            a_goTo(standX, standY);
           }
-          const npc = apFindNpcByName(v.npc);
-          const distToStand = __adiPotionTaskDist(hero?.x, hero?.y, standX, standY);
-          if(npc){
-            task.stage='toNpc';
-            task._progress = null;
-            saveBuyTask(task);
-            apClick(npc);
-            return;
-          }
-          if(typeof hero!=='undefined' && (distToStand <= 1 || (hero.x===standX && hero.y===standY))){
-            task.stage='toNpc';
-            task._progress = null;
-            saveBuyTask(task);
-            return;
-          }
-          if(__adiIsPotionTaskStuck(task, 9000, 'walk-stand')){
-            task.stage='toMap';
-            task._progress = null;
-            saveBuyTask(task);
-            apSetInfo('Utknąłem przy dojściu do handlarza — przeliczam trasę jeszcze raz...', false);
-            return;
-          }
-          a_goTo(standX, standY);
-          __adiMarkPotionTaskProgress(task, 'walk-stand');
           return;
         }
 
         if(task.stage==='toNpc'){
-          if(__adiTaskAlreadyHasPotions(task)){
-            __adiClearPotionBuyTask('Task kupna anulowany przed otwarciem sklepu: mikstury są już w ekwipunku.');
-            return;
-          }
           if(document.querySelector('.dialog, #dialog, .npcDialog, #npcDialog, .dsc')){
             apOpenDialogShop();
-            task.stage='shop';
-            task._progress = null;
-            saveBuyTask(task);
+            task.stage='shop'; saveBuyTask(task);
           }else{
-            const npc = apFindNpcByName(v.npc);
-            if(npc){
-              apClick(npc);
-              __adiMarkPotionTaskProgress(task, 'click-npc');
-            }else{
-              if(__adiIsPotionTaskStuck(task, 9000, 'find-npc')){
-                task.stage='toStand';
-                task._progress = null;
-                saveBuyTask(task);
-                apSetInfo('Nie widzę handlarza — próbuję podejść jeszcze raz...', false);
-                return;
-              }
-              a_goTo(standX, standY);
-              __adiMarkPotionTaskProgress(task, 'find-npc');
-            }
+            const npc = apFindNpcByName(v.npc); if(npc) apClick(npc);
           }
           return;
         }
 
         if(task.stage==='shop'){
-          if(__adiTaskAlreadyHasPotions(task)){
-            __adiClearPotionBuyTask('Task kupna anulowany w sklepie: mikstury są już w ekwipunku.');
-            try{
-              const closeBtn = document.querySelector('#shop_close');
-              if(closeBtn) closeBtn.click();
-            }catch(_){}
-            return;
-          }
           if(apShopIsOpen()){
             apBuyByName(want, qtyN);
             // after clicks, accept and close
@@ -3424,64 +3367,6 @@ try{ window.__adi_normTxt = __adi_normTxt; window.getPotionCountByName = getPoti
     }catch(_){ return 5; }
   }
 
-  function __adiClearPotionBuyTask(reason){
-    try{ clearBuyTask(); }catch(_){}
-    try{ stopBuyFlow(); }catch(_){}
-    try{
-      setTempTarget(null);
-      window.__tempRoute = null;
-      window.__tempRouteTarget = null;
-      window.__graphRoute = null;
-      window.__graphRouteTarget = null;
-    }catch(_){}
-    try{ if(reason) apSetInfo(reason, true); }catch(_){}
-  }
-
-  function __adiTaskAlreadyHasPotions(task){
-    try{
-      const taskName = String(task?.name || '').trim();
-      const selectedName = String(getSelectedPotion() || '').trim();
-      const name = taskName || selectedName;
-      if(!name) return false;
-      const have = (window.getPotionCountByName ? window.getPotionCountByName(name) : 0);
-      return Number(have) > 0;
-    }catch(_){
-      return false;
-    }
-  }
-
-
-  function __adiPotionTaskDist(ax, ay, bx, by){
-    try{ return Math.abs((Number(ax)||0) - (Number(bx)||0)) + Math.abs((Number(ay)||0) - (Number(by)||0)); }catch(_){ return 9999; }
-  }
-
-  function __adiMarkPotionTaskProgress(task, tag){
-    try{
-      task._progress = {
-        stage: String(task?.stage || ''),
-        map: String(map?.name || ''),
-        x: Number(hero?.x || 0),
-        y: Number(hero?.y || 0),
-        tag: String(tag || ''),
-        ts: Date.now()
-      };
-      saveBuyTask(task);
-    }catch(_){ }
-  }
-
-  function __adiIsPotionTaskStuck(task, ms, tag){
-    try{
-      const p = task && task._progress;
-      if(!p || !p.ts) return false;
-      if(String(p.stage || '') !== String(task?.stage || '')) return false;
-      if(String(p.map || '') !== String(map?.name || '')) return false;
-      if(String(p.tag || '') !== String(tag || '')) return false;
-      if(Number(p.x || -1) !== Number(hero?.x || 0)) return false;
-      if(Number(p.y || -1) !== Number(hero?.y || 0)) return false;
-      return (Date.now() - Number(p.ts || 0)) >= Number(ms || 0);
-    }catch(_){ return false; }
-  }
-
   let __autoBuyGuard = false;
   let __lastPotionDetectAt = 0;
 
@@ -3527,31 +3412,18 @@ try{ window.__adi_normTxt = __adi_normTxt; window.getPotionCountByName = getPoti
 
       __autoBuyGuard = true;
 
-      setTimeout(()=>{
-        try{
-          if(window.g?.battle || window.g?.dead) return;
-          if(localStorage.getItem('adi-bot_potion_autobuy')!=='1') return;
+      const qtyN = getDesiredQty();
+      const v = getSelectedVendor();
+      // utwórz task jak przy ręcznym kliknięciu (freeze vendor to avoid 'auto' switching mid-task)
+      try{ localStorage.setItem('adi-bot_buy_task', JSON.stringify({ active:true, name, qty:qtyN, stage:'toMap', createdAt: Date.now(), vendor: { key: v.key, map: v.map, npc: v.npc, stand: v.stand } })); }catch(_){ }
 
-          const haveRetry = getPotionCountByName(name);
-          if(haveRetry > 0){
-            apSetInfo('Ponowny check: mikstury jednak są w ekwipunku — anuluję auto-zakup.', true);
-            return;
-          }
+      setTempTarget(v.map);
 
-          const qtyN = getDesiredQty();
-          const v = getSelectedVendor();
-          // utwórz task jak przy ręcznym kliknięciu (freeze vendor to avoid 'auto' switching mid-task)
-          try{ localStorage.setItem('adi-bot_buy_task', JSON.stringify({ active:true, name, qty:qtyN, stage:'toMap', createdAt: Date.now(), vendor: { key: v.key, map: v.map, npc: v.npc, stand: v.stand } })); }catch(_){ }
+      startBuyFlow();
+      try{ const elInfo = document.querySelector('#adi-bot_potion_name'); if(elInfo) { /* apSetInfo should exist in closure scope */ } }catch(_){ }
 
-          setTempTarget(v.map);
-
-          startBuyFlow();
-          try{ const elInfo = document.querySelector('#adi-bot_potion_name'); if(elInfo) { /* apSetInfo should exist in closure scope */ } }catch(_){ }
-
-          // upewnij się, że bot pracuje
-          const btn=document.querySelector('#adi-bot_toggle'); if(btn && btn.innerText==='START'){ btn.click(); }
-        }catch(_){}
-      }, 700);
+      // upewnij się, że bot pracuje
+      const btn=document.querySelector('#adi-bot_toggle'); if(btn && btn.innerText==='START'){ btn.click(); }
     }catch(_){
     }finally{
       // pozwól na kolejne sprawdzenie po krótkiej pauzie
