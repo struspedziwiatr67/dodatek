@@ -3176,10 +3176,14 @@ function apOpenDialogShop(){
     // Single runner for the persisted task
     let __buyTaskTimer = null;
     function stopBuyFlow(){ if(__buyTaskTimer){ clearInterval(__buyTaskTimer); __buyTaskTimer = null; } }
+    function isMainBotEnabled(){
+      try{ return localStorage.getItem('adi-bot_enabled') === '1'; }catch(_){ return false; }
+    }
 
     function startBuyFlow(){
       stopBuyFlow();
       __buyTaskTimer = setInterval(()=>{
+        if(!isMainBotEnabled()) return;
         const task = loadBuyTask();
         if(!task){ stopBuyFlow(); return; }
 
@@ -3277,9 +3281,6 @@ btnBuy.addEventListener('click', ()=>{
   startBuyFlow();
 
   apSetInfo('Wyznaczam trasę do ' + getSelectedVendor().map + '...', true);
-
-  // make sure bot is running
-  const btn=document.querySelector('#adi-bot_toggle'); if(btn && btn.innerText==='START'){ btn.click(); }
 });
 
 // === AUTO-DETEKCJA BRAKU MIKSTUR W EKWIPUNKU ===
@@ -3388,6 +3389,7 @@ try{ window.__adi_normTxt = __adi_normTxt; window.getPotionCountByName = getPoti
 
       if(__autoBuyGuard) return;
       if(window.g?.battle || window.g?.dead) return;
+      if(!isMainBotEnabled()) return;
       if(localStorage.getItem('adi-bot_potion_autobuy')!=='1') return;
       // nie rozpoczynaj, jeśli jest już aktywne zadanie zakupowe
       try{ const t = (function(){ try{return JSON.parse(localStorage.getItem('adi-bot_buy_task')||'{}');}catch(_){return null;} })(); if(t && t.active) return; }catch(_){}
@@ -3421,9 +3423,6 @@ try{ window.__adi_normTxt = __adi_normTxt; window.getPotionCountByName = getPoti
 
       startBuyFlow();
       try{ const elInfo = document.querySelector('#adi-bot_potion_name'); if(elInfo) { /* apSetInfo should exist in closure scope */ } }catch(_){ }
-
-      // upewnij się, że bot pracuje
-      const btn=document.querySelector('#adi-bot_toggle'); if(btn && btn.innerText==='START'){ btn.click(); }
     }catch(_){
     }finally{
       // pozwól na kolejne sprawdzenie po krótkiej pauzie
@@ -3773,7 +3772,7 @@ const have = (window.getPotionCountByName ? window.getPotionCountByName(selName)
           stopBuyFlow();
           setTempTarget(null);
         }else{
-          apSetInfo('Wznawiam auto-zakup po odświeżeniu...', true);
+          apSetInfo(isMainBotEnabled() ? 'Wznawiam auto-zakup po odświeżeniu...' : 'Task kupowania czeka na START bota.', true);
           startBuyFlow();
         }
       }
