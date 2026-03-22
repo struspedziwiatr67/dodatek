@@ -3021,6 +3021,13 @@
         "x": 95,
         "y": 51
       }
+    },
+    {
+      "to": "zapomniany las",
+      "via": {
+        "x": 50,
+        "y": 0
+      }
     }
   ],
   "trupia przełecz": [
@@ -4253,6 +4260,101 @@
       "to": "ithan",
       "via": {
         "x": 24,
+        "y": 13
+      }
+    }
+  ],
+  "zapomniany las": [
+    {
+      "to": "torneg"
+    },
+    {
+      "to": "rozległa rownina",
+      "via": {
+        "x": 37,
+        "y": 0
+      }
+    },
+    {
+      "to": "terytorium furii"
+    }
+  ],
+  "rozległa rownina": [
+    {
+      "to": "zapomniany las"
+    },
+    {
+      "to": "wzgorza obłedu",
+      "via": {
+        "x": 95,
+        "y": 29
+      }
+    },
+    {
+      "to": "wzgorza obłedu"
+    },
+    {
+      "to": "dolina gniewu",
+      "via": {
+        "x": 0,
+        "y": 19
+      }
+    }
+  ],
+  "wzgorza obłedu": [
+    {
+      "to": "rozległa rownina"
+    },
+    {
+      "to": "rozległa rownina",
+      "via": {
+        "x": 0,
+        "y": 29
+      }
+    }
+  ],
+  "dolina gniewu": [
+    {
+      "to": "rozległa rownina"
+    },
+    {
+      "to": "terytorium furii",
+      "via": {
+        "x": 52,
+        "y": 63
+      }
+    }
+  ],
+  "terytorium furii": [
+    {
+      "to": "dolina gniewu"
+    },
+    {
+      "to": "zapadlisko zniewolonych",
+      "via": {
+        "x": 0,
+        "y": 13
+      }
+    },
+    {
+      "to": "zapadlisko zniewolonych"
+    },
+    {
+      "to": "zapomniany las",
+      "via": {
+        "x": 95,
+        "y": 13
+      }
+    }
+  ],
+  "zapadlisko zniewolonych": [
+    {
+      "to": "terytorium furii"
+    },
+    {
+      "to": "terytorium furii",
+      "via": {
+        "x": 95,
         "y": 13
       }
     }
