@@ -1697,6 +1697,16 @@
         "x": 45,
         "y": 0
       }
+    },
+    {
+      "to": "zbocze starych bogow",
+      "via": {
+        "x": 0,
+        "y": 17
+      }
+    },
+    {
+      "to": "zbocze starych bogow"
     }
   ],
   "oaza siedmiu wichrow": [
@@ -4566,6 +4576,16 @@
       "via": {
         "x": 0,
         "y": 54
+      }
+    },
+    {
+      "to": "nizina wiesniakow"
+    },
+    {
+      "to": "nizina wiesniakow",
+      "via": {
+        "x": 63,
+        "y": 49
       }
     }
   ]
