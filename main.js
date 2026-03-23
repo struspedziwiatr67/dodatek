@@ -4481,7 +4481,7 @@ try{
         if(!bag) return [];
         const all = Array.from(bag.querySelectorAll('*'));
         const seen = new Set();
-        const deny = ['konsumpcyjne','błogosławień','teleport'];
+        const deny = ['konsumpcyjne','błogosławień','teleport','talizman','związany z właścicielem'];
         function txt(el){
           return [el.getAttribute('tip'), el.getAttribute('data-tip'), el.getAttribute('title'), el.textContent].join(' | ').toLowerCase();
         }
@@ -6949,7 +6949,9 @@ function isValid(txt){
   return !(
     txt.includes("konsumpcyjne") ||
     txt.includes("błogosławień") ||
-    txt.includes("teleport")
+    txt.includes("teleport") ||
+    txt.includes("talizman") ||
+    txt.includes("związany z właścicielem")
   );
 }
 
