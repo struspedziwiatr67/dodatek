@@ -1185,7 +1185,8 @@ Lvl: **${n.lvl ?? "?"}**`,
     "Mnisi LOW": { map: "Świątynia Andarum, Świątynia Andarum - zejście lewe, Świątynia Andarum - podziemia, Świątynia Andarum - zejście prawe, Świątynia Andarum - podziemia, Świątynia Andarum - lokum mnichów" },
     "Mnisi+Zbrojki": { map: "Świątynia Andarum, Świątynia Andarum - zejście lewe, Świątynia Andarum - podziemia, Świątynia Andarum - zejście prawe, Świątynia Andarum - podziemia, Świątynia Andarum - biblioteka, Świątynia Andarum - podziemia, Świątynia Andarum - lokum mnichów, Świątynia Andarum - magazyn p.2, Świątynia Andarum - magazyn p.1" },
     "Erem+Zbrojki": { map: "Świątynia Andarum - magazyn p.1, Świątynia Andarum - magazyn p.2, Erem Czarnego Słońca p.4 - sala 2, Erem Czarnego Słońca p.3 - południe, Erem Czarnego Słońca p.4 - sala 2, Erem Czarnego Słońca p.3, Erem Czarnego Słońca p.2, Erem Czarnego Słońca p.1 - północ, Erem Czarnego Słońca p.2, Erem Czarnego Słońca p.3, Erem Czarnego Słońca p.4 - sala 1, Erem Czarnego Słońca p.5" },
-    "Furbole": { map: "Zapomniany Las, Rozległa Równina, Dolina Gniewu, Terytorium Furii, Zapadlisko Zniewolonych" },
+    "Mroczny las": { map: "Złudny Trakt, Bór Zagubionych, Martwy Las, Ziemia Szepczących Cierni, Zbocze Starych Bogów, Bezgwiezdna Gęstwina, Bór Zagubionych" },
+	"Furbole": { map: "Zapomniany Las, Rozległa Równina, Dolina Gniewu, Terytorium Furii, Zapadlisko Zniewolonych" },
   };
 
   // ===== E2 (Elity II) lista =====
