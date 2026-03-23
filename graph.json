@@ -1220,6 +1220,13 @@
     },
     {
       "to": "tuzmer"
+    },
+    {
+      "to": "złudny trakt",
+      "via": {
+        "x": 41,
+        "y": 63
+      }
     }
   ],
   "las dziwow": [
@@ -4356,6 +4363,209 @@
       "via": {
         "x": 95,
         "y": 13
+      }
+    }
+  ],
+  "złudny trakt": [
+    {
+      "to": "kwieciste przejscie"
+    },
+    {
+      "to": "bor zagubionych",
+      "via": {
+        "x": 95,
+        "y": 25
+      }
+    }
+  ],
+  "bor zagubionych": [
+    {
+      "to": "złudny trakt"
+    },
+    {
+      "to": "martwy las",
+      "via": {
+        "x": 19,
+        "y": 95
+      }
+    },
+    {
+      "to": "bezgwiezdna gestwina"
+    },
+    {
+      "to": "bezgwiezdna gestwina",
+      "via": {
+        "x": 63,
+        "y": 63
+      }
+    }
+  ],
+  "martwy las": [
+    {
+      "to": "bor zagubionych"
+    },
+    {
+      "to": "starodrzew przedwiecznych p.1",
+      "via": {
+        "x": 55,
+        "y": 15
+      }
+    },
+    {
+      "to": "starodrzew przedwiecznych p.1"
+    },
+    {
+      "to": "bezgwiezdna gestwina",
+      "via": {
+        "x": 74,
+        "y": 0
+      }
+    },
+    {
+      "to": "bezgwiezdna gestwina"
+    },
+    {
+      "to": "ziemia szepczacych cierni",
+      "via": {
+        "x": 95,
+        "y": 26
+      }
+    }
+  ],
+  "starodrzew przedwiecznych p.1": [
+    {
+      "to": "martwy las"
+    },
+    {
+      "to": "martwy las",
+      "via": {
+        "x": 10,
+        "y": 20
+      }
+    }
+  ],
+  "bezgwiezdna gestwina": [
+    {
+      "to": "martwy las"
+    },
+    {
+      "to": "martwy las",
+      "via": {
+        "x": 10,
+        "y": 95
+      }
+    },
+    {
+      "to": "zbocze starych bogow"
+    },
+    {
+      "to": "ziemia szepczacych cierni",
+      "via": {
+        "x": 49,
+        "y": 95
+      }
+    },
+    {
+      "to": "ziemia szepczacych cierni"
+    },
+    {
+      "to": "bor zagubionych",
+      "via": {
+        "x": 0,
+        "y": 63
+      }
+    },
+    {
+      "to": "bor zagubionych"
+    }
+  ],
+  "ziemia szepczacych cierni": [
+    {
+      "to": "martwy las"
+    },
+    {
+      "to": "grota skamieniałej kory p.1 - sala 1",
+      "via": {
+        "x": 31,
+        "y": 17
+      }
+    },
+    {
+      "to": "grota skamieniałej kory p.1 - sala 1"
+    },
+    {
+      "to": "grota skamieniałej kory p.1 - sala 2"
+    },
+    {
+      "to": "zbocze starych bogow",
+      "via": {
+        "x": 74,
+        "y": 0
+      }
+    },
+    {
+      "to": "bezgwiezdna gestwina"
+    },
+    {
+      "to": "bezgwiezdna gestwina",
+      "via": {
+        "x": 17,
+        "y": 0
+      }
+    }
+  ],
+  "grota skamieniałej kory p.1 - sala 1": [
+    {
+      "to": "ziemia szepczacych cierni"
+    },
+    {
+      "to": "ziemia szepczacych cierni",
+      "via": {
+        "x": 38,
+        "y": 41
+      }
+    },
+    {
+      "to": "grota skamieniałej kory p.2",
+      "via": {
+        "x": 34,
+        "y": 15
+      }
+    }
+  ],
+  "grota skamieniałej kory p.2": [
+    {
+      "to": "grota skamieniałej kory p.1 - sala 1"
+    },
+    {
+      "to": "grota skamieniałej kory p.1 - sala 2",
+      "via": {
+        "x": 35,
+        "y": 8
+      }
+    }
+  ],
+  "grota skamieniałej kory p.1 - sala 2": [
+    {
+      "to": "grota skamieniałej kory p.2"
+    },
+    {
+      "to": "ziemia szepczacych cierni",
+      "via": {
+        "x": 20,
+        "y": 46
+      }
+    }
+  ],
+  "zbocze starych bogow": [
+    {
+      "to": "ziemia szepczacych cierni"
+    },
+    {
+      "to": "bezgwiezdna gestwina",
+      "via": {
+        "x": 0,
+        "y": 54
       }
     }
   ]
