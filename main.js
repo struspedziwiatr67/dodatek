@@ -4224,6 +4224,62 @@ try{
       }catch(_){}
     }
 
+    function __adi_findQuickFightButton(){
+      try{
+        const selectors = [
+          '#autobattleButton',
+          '#battlebtns #autobattleButton',
+          '#battle .battle-actions #autobattleButton',
+          '#battle [onclick*="autoFight" i]',
+          '#battle [id*="autobattle" i]',
+          '#battle [class*="autobattle" i]'
+        ];
+        for(const sel of selectors){
+          const el = document.querySelector(sel);
+          if(el) return el;
+        }
+        const all = Array.from(document.querySelectorAll('#battle div, #battle button, #battle a'));
+        return all.find(el=>{
+          try{
+            const txt = String(el.textContent || '').toLowerCase();
+            const oc = String(el.getAttribute('onclick') || '').toLowerCase();
+            const id = String(el.id || '').toLowerCase();
+            const cls = String(el.className || '').toLowerCase();
+            return txt.includes('szybka walka') || oc.includes('autofight') || id.includes('autobattle') || cls.includes('autobattle');
+          }catch(_){ return false; }
+        }) || null;
+      }catch(_){}
+      return null;
+    }
+
+    function __adi_triggerQuickFight(){
+      try{
+        const now = Date.now();
+        if(now - Number(window.__adiLastQuickFightClick || 0) < 350) return false;
+        const btn = __adi_findQuickFightButton();
+        if(!btn) return false;
+        try{ btn.click(); }catch(_){}
+        try{
+          btn.dispatchEvent(new MouseEvent('click', { bubbles:true, cancelable:true, view:window }));
+        }catch(_){}
+        window.__adiLastQuickFightClick = now;
+        return true;
+      }catch(_){}
+      return false;
+    }
+
+    function __adi_initQuickFightWatcher(){
+      try{
+        if(window.__adiQuickFightWatcher) return;
+        window.__adiQuickFightWatcher = setInterval(function(){
+          try{
+            if(!window.g || !g.battle) return;
+            __adi_triggerQuickFight();
+          }catch(_){}
+        }, 250);
+      }catch(_){}
+    }
+
     function __adi_onBattleInit(initObj){
       try{
         const __mode = (localStorage.getItem("adi-bot_exp_mode") || "exp").trim();
@@ -4261,11 +4317,16 @@ try{
       if(typeof c==="object" && c && c.init===1){
         __lastAttackTime=0; __lastAttackTarget=null;
         try{ __adi_onBattleInit(c); }catch(e){}
+        try{ setTimeout(__adi_triggerQuickFight, 60); }catch(_){}
+        try{ setTimeout(__adi_triggerQuickFight, 220); }catch(_){}
+        try{ setTimeout(__adi_triggerQuickFight, 500); }catch(_){}
       }
       return ret;
     };
 
     (function(){ var oldFight=window.fight; window.fight=function(f){ if(!f||typeof f!=="object")return; try{ return oldFight.apply(this, arguments);}catch(e){ return; } }; })();
+
+    __adi_initQuickFightWatcher();
 
     if(window.$ && $.fn && $.fn.draggable){
       $('#adi-bot_box').draggable({
@@ -4481,7 +4542,7 @@ try{
         if(!bag) return [];
         const all = Array.from(bag.querySelectorAll('*'));
         const seen = new Set();
-        const deny = ['konsumpcyjne','błogosławień','teleport','talizman','związany z właścicielem'];
+        const deny = ['konsumpcyjne','błogosławień','teleport','talizman','talizmany','związany z właścicielem'];
         function txt(el){
           return [el.getAttribute('tip'), el.getAttribute('data-tip'), el.getAttribute('title'), el.textContent].join(' | ').toLowerCase();
         }
