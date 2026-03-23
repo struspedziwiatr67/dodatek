@@ -4256,12 +4256,32 @@ try{
       try{
         const now = Date.now();
         if(now - Number(window.__adiLastQuickFightClick || 0) < 350) return false;
+
+        let clicked = false;
         const btn = __adi_findQuickFightButton();
-        if(!btn) return false;
-        try{ btn.click(); }catch(_){}
+        if(btn){
+          try{ btn.click(); clicked = true; }catch(_){}
+          try{
+            btn.dispatchEvent(new MouseEvent('click', { bubbles:true, cancelable:true, view:window }));
+            clicked = true;
+          }catch(_){}
+        }
+
+        // fallback: gdy okno walki się nie wyrenderuje, spróbuj wywołać szybką walkę bezpośrednio
         try{
-          btn.dispatchEvent(new MouseEvent('click', { bubbles:true, cancelable:true, view:window }));
+          if(typeof window.autoFight === 'function'){
+            try{ window.autoFight('move'); clicked = true; }catch(_){}
+            try{ window.autoFight('f'); clicked = true; }catch(_){}
+            try{ window.autoFight(); clicked = true; }catch(_){}
+          }
         }catch(_){}
+        try{
+          if(typeof window.autoFightAll === 'function'){
+            try{ window.autoFightAll(); clicked = true; }catch(_){}
+          }
+        }catch(_){}
+
+        if(!clicked) return false;
         window.__adiLastQuickFightClick = now;
         return true;
       }catch(_){}
