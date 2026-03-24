@@ -5051,101 +5051,161 @@ if(task.stage==='equip'){
 
 
 
-// ===== AUTO AUCTION WALKER (free slots threshold -> Aukcjoner Torneg) =====
+// ===== AUTO AUCTION WALKER (3 lub mniej wolnych miejsc -> klik jak "Wystaw itemy teraz") =====
 (function(){
   const CHECK_MS = 1200;
   const START_COOLDOWN_MS = 15000;
-  let lastStartAt = 0;
 
-  function adiStartAuctionWalk(reason){
+  let lastAutoAuctionAt = 0;
+
+  function adiSafeBagSpaceCount(){
     try{
-      const now = Date.now();
-      if(now - lastStartAt < START_COOLDOWN_MS) return false;
-      lastStartAt = now;
+      // 1) jeśli istnieje wasza funkcja, użyj jej, ale wynik znormalizuj
+      if(typeof adiGetTotalBagSpace === 'function'){
+        const res = adiGetTotalBagSpace();
+        if(res && Number.isFinite(Number(res.free))){
+          return {
+            free: Math.max(0, Number(res.free)),
+            total: Number.isFinite(Number(res.total)) ? Math.max(0, Number(res.total)) : null,
+            source: 'adiGetTotalBagSpace'
+          };
+        }
+      }
+    }catch(_){}
 
-      const existing = loadEquipTask();
-      if(existing) return false;
+    try{
+      // 2) fallback: policz z window.g.item
+      // zakładam:
+      // - loc === "g" / "inventory" / "bag" = item w torbie
+      // - items z pustym slotem nie istnieją jako obiekt
+      // - pojemność odczytujemy z hero/bag jeżeli istnieje
+      if(!window.g) return null;
 
-      const v = findNearestAuctionVendor();
-      if(!v) return false;
-      const task = {
-        kind: 'auction',
-        stage: 'toCity',
-        map: v.map,
-        npc: v.npc,
-        stand: { x: Number(v.stand.x), y: Number(v.stand.y) },
-        pos: { x: Number(v.pos.x), y: Number(v.pos.y) },
-        createdAt: now,
-        reason: String(reason || 'free-slots'),
-        vendorKey: String(v.key || ''),
-        vendorChosenAt: now
-      };
-      saveEquipTask(task);
-      setTempTarget(v.map);
-      startEquipFlow();
-      eqSetInfo('Idę do najbliższego Aukcjonera: ' + v.map + ' (' + v.stand.x + ',' + v.stand.y + ').', true);
-      const btn=document.querySelector('#adi-bot_toggle'); if(btn && btn.innerText==='START') btn.click();
-      return true;
-    }catch(_){ return false; }
+      const items = g.item || g.items || {};
+      let occupied = 0;
+
+      for(const id in items){
+        const it = items[id];
+        if(!it) continue;
+
+        const loc = String(it.loc || it.location || '').toLowerCase();
+
+        // torby / inventory
+        if(
+          loc === 'g' ||
+          loc === 'inventory' ||
+          loc === 'bag' ||
+          loc === 'b'
+        ){
+          occupied++;
+        }
+      }
+
+      // Spróbuj odczytać łączną liczbę slotów z hero/bag
+      let total = null;
+
+      if(window.hero){
+        if(Number.isFinite(Number(hero.bag))) total = Number(hero.bag);
+        if(Number.isFinite(Number(hero.bagsize))) total = Number(hero.bagsize);
+        if(Number.isFinite(Number(hero.capacity))) total = Number(hero.capacity);
+      }
+
+      if(!Number.isFinite(total) || total <= 0){
+        // fallback awaryjny — jeżeli nie da się odczytać pojemności,
+        // nie zgłaszaj błędnego wyniku
+        return null;
+      }
+
+      const free = Math.max(0, total - occupied);
+
+      return { free, total, occupied, source: 'fallback-g.item' };
+    }catch(_){}
+
+    return null;
   }
-  window.__adiStartAuctionWalk = adiStartAuctionWalk;
+
+  function adiShouldAutoAuction(cfg, bagSpace){
+    try{
+      if(!cfg || !cfg.enabled) return false;
+      if(!bagSpace || !Number.isFinite(Number(bagSpace.free))) return false;
+
+      const threshold = Math.max(1, parseInt(cfg.freeSlotsThreshold || 3, 10) || 3);
+
+      // KLUCZOWA ZMIANA: 3 lub mniej
+      return Number(bagSpace.free) <= threshold;
+    }catch(_){}
+    return false;
+  }
+
+  function adiCanStartAutoAuction(){
+    try{
+      if(!window.hero || !window.map || !window.g) return false;
+      if(g.dead || g.resp || g.reload || g.battle) return false;
+
+      const task = (typeof loadEquipTask === 'function') ? loadEquipTask() : null;
+      if(task) return false; // cokolwiek trwa, nie startujemy
+
+      const now = Date.now();
+      if(now - lastAutoAuctionAt < START_COOLDOWN_MS) return false;
+
+      return true;
+    }catch(_){}
+    return false;
+  }
+
+  function adiTriggerAutoAuction(reason){
+    try{
+      if(typeof window.__adiStartAuctionWalk !== 'function') return false;
+
+      const ok = window.__adiStartAuctionWalk(reason || 'auto-bag-threshold');
+      if(ok){
+        lastAutoAuctionAt = Date.now();
+        try{
+          if(typeof adiLootMessage === 'function'){
+            adiLootMessage('Aukcja AUTO: mało miejsca w torbie -> uruchamiam "Wystaw itemy teraz".');
+          }
+        }catch(_){}
+      }
+      return !!ok;
+    }catch(_){}
+    return false;
+  }
+
+  // debug helper do podejrzenia z konsoli
+  window.__adiDebugBagSpace = function(){
+    const bag = adiSafeBagSpaceCount();
+    console.log('[adi-bot][auction][bag]', bag);
+    return bag;
+  };
 
   setInterval(()=>{
     try{
-      const cfg = adiLoadAuctionCfg();
+      const cfg = (typeof adiLoadAuctionCfg === 'function') ? adiLoadAuctionCfg() : null;
       if(!cfg || !cfg.enabled) return;
-      if(!window.hero || !window.map || !window.g) return;
-      if(g.dead || g.resp || g.reload || g.battle) return;
+      if(!adiCanStartAutoAuction()) return;
 
-      const task = loadEquipTask();
-      if(task && task.kind !== 'auction') return;
-      if(task && task.kind === 'auction') return;
-
-      const bagSpace = adiGetTotalBagSpace();
-      if(!bagSpace || !Number.isFinite(Number(bagSpace.free))) return;
+      const bagSpace = adiSafeBagSpaceCount();
+      if(!bagSpace) return;
 
       const threshold = Math.max(1, parseInt(cfg.freeSlotsThreshold || 3, 10) || 3);
-      if(Number(bagSpace.free) >= threshold) return;
 
-      adiStartAuctionWalk('free<' + threshold);
-    }catch(_){ }
+      try{
+        console.log('[adi-bot][auction-check]', {
+          free: bagSpace.free,
+          total: bagSpace.total,
+          threshold,
+          source: bagSpace.source
+        });
+      }catch(_){}
+
+      if(!adiShouldAutoAuction(cfg, bagSpace)) return;
+
+      adiTriggerAutoAuction('auto-free<=' + threshold);
+    }catch(err){
+      try{ console.warn('[adi-bot][auction-check] error:', err); }catch(_){}
+    }
   }, CHECK_MS);
 })();
-
-
-// ===== ABORT EQUIP FLOW ON DEATH (prevents resuming stale equip tasks after respawn) =====
-(function(){
-  let wasDead = false;
-  setInterval(() => {
-    try{
-      const deadNow = !!(window.g && g.dead);
-
-      // alive -> dead
-      if(deadNow && !wasDead){
-        wasDead = true;
-        console.warn('[adi-bot] Śmierć wykryta -> abort equip/buy tasków');
-        try{ localStorage.removeItem('adi-bot_equip_task'); }catch(_){ }
-        try{ localStorage.setItem('adi-bot_equip_task_queue', JSON.stringify([])); }catch(_){ }
-        try{ setTempTarget(null); }catch(_){ }
-        try{ if(window.__adiEquipTimer) clearInterval(window.__adiEquipTimer); }catch(_){ }
-      }
-
-      // dead -> alive
-      if(!deadNow && wasDead){
-        wasDead = false;
-      }
-    }catch(_){ }
-  }, 500);
-})();
-    equipBtn.addEventListener('click', ()=>{
-      const v = getSelectedEquipVendor();
-      const task = { kind:'equip', stage:'toCity', map: v.map, npc: v.npc, stand: v.stand, level: Number(hero?.lvl)||0, createdAt: Date.now() };
-      saveEquipTask(task);
-      setTempTarget(v.map);
-      startEquipFlow();
-      eqSetInfo('Wyznaczam trasę do '+v.map+'...', true);
-      const btn=document.querySelector('#adi-bot_toggle'); if(btn && btn.innerText==='START') btn.click();
-    });
 
 
 // === AUTO-BUY EQUIPMENT ON LEVEL-UP ===
