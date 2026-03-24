@@ -5076,7 +5076,11 @@ if(task.stage==='equip'){
       }
     }catch(_){ }
     try{
-      const raw = localStorage.getItem('adi-bot_auction_cfg');
+      let raw = null;
+      try{
+        if(typeof adiAuctionCfgKey === 'function') raw = localStorage.getItem(adiAuctionCfgKey());
+      }catch(_){ }
+      if(!raw) raw = localStorage.getItem('adi-bot_auction_cfg');
       const cfg = raw ? JSON.parse(raw) : {};
       return {
         enabled: !!cfg.enabled,
@@ -5211,7 +5215,15 @@ if(task.stage==='equip'){
   function adiCheckAutoAuction(source){
     try{
       const cfg = adiLoadAuctionCfgSafe();
-      if(!cfg || !cfg.enabled) return false;
+      if(!cfg) return false;
+
+      let auctionEnabled = !!cfg.enabled;
+      try{
+        const uiCb = document.getElementById('adi-auction-enabled');
+        if(uiCb) auctionEnabled = !!uiCb.checked;
+      }catch(_){ }
+
+      if(!auctionEnabled) return false;
       if(!adiCanStartAutoAuction()) return false;
 
       const bagSpace = adiSafeBagSpaceCount();
@@ -6169,6 +6181,13 @@ if (typeof window.window.__adi_equipByNameSequence !== 'function') {
 (function(){
   const ADI_LOOT_CFG_KEY = 'adi-bot_loot_cfg_v1';
   const ADI_AUCTION_CFG_KEY = 'adi-bot_auction_cfg_v1';
+  function adiAuctionCfgKey(){
+    try{
+      const hid = String((window.hero && (hero.id ?? hero.nick ?? hero.n ?? hero.name)) || '').trim();
+      if(hid) return ADI_AUCTION_CFG_KEY + ':' + hid;
+    }catch(_){ }
+    return ADI_AUCTION_CFG_KEY;
+  }
   const ADI_LOOT_NOTIFY_SEEN_KEY = 'adi-bot_loot_notify_seen_v1';
   const ADI_LOOT_UI_STYLE_ID = 'adi-bot-loot-style';
   let __adiLootFlushTimer = null;
@@ -6230,15 +6249,31 @@ if (typeof window.window.__adi_equipByNameSequence !== 'function') {
 
   function adiLoadAuctionCfg(){
     try{
-      const raw = localStorage.getItem(ADI_AUCTION_CFG_KEY);
+      const key = adiAuctionCfgKey();
+      let raw = localStorage.getItem(key);
+
+      // migracja ze starego wspólnego klucza na klucz per postać
+      if(!raw && key !== ADI_AUCTION_CFG_KEY){
+        raw = localStorage.getItem(ADI_AUCTION_CFG_KEY);
+        if(raw){
+          try{ localStorage.setItem(key, raw); }catch(_){ }
+        }
+      }
+
       const cfg = raw ? JSON.parse(raw) : {};
       const def = adiAuctionDefaults();
       const num = (v, d=0) => {
         const n = parseInt(v ?? d, 10);
         return Number.isFinite(n) && n >= 0 ? n : d;
       };
+      const bool = (v, d=false) => {
+        if(v === true || v === false) return v;
+        if(v === 1 || v === '1' || v === 'true') return true;
+        if(v === 0 || v === '0' || v === 'false') return false;
+        return d;
+      };
       return {
-        enabled: cfg.enabled ?? def.enabled,
+        enabled: bool(cfg.enabled, def.enabled),
         heroicPrice: num(cfg.heroicPrice, def.heroicPrice),
         uniquePrice: num(cfg.uniquePrice, def.uniquePrice),
         commonPrice: num(cfg.commonPrice, def.commonPrice),
@@ -6248,7 +6283,11 @@ if (typeof window.window.__adi_equipByNameSequence !== 'function') {
   }
 
   function adiSaveAuctionCfg(next){
-    try{ localStorage.setItem(ADI_AUCTION_CFG_KEY, JSON.stringify(next || adiAuctionDefaults())); }catch(_){ }
+    try{
+      const cfg = Object.assign({}, adiAuctionDefaults(), next || {});
+      cfg.enabled = !!cfg.enabled;
+      localStorage.setItem(adiAuctionCfgKey(), JSON.stringify(cfg));
+    }catch(_){ }
   }
 
   function adiLootMessage(txt){
