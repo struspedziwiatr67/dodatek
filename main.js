@@ -5060,7 +5060,6 @@ if(task.stage==='equip'){
 
   function adiSafeBagSpaceCount(){
     try{
-      // 1) jeśli istnieje wasza funkcja, użyj jej, ale wynik znormalizuj
       if(typeof adiGetTotalBagSpace === 'function'){
         const res = adiGetTotalBagSpace();
         if(res && Number.isFinite(Number(res.free))){
@@ -5071,14 +5070,9 @@ if(task.stage==='equip'){
           };
         }
       }
-    }catch(_){}
+    }catch(_){ }
 
     try{
-      // 2) fallback: policz z window.g.item
-      // zakładam:
-      // - loc === "g" / "inventory" / "bag" = item w torbie
-      // - items z pustym slotem nie istnieją jako obiekt
-      // - pojemność odczytujemy z hero/bag jeżeli istnieje
       if(!window.g) return null;
 
       const items = g.item || g.items || {};
@@ -5089,37 +5083,23 @@ if(task.stage==='equip'){
         if(!it) continue;
 
         const loc = String(it.loc || it.location || '').toLowerCase();
-
-        // torby / inventory
-        if(
-          loc === 'g' ||
-          loc === 'inventory' ||
-          loc === 'bag' ||
-          loc === 'b'
-        ){
+        if(loc === 'g' || loc === 'inventory' || loc === 'bag' || loc === 'b'){
           occupied++;
         }
       }
 
-      // Spróbuj odczytać łączną liczbę slotów z hero/bag
       let total = null;
-
       if(window.hero){
         if(Number.isFinite(Number(hero.bag))) total = Number(hero.bag);
         if(Number.isFinite(Number(hero.bagsize))) total = Number(hero.bagsize);
         if(Number.isFinite(Number(hero.capacity))) total = Number(hero.capacity);
       }
 
-      if(!Number.isFinite(total) || total <= 0){
-        // fallback awaryjny — jeżeli nie da się odczytać pojemności,
-        // nie zgłaszaj błędnego wyniku
-        return null;
-      }
+      if(!Number.isFinite(total) || total <= 0) return null;
 
       const free = Math.max(0, total - occupied);
-
       return { free, total, occupied, source: 'fallback-g.item' };
-    }catch(_){}
+    }catch(_){ }
 
     return null;
   }
@@ -5130,10 +5110,8 @@ if(task.stage==='equip'){
       if(!bagSpace || !Number.isFinite(Number(bagSpace.free))) return false;
 
       const threshold = Math.max(1, parseInt(cfg.freeSlotsThreshold || 3, 10) || 3);
-
-      // KLUCZOWA ZMIANA: 3 lub mniej
       return Number(bagSpace.free) <= threshold;
-    }catch(_){}
+    }catch(_){ }
     return false;
   }
 
@@ -5143,15 +5121,48 @@ if(task.stage==='equip'){
       if(g.dead || g.resp || g.reload || g.battle) return false;
 
       const task = (typeof loadEquipTask === 'function') ? loadEquipTask() : null;
-      if(task) return false; // cokolwiek trwa, nie startujemy
+      if(task) return false;
 
       const now = Date.now();
       if(now - lastAutoAuctionAt < START_COOLDOWN_MS) return false;
 
       return true;
-    }catch(_){}
+    }catch(_){ }
     return false;
   }
+
+  function adiStartAuctionWalk(reason){
+    try{
+      const now = Date.now();
+      if(now - lastAutoAuctionAt < START_COOLDOWN_MS) return false;
+
+      const existing = loadEquipTask();
+      if(existing) return false;
+
+      const v = findNearestAuctionVendor();
+      if(!v) return false;
+      const task = {
+        kind: 'auction',
+        stage: 'toCity',
+        map: v.map,
+        npc: v.npc,
+        stand: { x: Number(v.stand.x), y: Number(v.stand.y) },
+        pos: { x: Number(v.pos.x), y: Number(v.pos.y) },
+        createdAt: now,
+        reason: String(reason || 'free-slots'),
+        vendorKey: String(v.key || ''),
+        vendorChosenAt: now
+      };
+      saveEquipTask(task);
+      setTempTarget(v.map);
+      startEquipFlow();
+      eqSetInfo('Idę do najbliższego Aukcjonera: ' + v.map + ' (' + v.stand.x + ',' + v.stand.y + ').', true);
+      const btn=document.querySelector('#adi-bot_toggle'); if(btn && btn.innerText==='START') btn.click();
+      lastAutoAuctionAt = now;
+      return true;
+    }catch(_){ return false; }
+  }
+  window.__adiStartAuctionWalk = adiStartAuctionWalk;
 
   function adiTriggerAutoAuction(reason){
     try{
@@ -5164,14 +5175,13 @@ if(task.stage==='equip'){
           if(typeof adiLootMessage === 'function'){
             adiLootMessage('Aukcja AUTO: mało miejsca w torbie -> uruchamiam "Wystaw itemy teraz".');
           }
-        }catch(_){}
+        }catch(_){ }
       }
       return !!ok;
-    }catch(_){}
+    }catch(_){ }
     return false;
   }
 
-  // debug helper do podejrzenia z konsoli
   window.__adiDebugBagSpace = function(){
     const bag = adiSafeBagSpaceCount();
     console.log('[adi-bot][auction][bag]', bag);
@@ -5196,16 +5206,51 @@ if(task.stage==='equip'){
           threshold,
           source: bagSpace.source
         });
-      }catch(_){}
+      }catch(_){ }
 
       if(!adiShouldAutoAuction(cfg, bagSpace)) return;
 
       adiTriggerAutoAuction('auto-free<=' + threshold);
     }catch(err){
-      try{ console.warn('[adi-bot][auction-check] error:', err); }catch(_){}
+      try{ console.warn('[adi-bot][auction-check] error:', err); }catch(_){ }
     }
   }, CHECK_MS);
 })();
+
+
+// ===== ABORT EQUIP FLOW ON DEATH (prevents resuming stale equip tasks after respawn) =====
+(function(){
+  let wasDead = false;
+  setInterval(() => {
+    try{
+      const deadNow = !!(window.g && g.dead);
+
+      // alive -> dead
+      if(deadNow && !wasDead){
+        wasDead = true;
+        console.warn('[adi-bot] Śmierć wykryta -> abort equip/buy tasków');
+        try{ localStorage.removeItem('adi-bot_equip_task'); }catch(_){ }
+        try{ localStorage.setItem('adi-bot_equip_task_queue', JSON.stringify([])); }catch(_){ }
+        try{ setTempTarget(null); }catch(_){ }
+        try{ if(window.__adiEquipTimer) clearInterval(window.__adiEquipTimer); }catch(_){ }
+      }
+
+      // dead -> alive
+      if(!deadNow && wasDead){
+        wasDead = false;
+      }
+    }catch(_){ }
+  }, 500);
+})();
+    equipBtn.addEventListener('click', ()=>{
+      const v = getSelectedEquipVendor();
+      const task = { kind:'equip', stage:'toCity', map: v.map, npc: v.npc, stand: v.stand, level: Number(hero?.lvl)||0, createdAt: Date.now() };
+      saveEquipTask(task);
+      setTempTarget(v.map);
+      startEquipFlow();
+      eqSetInfo('Wyznaczam trasę do '+v.map+'...', true);
+      const btn=document.querySelector('#adi-bot_toggle'); if(btn && btn.innerText==='START') btn.click();
+    });
 
 
 // === AUTO-BUY EQUIPMENT ON LEVEL-UP ===
