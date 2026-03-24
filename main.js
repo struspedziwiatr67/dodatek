@@ -5051,68 +5051,78 @@ if(task.stage==='equip'){
 
 
 
-// ===== AUTO AUCTION WALKER (3 lub mniej wolnych miejsc -> klik jak "Wystaw itemy teraz") =====
+// ===== AUTO AUCTION WALKER (FINAL FIX - UI based, 3 lub mniej -> klik jak "Wystaw itemy teraz") =====
 (function(){
   const CHECK_MS = 1200;
   const START_COOLDOWN_MS = 15000;
 
   let lastAutoAuctionAt = 0;
 
-  function adiSafeBagSpaceCount(){
+  function adiStartAuctionWalk(reason){
     try{
-      if(typeof adiGetTotalBagSpace === 'function'){
-        const res = adiGetTotalBagSpace();
-        if(res && Number.isFinite(Number(res.free))){
-          return {
-            free: Math.max(0, Number(res.free)),
-            total: Number.isFinite(Number(res.total)) ? Math.max(0, Number(res.total)) : null,
-            source: 'adiGetTotalBagSpace'
-          };
-        }
-      }
-    }catch(_){ }
+      const now = Date.now();
+      if(now - lastAutoAuctionAt < START_COOLDOWN_MS) return false;
 
+      const existing = (typeof loadEquipTask === 'function') ? loadEquipTask() : null;
+      if(existing) return false;
+
+      const v = (typeof findNearestAuctionVendor === 'function') ? findNearestAuctionVendor() : null;
+      if(!v) return false;
+
+      const task = {
+        kind: 'auction',
+        stage: 'toCity',
+        map: v.map,
+        npc: v.npc,
+        stand: { x: Number(v.stand.x), y: Number(v.stand.y) },
+        pos: { x: Number(v.pos.x), y: Number(v.pos.y) },
+        createdAt: now,
+        reason: String(reason || 'free-slots'),
+        vendorKey: String(v.key || ''),
+        vendorChosenAt: now
+      };
+
+      if(typeof saveEquipTask === 'function') saveEquipTask(task);
+      if(typeof setTempTarget === 'function') setTempTarget(v.map);
+      if(typeof startEquipFlow === 'function') startEquipFlow();
+      if(typeof eqSetInfo === 'function'){
+        eqSetInfo('Idę do najbliższego Aukcjonera: ' + v.map + ' (' + v.stand.x + ',' + v.stand.y + ').', true);
+      }
+
+      const btn = document.querySelector('#adi-bot_toggle');
+      if(btn && btn.innerText === 'START') btn.click();
+
+      lastAutoAuctionAt = now;
+      return true;
+    }catch(_){ return false; }
+  }
+  window.__adiStartAuctionWalk = adiStartAuctionWalk;
+
+  function adiGetAuctionCfgFromUI(){
     try{
-      if(!window.g) return null;
+      const enabledEl = document.querySelector('#adi-auction-enabled');
+      const thresholdEl = document.querySelector('#adi-auction-free-threshold');
 
-      const items = g.item || g.items || {};
-      let occupied = 0;
-
-      for(const id in items){
-        const it = items[id];
-        if(!it) continue;
-
-        const loc = String(it.loc || it.location || '').toLowerCase();
-        if(loc === 'g' || loc === 'inventory' || loc === 'bag' || loc === 'b'){
-          occupied++;
-        }
-      }
-
-      let total = null;
-      if(window.hero){
-        if(Number.isFinite(Number(hero.bag))) total = Number(hero.bag);
-        if(Number.isFinite(Number(hero.bagsize))) total = Number(hero.bagsize);
-        if(Number.isFinite(Number(hero.capacity))) total = Number(hero.capacity);
-      }
-
-      if(!Number.isFinite(total) || total <= 0) return null;
-
-      const free = Math.max(0, total - occupied);
-      return { free, total, occupied, source: 'fallback-g.item' };
+      return {
+        enabled: !!(enabledEl && enabledEl.checked),
+        freeSlotsThreshold: Math.max(1, parseInt((thresholdEl && thresholdEl.value) || '3', 10) || 3)
+      };
     }catch(_){ }
-
-    return null;
+    return { enabled: false, freeSlotsThreshold: 3 };
   }
 
-  function adiShouldAutoAuction(cfg, bagSpace){
+  function adiGetBagSpaceFromUI(){
     try{
-      if(!cfg || !cfg.enabled) return false;
-      if(!bagSpace || !Number.isFinite(Number(bagSpace.free))) return false;
-
-      const threshold = Math.max(1, parseInt(cfg.freeSlotsThreshold || 3, 10) || 3);
-      return Number(bagSpace.free) <= threshold;
+      const out = document.querySelector('#adi-auction-bag-space');
+      const txt = String((out && (out.innerText || out.textContent)) || document.body.innerText || '');
+      const m = txt.match(/wolnych\s+miejsc\s+w\s+torbach\s*:\s*(\d+)/i);
+      if(!m) return null;
+      return {
+        free: Math.max(0, parseInt(m[1], 10) || 0),
+        source: 'ui-text'
+      };
     }catch(_){ }
-    return false;
+    return null;
   }
 
   function adiCanStartAutoAuction(){
@@ -5131,44 +5141,11 @@ if(task.stage==='equip'){
     return false;
   }
 
-  function adiStartAuctionWalk(reason){
-    try{
-      const now = Date.now();
-      if(now - lastAutoAuctionAt < START_COOLDOWN_MS) return false;
-
-      const existing = loadEquipTask();
-      if(existing) return false;
-
-      const v = findNearestAuctionVendor();
-      if(!v) return false;
-      const task = {
-        kind: 'auction',
-        stage: 'toCity',
-        map: v.map,
-        npc: v.npc,
-        stand: { x: Number(v.stand.x), y: Number(v.stand.y) },
-        pos: { x: Number(v.pos.x), y: Number(v.pos.y) },
-        createdAt: now,
-        reason: String(reason || 'free-slots'),
-        vendorKey: String(v.key || ''),
-        vendorChosenAt: now
-      };
-      saveEquipTask(task);
-      setTempTarget(v.map);
-      startEquipFlow();
-      eqSetInfo('Idę do najbliższego Aukcjonera: ' + v.map + ' (' + v.stand.x + ',' + v.stand.y + ').', true);
-      const btn=document.querySelector('#adi-bot_toggle'); if(btn && btn.innerText==='START') btn.click();
-      lastAutoAuctionAt = now;
-      return true;
-    }catch(_){ return false; }
-  }
-  window.__adiStartAuctionWalk = adiStartAuctionWalk;
-
   function adiTriggerAutoAuction(reason){
     try{
       if(typeof window.__adiStartAuctionWalk !== 'function') return false;
 
-      const ok = window.__adiStartAuctionWalk(reason || 'auto-bag-threshold');
+      const ok = window.__adiStartAuctionWalk(reason || 'auto-ui-threshold');
       if(ok){
         lastAutoAuctionAt = Date.now();
         try{
@@ -5183,38 +5160,57 @@ if(task.stage==='equip'){
   }
 
   window.__adiDebugBagSpace = function(){
-    const bag = adiSafeBagSpaceCount();
-    console.log('[adi-bot][auction][bag]', bag);
-    return bag;
+    const cfg = adiGetAuctionCfgFromUI();
+    const bag = adiGetBagSpaceFromUI();
+    const task = (typeof loadEquipTask === 'function') ? loadEquipTask() : null;
+    const vendor = (typeof findNearestAuctionVendor === 'function') ? findNearestAuctionVendor() : null;
+    const dump = {
+      cfg,
+      bag,
+      task,
+      vendor: vendor ? { map: vendor.map, npc: vendor.npc, stand: vendor.stand, pos: vendor.pos } : null,
+      game: {
+        hero: !!window.hero,
+        map: !!window.map,
+        g: !!window.g,
+        dead: !!(window.g && g.dead),
+        resp: !!(window.g && g.resp),
+        reload: !!(window.g && g.reload),
+        battle: !!(window.g && g.battle)
+      }
+    };
+    console.log('[adi-bot][auction][debug]', dump);
+    return dump;
   };
 
   setInterval(()=>{
     try{
-      const cfg = (typeof adiLoadAuctionCfg === 'function') ? adiLoadAuctionCfg() : null;
+      const cfg = adiGetAuctionCfgFromUI();
       if(!cfg || !cfg.enabled) return;
       if(!adiCanStartAutoAuction()) return;
 
-      const bagSpace = adiSafeBagSpaceCount();
-      if(!bagSpace) return;
+      const bagSpace = adiGetBagSpaceFromUI();
+      if(!bagSpace || !Number.isFinite(Number(bagSpace.free))) return;
 
       const threshold = Math.max(1, parseInt(cfg.freeSlotsThreshold || 3, 10) || 3);
 
       try{
-        console.log('[adi-bot][auction-check]', {
+        console.log('[adi-bot][auction-check-ui]', {
           free: bagSpace.free,
-          total: bagSpace.total,
           threshold,
           source: bagSpace.source
         });
       }catch(_){ }
 
-      if(!adiShouldAutoAuction(cfg, bagSpace)) return;
+      if(Number(bagSpace.free) > threshold) return;
 
-      adiTriggerAutoAuction('auto-free<=' + threshold);
+      adiTriggerAutoAuction('auto-ui-free<=' + threshold);
     }catch(err){
-      try{ console.warn('[adi-bot][auction-check] error:', err); }catch(_){ }
+      try{ console.warn('[adi-bot][auction-check-ui] error:', err); }catch(_){ }
     }
   }, CHECK_MS);
+
+  try{ console.log('[adi-bot] AUTO AUKCJA UI watcher załadowany'); }catch(_){ }
 })();
 
 
