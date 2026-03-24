@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Bot na exp (iframe-aware exhaustion + throttling + captcha->Discord + ping-pong trasy + only-selected-maps + elite toggle + group-size filter + heros->Discord + obrazki + fixy map/lvl/wt/grupy + FOW cache)
-// @version      2.17.6-customroutes-exh0530fix
+// @version      2.17.7-losttargetfix
 // @description  Bot z przechodzeniem map, anty-spam ataku, captcha->Discord, START/STOP, zbijanie wyczerpania, atak tylko na wybranych mapach, elity toggle, filtr grup, powiadomienia o herosach (bez Namiotu Tropicieli Herosów), normalizacja nazw map, odporne parsowanie lvli, poprawki 'wt', stabilny wybór grup przy mgle (cache max rozmiaru grupy)
 // @match        *://*/
 // @match        *://www.margonem.pl/*
@@ -928,7 +928,7 @@ const HERO_DISCORD_WEBHOOK = "https://discord.com/api/webhooks/14711759854948884
       // - if we saw it very recently -> it likely got killed (maybe by someone else)
       // - OR if a battle just ended near spawn -> we likely killed it (battle can take long)
       const justLostSight = (__adiE2Logout.wasPresent && (now - (__adiE2Logout.lastSeen||0)) <= 2500);
-      const justEndedBattle = (__adiE2Logout.lastBattleEnd && (now - __adiE2Logout.lastBattleEnd) <= 9000);
+      const justEndedBattle = (__adiE2Logout.lastBattleEnd && (now - __adiE2Logout.lastBattleEnd) <= 20000);
 
       if(__adiE2Logout.wasPresent && (justLostSight || justEndedBattle)){
         // guard: stay near the expected spawn coords, so fog / moving away won't cause false logout
@@ -1968,20 +1968,175 @@ function setTempTarget(val){
 
 
   // ===== FOW: pamięć ostatnio widzianych mobów + lock celu (żeby nie "szarpać") =====
-  const NPC_LAST_SEEN_TTL = 4500; // ms – jak długo trzymamy ostatnią pozycję moba
-  const TARGET_LOCK_MS = 2000;    // ms – minimalny czas trzymania wybranego celu
+  const NPC_LAST_SEEN_TTL = 20000; // ms – jak długo trzymamy ostatnią pozycję moba
+  const TARGET_LOCK_MS = 6000;    // ms – minimalny czas trzymania wybranego celu
+  const LOST_TARGET_GRACE_MS = 2500; // ms – po dojściu do ostatniego punktu jeszcze chwilę nie zmieniaj mapy
+  const TARGET_SWITCH_MARGIN = 120; // ile punktów lepszy musi być nowy visible target, by przebić zapamiętanego
+  const TARGET_SWITCH_COOLDOWN_MS = 1200; // anty-szarpanie przy częstym przełączaniu
+  const REMEMBERED_REACH_RESET_RADIUS = 1; // jeśli doszliśmy na ostatni punkt i dalej nic nie ma -> reset celu
+  const REMEMBERED_STUCK_MS = 4500; // po ilu ms bez progresu uznać pościg za zacięty
+  const REMEMBERED_STUCK_STEP = 1;  // minimalny progres do odświeżenia pościgu
 
   const __npcLastSeen = new Map(); // id -> {x,y,ts,mapName,grp,lvl,type}
   let __targetLockedUntil = 0;
+  let __lostTargetGraceUntil = 0;
+  let __lastTargetMapName = '';
+  let __lastTargetId = null;
+  let __lastTargetSwitchAt = 0;
+  let __rememberedChase = null; // {id,startAt,lastProgressAt,bestDist,lastX,lastY}
 
   // ===== E2: opóźnienie ataku po pojawieniu się celu =====
   const E2_SPAWN_ATTACK_DELAY_MS = 2000;
   let __e2SeenTargetId = null;
   let __e2SeenSince = 0;
 
-  function lockTarget(){ __targetLockedUntil = Date.now() + TARGET_LOCK_MS; }
-  function clearTargetLock(){ __targetLockedUntil = 0; }
+  function lockTarget(){
+    __targetLockedUntil = Date.now() + TARGET_LOCK_MS;
+    __lostTargetGraceUntil = 0;
+    try{
+      __lastTargetMapName = (window.map && map.name) ? String(map.name) : '';
+      __lastTargetId = ($m_id != null) ? Number($m_id) : __lastTargetId;
+    }catch(_){ }
+  }
+  function setLostTargetGrace(){
+    __lostTargetGraceUntil = Date.now() + LOST_TARGET_GRACE_MS;
+    try{ __lastTargetMapName = (window.map && map.name) ? String(map.name) : __lastTargetMapName; }catch(_){ }
+  }
+  function clearTargetLock(){
+    __targetLockedUntil = 0;
+    __lostTargetGraceUntil = 0;
+    __lastTargetId = null;
+  }
   function isTargetLocked(){ return !!$m_id && Date.now() < __targetLockedUntil; }
+  function isLostTargetGraceActive(){
+    try{
+      const curMap = (window.map && map.name) ? String(map.name) : '';
+      return !!__lastTargetId && Date.now() < __lostTargetGraceUntil && curMap === __lastTargetMapName;
+    }catch(_){ return false; }
+  }
+
+  function distanceToPoint(x,y){
+    return Math.abs((hero&&hero.x||0) - Number(x||0)) + Math.abs((hero&&hero.y||0) - Number(y||0));
+  }
+  function resetRememberedChase(){
+    __rememberedChase = null;
+  }
+  function resetTargetCompletely(useGrace=false){
+    try{
+      if(useGrace) setLostTargetGrace();
+      else __lostTargetGraceUntil = 0;
+    }catch(_){ }
+    $m_id = undefined;
+    __targetLockedUntil = 0;
+    resetRememberedChase();
+    clearTargetLock();
+  }
+  function startRememberedChase(id, snap){
+    const dist = distanceToPoint(snap.x, snap.y);
+    const now = Date.now();
+    if(!__rememberedChase || Number(__rememberedChase.id)!==Number(id)){
+      __rememberedChase = {
+        id:Number(id),
+        startAt:now,
+        lastProgressAt:now,
+        bestDist:dist,
+        lastX:Number(snap.x),
+        lastY:Number(snap.y)
+      };
+      return;
+    }
+    if(dist + REMEMBERED_STUCK_STEP < Number(__rememberedChase.bestDist||999999)){
+      __rememberedChase.bestDist = dist;
+      __rememberedChase.lastProgressAt = now;
+    }
+    __rememberedChase.lastX = Number(snap.x);
+    __rememberedChase.lastY = Number(snap.y);
+  }
+  function isRememberedChaseStuck(id){
+    if(!__rememberedChase || Number(__rememberedChase.id)!==Number(id)) return false;
+    return (Date.now() - Number(__rememberedChase.lastProgressAt||0)) > REMEMBERED_STUCK_MS;
+  }
+  function getVisibleMobPathLen(n){
+    try{
+      const path = a_getWay(n.x,n.y);
+      if(!path) return null;
+      return path.length;
+    }catch(_){ return null; }
+  }
+  function getVisibleMobScore(n){
+    const pathLen = getVisibleMobPathLen(n);
+    if(pathLen == null) return null;
+    return {
+      kind:'visible',
+      id:Number(n.id),
+      x:Number(n.x),
+      y:Number(n.y),
+      score:1000 - pathLen * 10,
+      dist:pathLen,
+      npc:n
+    };
+  }
+  function getBestVisibleMobCandidate(){
+    if(!isOnAllowedMap()) return null;
+    try{ if(typeof __adi_isAttackBlockedOnMap==='function' && __adi_isAttackBlockedOnMap()) return null; }catch(_){ }
+
+    const inp=document.querySelector('#adi-bot_mobs');
+    let min,max;
+    if(inp){
+      const raw=(inp.value||'').replace(/[–—−]/g,'-');
+      if(raw.includes('-')){
+        const parts = raw.split('-').map(s=>parseInt(String(s).trim(),10));
+        if(parts.length>=2 && !Number.isNaN(parts[0]) && !Number.isNaN(parts[1])){
+          min=Math.min(parts[0], parts[1]);
+          max=Math.max(parts[0], parts[1]);
+        }
+      }
+    }
+
+    let best = null;
+    for(const i in (g&&g.npc||{})){
+      const n=g.npc[i];
+      if(!n) continue;
+      const nid = (n.id!=null) ? Number(n.id) : Number(i);
+      if(__adiIsBlacklisted(nid)) continue;
+      const wtOk = (typeof n.wt !== 'number') || (n.wt <= 20);
+      if(!((n.type==2||n.type==3) && wtOk && min!=null && max!=null &&
+           n.lvl<=max && n.lvl>=min && checkGrp(n.id) && (!__adiIsBlacklisted||!__adiIsBlacklisted(n.id)) && !globalArray.includes(n.id))) continue;
+
+      const cand = getVisibleMobScore(n);
+      if(!cand) continue;
+      if(!best || cand.score > best.score) best = cand;
+    }
+    return best;
+  }
+  function getRememberedCandidate(id){
+    const tid = Number(id);
+    if(!tid) return null;
+    const snap = __npcLastSeen.get(tid);
+    const curMap = (window.map && map.name) ? String(map.name) : '';
+    if(!snap || snap.mapName !== curMap) return null;
+    const age = Date.now() - Number(snap.ts||0);
+    if(age > NPC_LAST_SEEN_TTL) return null;
+    const dist = distanceToPoint(snap.x, snap.y);
+    return {
+      kind:'remembered',
+      id:tid,
+      x:Number(snap.x),
+      y:Number(snap.y),
+      snap,
+      dist,
+      age,
+      score:600 - dist * 10 - age * 0.05
+    };
+  }
+  function shouldSwitchToVisible(visibleCand, rememberedCand){
+    if(!visibleCand) return false;
+    if(!rememberedCand) return true;
+    const now = Date.now();
+    if((now - __lastTargetSwitchAt) < TARGET_SWITCH_COOLDOWN_MS) return false;
+    if(rememberedCand.dist <= 2 && visibleCand.dist >= rememberedCand.dist) return false;
+    return visibleCand.score > rememberedCand.score + TARGET_SWITCH_MARGIN;
+  }
 
   function updateNpcLastSeen(){
     try{
@@ -2426,6 +2581,7 @@ window.__adiE2HoldSpot = (!__e2Present && !__manualOverride && hero.x === tx && 
       }catch(_){ }
 
       if(!$m_id && !bolcka && !isTargetLocked()){
+        resetRememberedChase();
         $m_id=self.findBestMob();
         if(!$m_id && localStorage.getItem(`adi-bot_expowiska`)){
           let tmp1,tmp2=9999; const def=expowiska[getSelectedExpKey()];
@@ -2439,7 +2595,11 @@ window.__adiE2HoldSpot = (!__e2Present && !__manualOverride && hero.x === tx && 
             }
           }
         }
-        if($m_id) lockTarget();
+        if($m_id){
+          __lastTargetId = Number($m_id);
+          try{ __lastTargetMapName = (window.map && map.name) ? String(map.name) : __lastTargetMapName; }catch(_){ }
+          lockTarget();
+        }
         blokada2=false; blokada=false;
       }
 
@@ -2455,25 +2615,51 @@ window.__adiE2HoldSpot = (!__e2Present && !__manualOverride && hero.x === tx && 
       if($m_id){
         let mob=g.npc[$m_id];
 
+        if(mob) resetRememberedChase();
+
         // mob wypadł z widoku (czerwone mapy / FOW) -> goń po ostatniej znanej pozycji
         if(!mob){
+          const visibleCand = getBestVisibleMobCandidate();
+          const rememberedCand = getRememberedCandidate($m_id);
+          if(shouldSwitchToVisible(visibleCand, rememberedCand)){
+            $m_id = visibleCand.id;
+            __lastTargetId = Number($m_id);
+            __lastTargetMapName = (window.map && map.name) ? String(map.name) : __lastTargetMapName;
+            __lastTargetSwitchAt = Date.now();
+            resetRememberedChase();
+            lockTarget();
+            return ret;
+          }
+
           const snap = __npcLastSeen.get($m_id);
           const curMap = (window.map && map.name) ? String(map.name) : '';
           if(snap && snap.mapName === curMap){
+            __lastTargetId = Number($m_id);
+            __lastTargetMapName = curMap;
+            startRememberedChase($m_id, snap);
+
+            if(isRememberedChaseStuck($m_id)){
+              resetTargetCompletely(true);
+              return ret;
+            }
+
             if(!blokada2 && !blokada){
               a_goTo(snap.x, snap.y);
               blokada2=true;
               lockTarget();
               setTimeout(()=>{ blokada2=false; },900);
             }
-            // jeśli doszliśmy i nadal go nie ma – odpuść
-            if(Math.abs(hero.x - snap.x) + Math.abs(hero.y - snap.y) <= 1){
-              $m_id=undefined;
-             clearTargetLock();}
+
+            // jeśli doszliśmy do lastSeen i nadal go nie ma – reset celu
+            if(distanceToPoint(snap.x, snap.y) <= REMEMBERED_REACH_RESET_RADIUS){
+              resetTargetCompletely(true);
+            }
             return ret;
           }
-          $m_id=undefined;
-           clearTargetLock();return ret;
+          __lastTargetId = Number($m_id);
+          try{ __lastTargetMapName = (window.map && map.name) ? String(map.name) : __lastTargetMapName; }catch(_){ }
+          resetTargetCompletely(true);
+          return ret;
         }
 
         if(Math.abs(hero.x-mob.x)<2 && Math.abs(hero.y-mob.y)<2 && !blokada){
@@ -2489,6 +2675,7 @@ window.__adiE2HoldSpot = (!__e2Present && !__manualOverride && hero.x === tx && 
           lockTarget();
         }
       } else if (document.querySelector(`#adi-bot_maps`) && document.querySelector(`#adi-bot_maps`).value.length>0){
+        if(isLostTargetGraceActive()) return ret;
         $map_cords=self.findBestGw();
         if($map_cords && !bolcka){
           if(hero.x==$map_cords.x && hero.y==$map_cords.y){ _g(`walk`); }
@@ -2748,41 +2935,8 @@ function __adiAutoHealTick(){
 
   // ===== wybór moba =====
   this.findBestMob=function(){
-    if(!isOnAllowedMap()) return undefined;
-
-    // czarna lista map -> na tej mapie nie wybieramy celu do ataku
-    try{ if(typeof __adi_isAttackBlockedOnMap==='function' && __adi_isAttackBlockedOnMap()) return undefined; }catch(_){ }
-
-    let dist=9999, id;
-    for(const i in g.npc){
-      const n=g.npc[i];
-
-      // blacklist (np. elity wykryte po ikonie)
-      const __nid = (n && n.id!=null) ? Number(n.id) : Number(i);
-      if(__adiIsBlacklisted(__nid)) continue;
-
-
-      const inp=document.querySelector('#adi-bot_mobs');
-      let min,max;
-
-      // Default: read range from UI (e.g. "1-50")
-      if(inp){
-        const raw=(inp.value||'').replace(/[–—−]/g,'-');
-        if(raw.includes('-')){
-          const [a,b]=raw.split('-').map(s=>parseInt(s.trim(),10));
-          if(!Number.isNaN(a)&&!Number.isNaN(b)){ min=Math.min(a,b); max=Math.max(a,b); }
-        }
-      }
-
-      const wtOk = (typeof n.wt !== 'number') || (n.wt <= 20);
-
-      if((n.type==2||n.type==3) && wtOk && min!=null && max!=null &&
-         n.lvl<=max && n.lvl>=min && checkGrp(n.id) && (!__adiIsBlacklisted||!__adiIsBlacklisted(n.id)) && !globalArray.includes(n.id)){
-        const path=a_getWay(n.x,n.y); if(!path) continue;
-        if(path.length<dist){ dist=path.length; id=n.id; }
-      }
-    }
-    return id;
+    const best = getBestVisibleMobCandidate();
+    return best ? best.id : undefined;
   };
 
   if(!localStorage.getItem(`alksjd`)) localStorage.setItem(`alksjd`, '0');
