@@ -5498,10 +5498,40 @@ if(task.stage==='equip'){
 
           const btn = adiFindMailLootButton();
           if(btn){
+            const beforeUsed = (bag && Number.isFinite(Number(bag.used))) ? Number(bag.used) : null;
             const ok = adiExecButtonOnclick(btn);
             task.lastActionAt = Date.now();
             task.emptyRetries = 0;
             if(ok) task.lootClicks = Number(task.lootClicks || 0) + 1;
+
+            setTimeout(()=>{
+              try{
+                const cur = loadTornegMailTask();
+                if(!cur || cur.stage !== 'collect') return;
+                const afterBag = adiSafeBagSpaceCount();
+                const afterUsed = (afterBag && Number.isFinite(Number(afterBag.used))) ? Number(afterBag.used) : null;
+                if(afterBag && Number.isFinite(Number(afterBag.free)) && Number(afterBag.free) <= 0){
+                  cur.stage = 'closeMail';
+                  cur.lastActionAt = 0;
+                  saveTornegMailTask(cur);
+                  return;
+                }
+                if(beforeUsed != null && afterUsed != null && afterUsed <= beforeUsed){
+                  cur.stuckLootRepeats = Number(cur.stuckLootRepeats || 0) + 1;
+                }else{
+                  cur.stuckLootRepeats = 0;
+                }
+                if(Number(cur.stuckLootRepeats || 0) >= 3){
+                  cur.stage = 'closeMail';
+                  cur.lastActionAt = 0;
+                  saveTornegMailTask(cur);
+                  eqSetInfo('Poczta(Torneg): odbiór nic już nie dodaje do torby — zamykam pocztę i startuję aukcję.', true);
+                  return;
+                }
+                saveTornegMailTask(cur);
+              }catch(_){ }
+            }, 350);
+
             saveTornegMailTask(task);
             eqSetInfo('Poczta(Torneg): odbieram syf z wiadomości… kliknięć: ' + Number(task.lootClicks || 0), true);
             return;
@@ -5509,6 +5539,13 @@ if(task.stage==='equip'){
 
           task.emptyRetries = Number(task.emptyRetries || 0) + 1;
           task.lastActionAt = Date.now();
+          if(Number(task.emptyRetries || 0) >= 5){
+            task.stage = 'closeMail';
+            task.lastActionAt = 0;
+            saveTornegMailTask(task);
+            eqSetInfo('Poczta(Torneg): nie widzę już przycisku odbioru — zamykam pocztę i startuję aukcję.', true);
+            return;
+          }
           saveTornegMailTask(task);
           eqSetInfo('Poczta(Torneg): nie widzę przycisku odbioru, czekam… (' + task.emptyRetries + ')', false);
           return;
@@ -7190,6 +7227,45 @@ if (typeof window.window.__adi_equipByNameSequence !== 'function') {
     }catch(_){ return null; }
   }
 
+  function adiCountBagOccupiedSlots(){
+    try{
+      if(!window.g || !g.item) return null;
+      const used = new Set();
+      for(const k in g.item){
+        const it = g.item[k];
+        if(!it) continue;
+        if(String(it.loc || '') !== 'g') continue;
+        const slot = String(it.st ?? it.slot ?? it.pos ?? k);
+        used.add(slot);
+      }
+      return used.size;
+    }catch(_){ return null; }
+  }
+
+  function adiGuessBagTotalSlots(){
+    try{
+      const bag = document.querySelector('#bagc');
+      if(bag){
+        const sels = [
+          '.itemempty',
+          '.item.empty',
+          '.item',
+          '.slot',
+          '.bag-slot',
+          '[data-slot]',
+          '[data-st]'
+        ];
+        for(const sel of sels){
+          const n = bag.querySelectorAll(sel).length;
+          if(n >= 20) return n;
+        }
+        const direct = bag.children ? bag.children.length : 0;
+        if(direct >= 20) return direct;
+      }
+    }catch(_){ }
+    return null;
+  }
+
   function adiGetTotalBagSpace(){
     try{
       let free = 0;
@@ -7202,13 +7278,10 @@ if (typeof window.window.__adi_equipByNameSequence !== 'function') {
         const t = String(el.textContent || el.innerText || '').trim();
         if(!t) continue;
 
-        const m = t.match(/(\d+)\/(\d+)/);
+        const m = t.match(/(\d+)\s*\/\s*(\d+)/);
         if(m){
           const first = Number(m[1] || 0);
           const second = Number(m[2] || 0);
-
-          // Licznik bsX pokazuje wolne/łączne miejsca.
-          // Przykład: 0/30 = torba pełna, 1/30 = jedno wolne miejsce.
           free += first;
           total += second;
         }else{
@@ -7220,14 +7293,34 @@ if (typeof window.window.__adi_equipByNameSequence !== 'function') {
         }
       }
 
-      if(total <= 0) return null;
-      return {
-        free: Math.max(0, free),
-        total,
-        used: Math.max(0, total - free),
-        text: `${Math.max(0, free)} / ${total}`
-      };
-    }catch(_){ return null; }
+      if(total > 0){
+        return {
+          free: Math.max(0, free),
+          total,
+          used: Math.max(0, total - free),
+          text: `${Math.max(0, free)} / ${total}`,
+          source: 'bs-counters'
+        };
+      }
+
+      const used = adiCountBagOccupiedSlots();
+      let guessedTotal = adiGuessBagTotalSlots();
+      if(!Number.isFinite(Number(guessedTotal)) || Number(guessedTotal) <= 0){
+        guessedTotal = 90;
+      }
+
+      if(Number.isFinite(Number(used))){
+        free = Math.max(0, Number(guessedTotal) - Number(used));
+        return {
+          free,
+          total: Number(guessedTotal),
+          used: Math.max(0, Number(used)),
+          text: `${free} / ${Number(guessedTotal)}`,
+          source: 'g.item-fallback'
+        };
+      }
+    }catch(_){ }
+    return null;
   }
 
   function adiBuildLootEmbed(item, rarity, imageInfo){
