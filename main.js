@@ -5392,6 +5392,14 @@ if(task.stage==='equip'){
     return null;
   }
 
+  function adiGetInventoryItemCount(){
+    try{
+      if(!window.g || !g.item) return 0;
+      return Object.keys(g.item).length;
+    }catch(_){ }
+    return 0;
+  }
+
   function adiStopTornegMailSyfFlow(msg, ok){
     try{
       clearTornegMailTask();
@@ -5498,7 +5506,7 @@ if(task.stage==='equip'){
 
           const btn = adiFindMailLootButton();
           if(btn){
-            const beforeUsed = (bag && Number.isFinite(Number(bag.used))) ? Number(bag.used) : null;
+            const beforeCount = adiGetInventoryItemCount();
             const ok = adiExecButtonOnclick(btn);
             task.lastActionAt = Date.now();
             task.emptyRetries = 0;
@@ -5508,29 +5516,34 @@ if(task.stage==='equip'){
               try{
                 const cur = loadTornegMailTask();
                 if(!cur || cur.stage !== 'collect') return;
+
                 const afterBag = adiSafeBagSpaceCount();
-                const afterUsed = (afterBag && Number.isFinite(Number(afterBag.used))) ? Number(afterBag.used) : null;
+                const afterCount = adiGetInventoryItemCount();
+
                 if(afterBag && Number.isFinite(Number(afterBag.free)) && Number(afterBag.free) <= 0){
                   cur.stage = 'closeMail';
                   cur.lastActionAt = 0;
                   saveTornegMailTask(cur);
                   return;
                 }
-                if(beforeUsed != null && afterUsed != null && afterUsed <= beforeUsed){
-                  cur.stuckLootRepeats = Number(cur.stuckLootRepeats || 0) + 1;
-                }else{
+
+                if(afterCount > beforeCount){
                   cur.stuckLootRepeats = 0;
+                }else{
+                  cur.stuckLootRepeats = Number(cur.stuckLootRepeats || 0) + 1;
                 }
-                if(Number(cur.stuckLootRepeats || 0) >= 3){
+
+                if(Number(cur.stuckLootRepeats || 0) >= 4){
                   cur.stage = 'closeMail';
                   cur.lastActionAt = 0;
                   saveTornegMailTask(cur);
                   eqSetInfo('Poczta(Torneg): odbiór nic już nie dodaje do torby — zamykam pocztę i startuję aukcję.', true);
                   return;
                 }
+
                 saveTornegMailTask(cur);
               }catch(_){ }
-            }, 350);
+            }, 450);
 
             saveTornegMailTask(task);
             eqSetInfo('Poczta(Torneg): odbieram syf z wiadomości… kliknięć: ' + Number(task.lootClicks || 0), true);
@@ -5539,7 +5552,7 @@ if(task.stage==='equip'){
 
           task.emptyRetries = Number(task.emptyRetries || 0) + 1;
           task.lastActionAt = Date.now();
-          if(Number(task.emptyRetries || 0) >= 5){
+          if(Number(task.emptyRetries || 0) >= 4){
             task.stage = 'closeMail';
             task.lastActionAt = 0;
             saveTornegMailTask(task);
