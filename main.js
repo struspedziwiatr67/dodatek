@@ -4531,15 +4531,6 @@ const AUCTION_VENDORS = {
   'dom-aukcyjny-aukcjoner': { key: 'dom-aukcyjny-aukcjoner', map: 'Dom Aukcyjny', npc: 'Aukcjoner', pos: { x: 20, y: 6 }, stand: { x: 20, y: 7 } }
 };
 
-const MAIL_AUCTION_TORNEG = {
-  key: 'torneg-skrzynka-pocztowa',
-  map: 'Torneg',
-  npc: 'Skrzynka pocztowa',
-  pos: { x: 52, y: 50 },
-  stand: { x: 52, y: 51 }
-};
-
-
 function findNearestAuctionVendor(){
   try{
     const cur = normMapName(map?.name || '');
@@ -4851,151 +4842,6 @@ try{
       return null;
     }
 
-    function eqGetUiDocs(){
-      const docs = [document];
-      try{
-        for(const fr of Array.from(document.querySelectorAll('iframe'))){
-          try{
-            const d = fr.contentDocument || (fr.contentWindow && fr.contentWindow.document);
-            if(d) docs.push(d);
-          }catch(_ ){}
-        }
-      }catch(_ ){}
-      return docs;
-    }
-
-    function eqMailUiOpen(){
-      try{
-        const docs = eqGetUiDocs();
-        for(const d of docs){
-          if(!d) continue;
-          if(d.querySelector('#inbox, .oneMail, button.getdel, div.closebut[onclick*="hideMail"], .closebut[onclick*="hideMail"]')) return true;
-        }
-      }catch(_ ){}
-      return false;
-    }
-
-    function eqFindMailGetDelButton(){
-      try{
-        const docs = eqGetUiDocs();
-        for(const d of docs){
-          const btn = d.querySelector('button.getdel');
-          if(btn) return btn;
-        }
-      }catch(_ ){}
-      return null;
-    }
-
-    function eqRunInlineOnclick(btn){
-      try{
-        const raw = String(btn?.getAttribute('onclick') || '');
-        if(!raw) return false;
-        const code = raw.replace(/&amp;/g, '&').replace(/\bthis\b/g, 'btn');
-        try{
-          (new Function('btn', code))(btn);
-          return true;
-        }catch(_ ){
-          try{ eval(code); return true; }catch(__){}
-        }
-      }catch(_ ){}
-      return false;
-    }
-
-    function eqCloseMailWindow(){
-      try{
-        const docs = eqGetUiDocs();
-        for(const d of docs){
-          const btn = d.querySelector('div.closebut[onclick*="hideMail"], .closebut[onclick*="hideMail"], div.closebut');
-          if(btn){
-            eqClick(btn);
-            return true;
-          }
-        }
-      }catch(_ ){}
-      return false;
-    }
-
-    function eqParseBagCounterText(txt){
-      try{
-        const s = String(txt || '').trim();
-        if(!s) return null;
-        const m = s.match(/(\d+)\s*\/\s*(\d+)/);
-        if(!m) return null;
-        return {
-          free: Math.max(0, Number(m[1] || 0)),
-          total: Math.max(0, Number(m[2] || 0))
-        };
-      }catch(_ ){}
-      return null;
-    }
-
-    function eqGetMailBagSpace(){
-      try{
-        const docs = eqGetUiDocs();
-        let agg = { free: 0, total: 0, found: 0, source: 'mail-bs-iframe' };
-
-        for(const d of docs){
-          if(!d) continue;
-          for(const id of ['bs0','bs1','bs2']){
-            const el = d.getElementById(id) || d.querySelector('#' + id) || d.querySelector('small#' + id);
-            if(!el) continue;
-            const parsed = eqParseBagCounterText(el.textContent || el.innerText || '');
-            if(!parsed) continue;
-            agg.free += Number(parsed.free || 0);
-            agg.total += Number(parsed.total || 0);
-            agg.found++;
-          }
-        }
-
-        if(agg.found > 0){
-          agg.used = Math.max(0, Number(agg.total || 0) - Number(agg.free || 0));
-          return agg;
-        }
-      }catch(_ ){}
-
-      try{
-        if(typeof adiSafeBagSpaceCount === 'function'){
-          const bag = adiSafeBagSpaceCount();
-          if(bag && Number.isFinite(Number(bag.free))) return bag;
-        }
-      }catch(_ ){}
-
-      try{
-        if(typeof adiGetTotalBagSpace === 'function'){
-          const bag = adiGetTotalBagSpace();
-          if(bag && Number.isFinite(Number(bag.free))) return bag;
-        }
-      }catch(_ ){}
-
-      return null;
-    }
-
-    window.__adiDebugMailBagSpace = function(){
-      const bag = eqGetMailBagSpace();
-      console.log('[adi-bot][mail][bag]', bag);
-      return bag;
-    };
-
-    function eqFinishMailToAuction(task, reason){
-      try{
-        clearEquipTask();
-        setTempTarget(null);
-        try{ clearInterval(window.__adiEquipTimer); }catch(_ ){}
-        const why = String(reason || 'mail-finished');
-        setTimeout(()=>{
-          try{
-            const ok = (typeof window.__adiStartAuctionWalk === 'function')
-              ? window.__adiStartAuctionWalk(why)
-              : false;
-            if(ok) eqSetInfo('Poczta zakończona — idę teraz do Aukcjonera.', true);
-            else eqSetInfo('Poczta zakończona, ale nie mogę teraz ruszyć do Aukcjonera.', false);
-          }catch(e){
-            eqSetInfo('Poczta zakończona, ale start Aukcjonera nie udał się: ' + (e?.message || e), false);
-          }
-        }, 450);
-      }catch(_ ){}
-    }
-
     function startEquipFlow(){
       let timer = window.__adiEquipTimer;
       if(timer) clearInterval(timer);
@@ -5006,7 +4852,7 @@ try{
           if(norm(map?.name||'')===norm(task.map)){ task.stage='toStand'; saveEquipTask(task); }
           else{
           setTempTarget(task.map);
-          eqSetInfo('Wyznaczam trasę do '+task.map+'...' + (task.kind==='auction' ? ' (Aukcjoner)' : ''), true);
+          eqSetInfo('Wyznaczam trasę do '+task.map+'...' + (task.kind==='auction' ? ' (Aukcjoner)' : (task.kind==='mailAuction' ? ' (Skrzynka pocztowa)' : '')), true);
           // Move one step of the route here (do not depend on main bot loop)
           try{
             var step = (typeof followGraphTo==='function') ? followGraphTo(task.map) : null;
@@ -5026,110 +4872,27 @@ try{
           const npc = eqFindNpcByName(task.npc);
           if(npc){
             eqClick(npc);
-            task.stage = (task.kind==='mailAuctionTorneg') ? 'mailOpen' : 'dialog';
-            saveEquipTask(task);
-            if(task.kind==='mailAuctionTorneg'){
-              eqSetInfo('Jestem przy skrzynce pocztowej w '+task.map+'. Otwieram pocztę…', true);
-            }else{
-              eqSetInfo('Jestem u '+task.npc+' ('+task.map+').' + (task.kind==='auction' ? ' Otwieram dialog aukcyjny…' : ' Otwieram „Pokaż towary”…'), true);
-            }
+            task.stage='dialog'; saveEquipTask(task);
+            eqSetInfo('Jestem u '+task.npc+' ('+task.map+').' + (task.kind==='auction' ? ' Otwieram dialog aukcyjny…' : (task.kind==='mailAuction' ? ' Otwieram pocztę…' : ' Otwieram „Pokaż towary”…')), true);
           } else {
             eqSetInfo('Szukam NPC: '+task.npc+'...', false);
           }
           return;
         }
-
-        if(task.stage==='mailOpen'){
-          if(eqMailUiOpen()){
-            task.stage = 'mailCollect';
-            task.mailOpenedAt = Date.now();
-            task.noMailButtonRetry = 0;
-            saveEquipTask(task);
-            eqSetInfo('Poczta otwarta. Odbieram syf przyciskiem „Pobierz załącznik i usuń wiadomość”…', true);
-            return;
-          }
-          if(Date.now() - Number(task.lastMailNpcClickAt || 0) < 900) return;
-          const npc = eqFindNpcByName(task.npc);
-          if(npc){
-            eqClick(npc);
-            task.lastMailNpcClickAt = Date.now();
-            saveEquipTask(task);
-            eqSetInfo('Próbuję otworzyć skrzynkę pocztową…', false);
-          }else{
-            eqSetInfo('Nie widzę NPC „'+task.npc+'”.', false);
-          }
-          return;
-        }
-
-        if(task.stage==='mailCollect'){
-          const bagSpace = eqGetMailBagSpace();
-
-          if(bagSpace && Number.isFinite(Number(bagSpace.free))){
-            task.lastKnownMailBagFree = Math.max(0, Number(bagSpace.free));
-            task.lastKnownMailBagTotal = Number.isFinite(Number(bagSpace.total)) ? Math.max(0, Number(bagSpace.total)) : 0;
-            task.lastKnownMailBagSource = String(bagSpace.source || 'mail-bag');
-            saveEquipTask(task);
-
-            if(Number(bagSpace.free) <= 0){
-              task.stage = 'mailClose';
-              task.mailFullAt = Date.now();
-              saveEquipTask(task);
-              eqSetInfo('Wykryłem 0 wolnych miejsc w torbach (' + task.lastKnownMailBagSource + '). Zamykam pocztę i ruszam do Aukcjonera…', true);
-              return;
-            }
-          }
-
-          if(!eqMailUiOpen()){
-            task.stage = 'mailOpen';
-            saveEquipTask(task);
-            return;
-          }
-
-          if(Date.now() - Number(task.lastMailCollectClickAt || 0) < 700) return;
-
-          const btn = eqFindMailGetDelButton();
-          if(btn){
-            const ok = eqRunInlineOnclick(btn) || (eqClick(btn), true);
-            task.lastMailCollectClickAt = Date.now();
-            task.mailCollectClicks = Number(task.mailCollectClicks || 0) + 1;
-            task.noMailButtonRetry = 0;
-            saveEquipTask(task);
-            eqSetInfo(ok
-              ? 'Odbieram syf z poczty… kliknięć: ' + task.mailCollectClicks + '.'
-              : 'Próbuję odebrać syf z poczty…', true);
-            return;
-          }
-
-          task.noMailButtonRetry = Number(task.noMailButtonRetry || 0) + 1;
-          task.lastMailCollectClickAt = Date.now();
-          saveEquipTask(task);
-
-          if(task.noMailButtonRetry >= 8){
-            task.stage = 'mailClose';
-            saveEquipTask(task);
-            eqSetInfo('Nie widzę już kolejnych wiadomości do odbioru. Zamykam pocztę i ruszam do Aukcjonera…', true);
-          }else{
-            eqSetInfo('Czekam na kolejny przycisk odbioru z poczty… (' + task.noMailButtonRetry + '/8)', false);
-          }
-          return;
-        }
-
-        if(task.stage==='mailClose'){
-          if(Date.now() - Number(task.lastMailCloseAt || 0) < 500) return;
-          const closed = eqCloseMailWindow();
-          task.lastMailCloseAt = Date.now();
-          saveEquipTask(task);
-
-          if(closed || !eqMailUiOpen()){
-            eqSetInfo('Poczta zamknięta. Uruchamiam wystawianie u Aukcjonera…', true);
-            eqFinishMailToAuction(task, 'mail-torneg');
-          }else{
-            eqSetInfo('Zamykam okno poczty przyciskiem X…', false);
-          }
-          return;
-        }
         // 4) Klik w „Pokaż towary” / „Sklep” albo pierwszy dialog Aukcjonera
         if(task.stage==='dialog'){
+          if(task.kind==='mailAuction'){
+            if(!task.dialogOpenedAt){
+              task.dialogOpenedAt = Date.now();
+              saveEquipTask(task);
+              eqSetInfo('Poczta otwarta. Czekam chwilę i zaczynam odbierać przedmioty…', true);
+              return;
+            }
+            if(Date.now() - Number(task.dialogOpenedAt || 0) < 500) return;
+            task.stage = 'mailLoop';
+            saveEquipTask(task);
+            return;
+          }
           if(document.querySelector('.dialog, #dialog, .npcDialog, #npcDialog, .dsc')){
             if(task.kind==='auction'){
               if(!task.dialogOpenedAt){
@@ -5156,6 +4919,64 @@ try{
             task.stage='shop'; saveEquipTask(task);
           } else {
             const npc = eqFindNpcByName(task.npc); if(npc) eqClick(npc);
+          }
+          return;
+        }
+
+        if(task.stage==='mailLoop'){
+          const bag = (typeof window.__adiDebugMailBagSpace === 'function') ? window.__adiDebugMailBagSpace() : null;
+          if(bag && Number.isFinite(Number(bag.free)) && Number(bag.free) <= 0){
+            task.mailBagFullAt = Date.now();
+            task.stage = 'mailClose';
+            saveEquipTask(task);
+            eqSetInfo('Torby pełne (0 miejsc). Zamykam pocztę…', true);
+            return;
+          }
+
+          const now = Date.now();
+          if(now - Number(task.mailLastClickAt || 0) < 450) return;
+
+          const clicked = adiMailClickReceiveButton();
+          task.mailLastClickAt = now;
+          if(clicked){
+            task.mailNoBtnHits = 0;
+            saveEquipTask(task);
+            eqSetInfo('Odbieram przedmioty z poczty…', true);
+          }else{
+            task.mailNoBtnHits = Number(task.mailNoBtnHits || 0) + 1;
+            saveEquipTask(task);
+            if(Number(task.mailNoBtnHits || 0) >= 6){
+              task.stage = 'mailClose';
+              saveEquipTask(task);
+              eqSetInfo('Nie widzę już przycisku odbioru. Zamykam pocztę i idę na aukcję…', true);
+            }
+          }
+          return;
+        }
+
+        if(task.stage==='mailClose'){
+          if(!task.mailCloseStartedAt){
+            task.mailCloseStartedAt = Date.now();
+            saveEquipTask(task);
+            return;
+          }
+          if(Date.now() - Number(task.mailCloseStartedAt || 0) < 300) return;
+          const closed = adiMailCloseWindow();
+          if(closed){
+            const started = (typeof window.__adiStartAuctionWalk === 'function') ? window.__adiStartAuctionWalk('mail-full-bag') : false;
+            if(started){
+              eqSetInfo('Zamknięto pocztę. Idę do Aukcjonera.', true);
+            }else{
+              eqSetInfo('Zamknięto pocztę, ale nie udało się uruchomić drogi do Aukcjonera.', false);
+            }
+            clearEquipTask();
+            setTempTarget(null);
+            clearInterval(window.__adiEquipTimer);
+          }else if(Date.now() - Number(task.mailCloseStartedAt || 0) > 5000){
+            eqSetInfo('Nie udało się zamknąć poczty przyciskiem X.', false);
+            clearEquipTask();
+            setTempTarget(null);
+            clearInterval(window.__adiEquipTimer);
           }
           return;
         }
@@ -5534,32 +5355,156 @@ if(task.stage==='equip'){
   }
   window.__adiStartAuctionWalk = adiStartAuctionWalk;
 
-  function adiStartMailAuctionTorneg(reason){
+
+  function adiMailAuctionBagSpace(){
+    try{
+      const bag = adiSafeBagSpaceCount();
+      if(bag && Number.isFinite(Number(bag.free))) return bag;
+    }catch(_){ }
+
+    try{
+      const docs = [document];
+      const ifr = Array.from(document.querySelectorAll('iframe'));
+      for(const fr of ifr){
+        try{
+          const d = fr.contentDocument || (fr.contentWindow && fr.contentWindow.document);
+          if(d) docs.push(d);
+        }catch(_){ }
+      }
+
+      let agg = null;
+      for(const d of docs){
+        for(const id of ['bs0','bs1','bs2']){
+          const el = d.getElementById(id) || d.querySelector('#' + id) || d.querySelector('small#' + id);
+          if(!el) continue;
+          const parsed = adiParseBagText(el.textContent || el.innerText || '');
+          if(parsed && Number.isFinite(Number(parsed.free))){
+            if(!agg) agg = { free: 0, total: 0, used: 0, source: 'mail-bs-iframe' };
+            agg.free += Number(parsed.free || 0);
+            agg.total += Number(parsed.total || 0);
+          }
+        }
+      }
+      if(agg){
+        agg.used = Math.max(0, Number(agg.total || 0) - Number(agg.free || 0));
+        return agg;
+      }
+    }catch(_){ }
+
+    try{
+      const out = document.getElementById('adi-auction-bag-space') || document.querySelector('#adi-auction-bag-space');
+      if(out){
+        const parsed = adiParseBagText(out.textContent || out.innerText || '');
+        if(parsed && Number.isFinite(Number(parsed.free))) return parsed;
+        const m = String(out.textContent || out.innerText || '').match(/(\d+)/);
+        if(m) return { free: Math.max(0, Number(m[1] || 0)), total: null, used: null, source: 'auction-panel-text' };
+      }
+    }catch(_){ }
+
+    return null;
+  }
+  window.__adiDebugMailBagSpace = adiMailAuctionBagSpace;
+
+  function adiMailFindGetButton(){
+    try{
+      const docs = [document];
+      const ifr = Array.from(document.querySelectorAll('iframe'));
+      for(const fr of ifr){
+        try{
+          const d = fr.contentDocument || (fr.contentWindow && fr.contentWindow.document);
+          if(d) docs.push(d);
+        }catch(_){ }
+      }
+      for(const d of docs){
+        const btn = d.querySelector('button.getdel[onclick*="mailaction-get"], button.getdel[onclick*="mailaction-delet"], button.getdel');
+        if(btn) return btn;
+      }
+    }catch(_){ }
+    return null;
+  }
+
+  function adiMailClickReceiveButton(){
+    try{
+      const btn = adiMailFindGetButton();
+      if(!btn) return false;
+      let code = '';
+      try{
+        code = String(btn.getAttribute('onclick') || '');
+      }catch(_){ }
+      if(code){
+        try{
+          const normalized = code.replace(/&amp;/g, '&').replace(/\bthis\b/g, 'btn');
+          (function(btn){ eval(normalized); })(btn);
+          return true;
+        }catch(_){ }
+      }
+      try{ btn.click(); return true; }catch(_){ }
+    }catch(_){ }
+    return false;
+  }
+
+  function adiMailFindCloseButton(){
+    try{
+      const docs = [document];
+      const ifr = Array.from(document.querySelectorAll('iframe'));
+      for(const fr of ifr){
+        try{
+          const d = fr.contentDocument || (fr.contentWindow && fr.contentWindow.document);
+          if(d) docs.push(d);
+        }catch(_){ }
+      }
+      for(const d of docs){
+        const btn = d.querySelector('div.closebut[onclick*="hideMail"], .closebut[onclick*="hideMail"], div.closebut');
+        if(btn) return btn;
+      }
+    }catch(_){ }
+    return null;
+  }
+
+  function adiMailCloseWindow(){
+    try{
+      const btn = adiMailFindCloseButton();
+      if(!btn) return false;
+      let code = '';
+      try{ code = String(btn.getAttribute('onclick') || ''); }catch(_){ }
+      if(code){
+        try{
+          const normalized = code.replace(/&amp;/g, '&').replace(/\bthis\b/g, 'btn');
+          (function(btn){ eval(normalized); })(btn);
+          return true;
+        }catch(_){ }
+      }
+      try{ btn.click(); return true; }catch(_){ }
+    }catch(_){ }
+    return false;
+  }
+
+  function adiStartTornegMailAuction(reason){
     try{
       const existing = (typeof loadEquipTask === 'function') ? loadEquipTask() : null;
       if(existing) return false;
-      const v = MAIL_AUCTION_TORNEG;
-      if(!v) return false;
-
+      const now = Date.now();
       const task = {
-        kind: 'mailAuctionTorneg',
+        kind: 'mailAuction',
         stage: 'toCity',
-        map: v.map,
-        npc: v.npc,
-        stand: { x: Number(v.stand.x), y: Number(v.stand.y) },
-        pos: { x: Number(v.pos.x), y: Number(v.pos.y) },
-        createdAt: Date.now(),
-        reason: String(reason || 'mail-torneg')
+        map: 'Torneg',
+        npc: 'Skrzynka pocztowa',
+        stand: { x: 52, y: 51 },
+        pos: { x: 52, y: 50 },
+        createdAt: now,
+        reason: String(reason || 'manual-mail-auction'),
+        mailStartedAt: now,
+        mailLastClickAt: 0,
+        mailNoBtnHits: 0
       };
-
       saveEquipTask(task);
-      setTempTarget(v.map);
+      setTempTarget('Torneg');
       startEquipFlow();
-      eqSetInfo('Idę do skrzynki pocztowej w Torneg (' + v.stand.x + ',' + v.stand.y + ').', true);
+      eqSetInfo('Idę do Skrzynki pocztowej w Torneg (52,51).', true);
       return true;
     }catch(_){ return false; }
   }
-  window.__adiStartMailAuctionTorneg = adiStartMailAuctionTorneg;
+  window.__adiStartTornegMailAuction = adiStartTornegMailAuction;
 
   function adiCheckAutoAuction(source){
     try{
@@ -6862,9 +6807,9 @@ if (typeof window.window.__adi_equipByNameSequence !== 'function') {
             <span class="adi-settings-label">Auto-podejście do Aukcjonera poniżej tylu wolnych miejsc</span>
           </label>
           <div id="adi-auction-bag-space" class="adi-auction-space">Aktualna ilość wolnych miejsc w torbach: —</div>
-          <div class="adi-settings-line" style="margin-top:12px;justify-content:flex-start;gap:8px;flex-wrap:wrap;">
+          <div class="adi-settings-line" style="margin-top:12px;justify-content:flex-start;gap:6px;flex-wrap:wrap;">
             <button id="adi-auction-go-now" class="adi-bot_inputs" type="button" style="width:auto;min-width:180px;cursor:pointer;">Wystaw itemy teraz</button>
-            <button id="adi-mail-auction-torneg-now" class="adi-bot_inputs" type="button" style="width:auto;min-width:320px;cursor:pointer;">Odbierz z poczty syf i wystaw na aukcje (Torneg)</button>
+            <button id="adi-auction-mail-torneg-now" class="adi-bot_inputs" type="button" style="width:auto;min-width:320px;cursor:pointer;">Odbierz z poczty syf i wystaw na aukcje (Torneg)</button>
           </div>
         </div>
       `;
@@ -6929,18 +6874,18 @@ if (typeof window.window.__adi_equipByNameSequence !== 'function') {
         });
       }
 
-      const mailAuctionBtn = auctionPanel.querySelector('#adi-mail-auction-torneg-now');
-      if(mailAuctionBtn && !mailAuctionBtn.__adiBound){
-        mailAuctionBtn.__adiBound = true;
-        mailAuctionBtn.addEventListener('click', ()=>{
+      const mailTornegBtn = auctionPanel.querySelector('#adi-auction-mail-torneg-now');
+      if(mailTornegBtn && !mailTornegBtn.__adiBound){
+        mailTornegBtn.__adiBound = true;
+        mailTornegBtn.addEventListener('click', ()=>{
           try{
-            const ok = (typeof window.__adiStartMailAuctionTorneg === 'function')
-              ? window.__adiStartMailAuctionTorneg('manual-mail-torneg')
+            const ok = (typeof window.__adiStartTornegMailAuction === 'function')
+              ? window.__adiStartTornegMailAuction('manual-mail-torneg-button')
               : false;
-            if(ok) adiLootMessage('Poczta/Aukcja: startuję trasę do skrzynki pocztowej w Torneg.');
-            else adiLootMessage('Poczta/Aukcja: nie mogę uruchomić tej akcji.');
+            if(ok) adiLootMessage('Poczta/Aukcja: idę do Skrzynki pocztowej w Torneg.');
+            else adiLootMessage('Poczta/Aukcja: nie mogę ruszyć teraz do Skrzynki pocztowej.');
           }catch(_){
-            adiLootMessage('Poczta/Aukcja: błąd przy starcie akcji.');
+            adiLootMessage('Poczta/Aukcja: błąd przy starcie trasy do poczty.');
           }
         });
       }
