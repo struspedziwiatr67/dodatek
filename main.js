@@ -4915,6 +4915,67 @@ try{
       return false;
     }
 
+    function eqParseBagCounterText(txt){
+      try{
+        const s = String(txt || '').trim();
+        if(!s) return null;
+        const m = s.match(/(\d+)\s*\/\s*(\d+)/);
+        if(!m) return null;
+        return {
+          free: Math.max(0, Number(m[1] || 0)),
+          total: Math.max(0, Number(m[2] || 0))
+        };
+      }catch(_ ){}
+      return null;
+    }
+
+    function eqGetMailBagSpace(){
+      try{
+        const docs = eqGetUiDocs();
+        let agg = { free: 0, total: 0, found: 0, source: 'mail-bs-iframe' };
+
+        for(const d of docs){
+          if(!d) continue;
+          for(const id of ['bs0','bs1','bs2']){
+            const el = d.getElementById(id) || d.querySelector('#' + id) || d.querySelector('small#' + id);
+            if(!el) continue;
+            const parsed = eqParseBagCounterText(el.textContent || el.innerText || '');
+            if(!parsed) continue;
+            agg.free += Number(parsed.free || 0);
+            agg.total += Number(parsed.total || 0);
+            agg.found++;
+          }
+        }
+
+        if(agg.found > 0){
+          agg.used = Math.max(0, Number(agg.total || 0) - Number(agg.free || 0));
+          return agg;
+        }
+      }catch(_ ){}
+
+      try{
+        if(typeof adiSafeBagSpaceCount === 'function'){
+          const bag = adiSafeBagSpaceCount();
+          if(bag && Number.isFinite(Number(bag.free))) return bag;
+        }
+      }catch(_ ){}
+
+      try{
+        if(typeof adiGetTotalBagSpace === 'function'){
+          const bag = adiGetTotalBagSpace();
+          if(bag && Number.isFinite(Number(bag.free))) return bag;
+        }
+      }catch(_ ){}
+
+      return null;
+    }
+
+    window.__adiDebugMailBagSpace = function(){
+      const bag = eqGetMailBagSpace();
+      console.log('[adi-bot][mail][bag]', bag);
+      return bag;
+    };
+
     function eqFinishMailToAuction(task, reason){
       try{
         clearEquipTask();
@@ -5001,22 +5062,19 @@ try{
         }
 
         if(task.stage==='mailCollect'){
-          const bagSpace = (typeof adiSafeBagSpaceCount === 'function')
-            ? adiSafeBagSpaceCount()
-            : ((typeof adiGetTotalBagSpace === 'function') ? adiGetTotalBagSpace() : null);
+          const bagSpace = eqGetMailBagSpace();
 
           if(bagSpace && Number.isFinite(Number(bagSpace.free))){
             task.lastKnownMailBagFree = Math.max(0, Number(bagSpace.free));
             task.lastKnownMailBagTotal = Number.isFinite(Number(bagSpace.total)) ? Math.max(0, Number(bagSpace.total)) : 0;
+            task.lastKnownMailBagSource = String(bagSpace.source || 'mail-bag');
             saveEquipTask(task);
 
-            // Tak samo jak w auto-aukcji: bazujemy na tym samym wykrywaniu wolnych miejsc,
-            // tylko tutaj próg jest ustawiony sztywno na 0.
             if(Number(bagSpace.free) <= 0){
               task.stage = 'mailClose';
               task.mailFullAt = Date.now();
               saveEquipTask(task);
-              eqSetInfo('Wykryłem 0 wolnych miejsc w torbach. Zamykam pocztę i ruszam do Aukcjonera…', true);
+              eqSetInfo('Wykryłem 0 wolnych miejsc w torbach (' + task.lastKnownMailBagSource + '). Zamykam pocztę i ruszam do Aukcjonera…', true);
               return;
             }
           }
