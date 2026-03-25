@@ -4894,50 +4894,26 @@ try{
       try{
         for(const d of eqGetDocs()){
           try{
-            const btns = Array.from(d.querySelectorAll('button.getdel, button[class*="getdel"], button[onclick*="mailaction-delete"]'));
-            const found = btns.find(el => {
-              try{
-                const html = String(el.outerHTML || '');
-                const oc = String(el.getAttribute('onclick') || '');
-                const rect = (typeof el.getBoundingClientRect === 'function') ? el.getBoundingClientRect() : null;
-                const visible = !rect || (rect.width > 0 && rect.height > 0);
-                return visible && (/mailaction-delete/i.test(oc) || /mailaction-delete/i.test(html));
-              }catch(_ ){
-                return false;
-              }
-            });
-            if(found) return found;
+            const btn = d.querySelector('button.getdel');
+            if(btn) return btn;
           }catch(_ ){}
         }
       }catch(_ ){}
       return null;
     }
-    function eqClickMailReceiveButton(btn){
+    function eqClickMailReceiveButtonRaw(){
       try{
-        if(!btn) return false;
-        try{ btn.dispatchEvent(new MouseEvent('mouseover',{bubbles:true,cancelable:true,view:window})); }catch(_ ){}
-        try{ btn.dispatchEvent(new MouseEvent('mouseenter',{bubbles:true,cancelable:true,view:window})); }catch(_ ){}
-        try{ btn.dispatchEvent(new MouseEvent('mousedown',{bubbles:true,cancelable:true,view:window})); }catch(_ ){}
-        try{ btn.dispatchEvent(new MouseEvent('mouseup',{bubbles:true,cancelable:true,view:window})); }catch(_ ){}
-        try{ btn.dispatchEvent(new MouseEvent('click',{bubbles:true,cancelable:true,view:window})); }catch(_ ){}
-        try{ btn.click(); }catch(_ ){}
-
-        let code = '';
-        try{ code = String(btn.getAttribute('onclick') || ''); }catch(_ ){}
-        if(!code){
+        for(const d of eqGetDocs()){
           try{
-            const m = String(btn.outerHTML || '').match(/onclick="([^"]+)"/i);
-            if(m && m[1]) code = String(m[1]);
+            const btn = d.querySelector('button.getdel');
+            if(!btn) continue;
+            const code = btn.outerHTML && btn.outerHTML.match(/onclick="([^"]+)"/);
+            if(code && code[1]){
+              eval(code[1].replace(/&amp;/g, '&').replace('this', 'btn'));
+              return true;
+            }
           }catch(_ ){}
         }
-        if(code){
-          try{
-            code = code.replace(/&amp;/g, '&').replace(/this/g, 'btn');
-            eval(code);
-            return true;
-          }catch(_ ){}
-        }
-        return true;
       }catch(_ ){}
       return false;
     }
@@ -5035,9 +5011,8 @@ try{
             return;
           }
           if(Date.now() - Number(task.lastMailClickAt || 0) >= 50){
-            const btn = eqFindMailReceiveButton();
-            if(btn){
-              eqClickMailReceiveButton(btn);
+            const okClick = eqClickMailReceiveButtonRaw();
+            if(okClick){
               task.lastMailClickAt = Date.now();
               task.mailClicks = Number(task.mailClicks || 0) + 1;
               saveEquipTask(task);
