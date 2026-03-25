@@ -5001,12 +5001,24 @@ try{
         }
 
         if(task.stage==='mailCollect'){
-          const bagSpace = (typeof adiGetTotalBagSpace === 'function') ? adiGetTotalBagSpace() : null;
-          if(bagSpace && Number.isFinite(Number(bagSpace.free)) && Number(bagSpace.free) <= 0){
-            task.stage = 'mailClose';
+          const bagSpace = (typeof adiSafeBagSpaceCount === 'function')
+            ? adiSafeBagSpaceCount()
+            : ((typeof adiGetTotalBagSpace === 'function') ? adiGetTotalBagSpace() : null);
+
+          if(bagSpace && Number.isFinite(Number(bagSpace.free))){
+            task.lastKnownMailBagFree = Math.max(0, Number(bagSpace.free));
+            task.lastKnownMailBagTotal = Number.isFinite(Number(bagSpace.total)) ? Math.max(0, Number(bagSpace.total)) : 0;
             saveEquipTask(task);
-            eqSetInfo('Torby są pełne. Zamykam pocztę i ruszam do Aukcjonera…', true);
-            return;
+
+            // Tak samo jak w auto-aukcji: bazujemy na tym samym wykrywaniu wolnych miejsc,
+            // tylko tutaj próg jest ustawiony sztywno na 0.
+            if(Number(bagSpace.free) <= 0){
+              task.stage = 'mailClose';
+              task.mailFullAt = Date.now();
+              saveEquipTask(task);
+              eqSetInfo('Wykryłem 0 wolnych miejsc w torbach. Zamykam pocztę i ruszam do Aukcjonera…', true);
+              return;
+            }
           }
 
           if(!eqMailUiOpen()){
@@ -5054,7 +5066,7 @@ try{
             eqSetInfo('Poczta zamknięta. Uruchamiam wystawianie u Aukcjonera…', true);
             eqFinishMailToAuction(task, 'mail-torneg');
           }else{
-            eqSetInfo('Zamykam okno poczty…', false);
+            eqSetInfo('Zamykam okno poczty przyciskiem X…', false);
           }
           return;
         }
