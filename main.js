@@ -4924,8 +4924,23 @@ try{
         }
 
         if(task.stage==='mailLoop'){
+          const btnNow = adiMailFindGetButton();
           const bag = (typeof window.__adiDebugMailBagSpace === 'function') ? window.__adiDebugMailBagSpace() : null;
-          if(bag && Number.isFinite(Number(bag.free)) && Number(bag.free) <= 0){
+
+          if(!task.mailReceiveClicks) task.mailReceiveClicks = 0;
+          if(!task.mailFullHits) task.mailFullHits = 0;
+
+          // Nie zamykaj poczty od razu po wejściu tylko dlatego, że panel aukcji ma stary tekst "0 miejsc".
+          // Najpierw spróbuj realnie odbierać. Pełne torby uznaj dopiero po co najmniej 1 udanym kliknięciu
+          // albo gdy nie ma już przycisku odbioru i licznik 0 potwierdzi się 2 razy z rzędu.
+          const canTreatAsFull = !!(bag && Number.isFinite(Number(bag.free)) && Number(bag.free) <= 0);
+          if(canTreatAsFull && (Number(task.mailReceiveClicks || 0) > 0 || !btnNow)){
+            task.mailFullHits = Number(task.mailFullHits || 0) + 1;
+          }else if(!canTreatAsFull){
+            task.mailFullHits = 0;
+          }
+
+          if(Number(task.mailFullHits || 0) >= 2){
             task.mailBagFullAt = Date.now();
             task.stage = 'mailClose';
             saveEquipTask(task);
@@ -4939,6 +4954,7 @@ try{
           const clicked = adiMailClickReceiveButton();
           task.mailLastClickAt = now;
           if(clicked){
+            task.mailReceiveClicks = Number(task.mailReceiveClicks || 0) + 1;
             task.mailNoBtnHits = 0;
             saveEquipTask(task);
             eqSetInfo('Odbieram przedmioty z poczty…', true);
@@ -4946,9 +4962,13 @@ try{
             task.mailNoBtnHits = Number(task.mailNoBtnHits || 0) + 1;
             saveEquipTask(task);
             if(Number(task.mailNoBtnHits || 0) >= 6){
-              task.stage = 'mailClose';
-              saveEquipTask(task);
-              eqSetInfo('Nie widzę już przycisku odbioru. Zamykam pocztę i idę na aukcję…', true);
+              if(canTreatAsFull){
+                task.stage = 'mailClose';
+                saveEquipTask(task);
+                eqSetInfo('Nie widzę już przycisku odbioru i torby są pełne. Zamykam pocztę i idę na aukcję…', true);
+              }else{
+                eqSetInfo('Nie widzę przycisku odbioru — próbuję ponownie…', false);
+              }
             }
           }
           return;
@@ -5495,7 +5515,9 @@ if(task.stage==='equip'){
         reason: String(reason || 'manual-mail-auction'),
         mailStartedAt: now,
         mailLastClickAt: 0,
-        mailNoBtnHits: 0
+        mailNoBtnHits: 0,
+        mailReceiveClicks: 0,
+        mailFullHits: 0
       };
       saveEquipTask(task);
       setTempTarget('Torneg');
