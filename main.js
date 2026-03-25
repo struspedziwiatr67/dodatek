@@ -4752,6 +4752,47 @@ try{
       }catch(_ ){}
       return '';
     }
+    function eqGetGuiAuctionHours(){
+      try{
+        const el = document.querySelector('#adi-auction-hours');
+        let n = parseInt(el ? String(el.value || '').trim() : '168', 10);
+        if(!Number.isFinite(n) || n < 2) n = 168;
+        if(n > 168) n = 168;
+        return n;
+      }catch(_ ){}
+      return 168;
+    }
+    function eqGetAuctionHoursInput(){
+      try{
+        let input = document.querySelector('.one-record.auction-duration input[type="number"].default');
+        if(input) return input;
+
+        const rows = Array.from(document.querySelectorAll('.one-record'));
+        for(const row of rows){
+          try{
+            const label = row.querySelector('.label');
+            if(label && /czas\s*trwania/i.test(String(label.textContent || ''))){
+              input = row.querySelector('input[type="number"]');
+              if(input) return input;
+            }
+          }catch(_ ){}
+        }
+
+        const inputs = Array.from(document.querySelectorAll('input[type="number"], input.default'));
+        input = inputs.find(el => {
+          try{
+            const ph = String(el.getAttribute('placeholder') || '').trim();
+            const val = String(el.value || '').trim();
+            return ph === '2-168' || val === '168';
+          }catch(_ ){
+            return false;
+          }
+        }) || null;
+
+        return input;
+      }catch(_ ){}
+      return null;
+    }
     function eqGetAuctionPriceInput(){
       try{
         const preferred = [
@@ -4876,7 +4917,7 @@ try{
           if(itemEl){
             task.lastAuctionRarity = eqDetectAuctionRarity(itemEl);
             task.itemPickedAt = Date.now();
-            task.stage = 'setAuctionPrice';
+            task.stage = 'setAuctionHours';
             saveEquipTask(task);
             eqClick(itemEl);
             eqSetInfo('Wybrano item do wystawienia na aukcję. Czekam na pole ceny…', true);
@@ -4892,9 +4933,38 @@ try{
           return;
         }
 
-        // 4c) Ustaw cenę z GUI dla wybranego itemu
+        // 4c) Ustaw czas trwania aukcji z GUI
+        if(task.stage==='setAuctionHours'){
+          if(Date.now() - Number(task.itemPickedAt || 0) < 250) return;
+          const hours = eqGetGuiAuctionHours();
+          const input = eqGetAuctionHoursInput();
+          if(!input){
+            task.hoursRetry = Number(task.hoursRetry || 0) + 1;
+            saveEquipTask(task);
+            if(task.hoursRetry >= 20){
+              eqSetInfo('Nie znalazłem pola czasu trwania aukcji.', false);
+              clearEquipTask();
+              setTempTarget(null);
+              clearInterval(window.__adiEquipTimer);
+            }else{
+              eqSetInfo('Czekam na pole czasu trwania aukcji… (' + task.hoursRetry + '/20)', false);
+            }
+            return;
+          }
+          try{ input.focus(); }catch(_ ){}
+          eqSetNativeInputValue(input, String(hours));
+          task.hoursFilledAt = Date.now();
+          task.hoursRetry = 0;
+          task.stage = 'setAuctionPrice';
+          saveEquipTask(task);
+          eqSetInfo('Ustawiono czas trwania aukcji na ' + hours + 'h.', true);
+          return;
+        }
+
+        // 4d) Ustaw cenę z GUI dla wybranego itemu
         if(task.stage==='setAuctionPrice'){
-          if(Date.now() - Number(task.itemPickedAt || 0) < 450) return;
+          const priceWaitFrom = Number(task.hoursFilledAt || task.itemPickedAt || 0);
+          if(Date.now() - priceWaitFrom < 300) return;
           const rarity = String(task.lastAuctionRarity || 'common');
           const guiPrice = eqGetGuiAuctionPrice(rarity);
           if(!guiPrice){
@@ -4950,7 +5020,9 @@ try{
           task.stage = 'afterAuctionSubmit';
           task.confirmRetry = 0;
           task.priceRetry = 0;
+          task.hoursRetry = 0;
           task.priceFilledAt = 0;
+          task.hoursFilledAt = 0;
           saveEquipTask(task);
           eqSetInfo('Item został wystawiony na aukcję. Szukam kolejnego…', true);
           return;
@@ -4963,7 +5035,7 @@ try{
           if(nextItem){
             task.lastAuctionRarity = eqDetectAuctionRarity(nextItem);
             task.itemPickedAt = Date.now();
-            task.stage = 'setAuctionPrice';
+            task.stage = 'setAuctionHours';
             task.priceRetry = 0;
             task.confirmRetry = 0;
             saveEquipTask(task);
@@ -5087,6 +5159,7 @@ if(task.stage==='equip'){
         heroicPrice: Number(cfg.heroicPrice || 40000000),
         uniquePrice: Number(cfg.uniquePrice || 5000000),
         commonPrice: Number(cfg.commonPrice || 1000000),
+        auctionHours: Math.max(2, Math.min(168, parseInt(cfg.auctionHours || 168, 10) || 168)),
         freeSlotsThreshold: Math.max(1, parseInt(cfg.freeSlotsThreshold || 3, 10) || 3)
       };
     }catch(_){ }
@@ -6243,7 +6316,9 @@ if (typeof window.window.__adi_equipByNameSequence !== 'function') {
       enabled: false,
       heroicPrice: 0,
       uniquePrice: 0,
-      commonPrice: 0
+      commonPrice: 0,
+      auctionHours: 168,
+      freeSlotsThreshold: 3
     };
   }
 
@@ -6277,6 +6352,7 @@ if (typeof window.window.__adi_equipByNameSequence !== 'function') {
         heroicPrice: num(cfg.heroicPrice, def.heroicPrice),
         uniquePrice: num(cfg.uniquePrice, def.uniquePrice),
         commonPrice: num(cfg.commonPrice, def.commonPrice),
+        auctionHours: Math.max(2, Math.min(168, num(cfg.auctionHours, def.auctionHours || 168) || 168)),
         freeSlotsThreshold: Math.max(1, num(cfg.freeSlotsThreshold, def.freeSlotsThreshold || 3))
       };
     }catch(_){ return adiAuctionDefaults(); }
@@ -6501,6 +6577,10 @@ if (typeof window.window.__adi_equipByNameSequence !== 'function') {
             <input type="number" min="0" step="1" id="adi-auction-common-price" class="adi-bot_inputs adi-inline-input" value="${cfg.commonPrice}">
             <span class="adi-settings-label">Pospolite</span>
           </label>
+          <label class="adi-settings-line" for="adi-auction-hours">
+            <input type="number" min="2" max="168" step="1" id="adi-auction-hours" class="adi-bot_inputs adi-inline-input" value="${Math.max(2, Math.min(168, Number(cfg.auctionHours || 168)))}">
+            <span class="adi-settings-label">Czas trwania</span>
+          </label>
           <label class="adi-settings-line" for="adi-auction-free-threshold">
             <input type="number" min="1" step="1" id="adi-auction-free-threshold" class="adi-bot_inputs adi-inline-input" value="${Math.max(1, Number(cfg.freeSlotsThreshold || 3))}">
             <span class="adi-settings-label">Auto-podejście do Aukcjonera poniżej tylu wolnych miejsc</span>
@@ -6523,7 +6603,7 @@ if (typeof window.window.__adi_equipByNameSequence !== 'function') {
           if(textOn || textOff) adiLootMessage(el.checked ? textOn : textOff);
         });
       };
-      const bindInput = (id, key, textLabel) => {
+      const bindInput = (id, key, textLabel, opts = {}) => {
         const el = auctionPanel.querySelector('#' + id);
         if(!el || el.__adiBound) return;
         el.__adiBound = true;
@@ -6531,11 +6611,17 @@ if (typeof window.window.__adi_equipByNameSequence !== 'function') {
         const save = (normalizeValue = false, showMsg = false)=>{
           const cur = adiLoadAuctionCfg();
           let n = parseInt(el.value || '0', 10);
-          if(!Number.isFinite(n) || n < 0) n = 0;
+          if(!Number.isFinite(n)) n = Number.isFinite(Number(opts.defaultValue)) ? Number(opts.defaultValue) : 0;
+          if(Number.isFinite(Number(opts.min)) && n < Number(opts.min)) n = Number(opts.min);
+          if(Number.isFinite(Number(opts.max)) && n > Number(opts.max)) n = Number(opts.max);
           if(normalizeValue) el.value = String(n);
           cur[key] = n;
           adiSaveAuctionCfg(cur);
-          if(showMsg) adiLootMessage('Aukcja: cena dla ' + textLabel + ' = ' + n);
+          if(showMsg){
+            const prefix = opts.msgPrefix || 'Aukcja: cena dla ';
+            const suffix = opts.msgSuffix || '';
+            adiLootMessage(prefix + textLabel + ' = ' + n + suffix);
+          }
         };
 
         el.addEventListener('change', ()=>save(true, true));
@@ -6547,7 +6633,8 @@ if (typeof window.window.__adi_equipByNameSequence !== 'function') {
       bindInput('adi-auction-heroic-price', 'heroicPrice', 'heroiczne');
       bindInput('adi-auction-unique-price', 'uniquePrice', 'unikatowe');
       bindInput('adi-auction-common-price', 'commonPrice', 'pospolite');
-      bindInput('adi-auction-free-threshold', 'freeSlotsThreshold', 'progu wolnych miejsc');
+      bindInput('adi-auction-hours', 'auctionHours', 'czasu trwania', { min: 2, max: 168, defaultValue: 168, msgPrefix: 'Aukcja: ustawiono ', msgSuffix: 'h' });
+      bindInput('adi-auction-free-threshold', 'freeSlotsThreshold', 'progu wolnych miejsc', { min: 1, defaultValue: 3, msgPrefix: 'Aukcja: auto-podejście dla ' });
 
       const goNowBtn = auctionPanel.querySelector('#adi-auction-go-now');
       if(goNowBtn && !goNowBtn.__adiBound){
