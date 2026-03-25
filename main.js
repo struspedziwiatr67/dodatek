@@ -5462,7 +5462,7 @@ if(task.stage==='equip'){
         stage: 'toCity',
         map: 'Torneg',
         npc: 'Skrzynka pocztowa',
-        stand: { x: 52, y: 21 },
+        stand: { x: 52, y: 51 },
         pos: { x: 52, y: 50 },
         createdAt: Date.now(),
         reason: String(reason || 'manual-mail-auction'),
@@ -5471,7 +5471,7 @@ if(task.stage==='equip'){
       saveEquipTask(task);
       setTempTarget('Torneg');
       startEquipFlow();
-      eqSetInfo('Idę do Skrzynki pocztowej w Torneg na (52,21).', true);
+      eqSetInfo('Idę do Skrzynki pocztowej w Torneg na (52,51).', true);
       return true;
     }catch(_){ return false; }
   }
