@@ -1187,6 +1187,7 @@ Lvl: **${n.lvl ?? "?"}**`,
     "Erem+Zbrojki": { map: "Świątynia Andarum - magazyn p.1, Świątynia Andarum - magazyn p.2, Erem Czarnego Słońca p.4 - sala 2, Erem Czarnego Słońca p.3 - południe, Erem Czarnego Słońca p.4 - sala 2, Erem Czarnego Słońca p.3, Erem Czarnego Słońca p.2, Erem Czarnego Słońca p.1 - północ, Erem Czarnego Słońca p.2, Erem Czarnego Słońca p.3, Erem Czarnego Słońca p.4 - sala 1, Erem Czarnego Słońca p.5" },
     "Mroczny las": { map: "Złudny Trakt, Bór Zagubionych, Martwy Las, Ziemia Szepczących Cierni, Zbocze Starych Bogów, Bezgwiezdna Gęstwina, Bór Zagubionych" },
 	"Furbole": { map: "Zapomniany Las, Rozległa Równina, Wzgórza Obłędu, Dolina Gniewu, Terytorium Furii, Zapadlisko Zniewolonych" },
+	"Furbole+Pająki": { map: "Zapomniany Las, Rozległa Równina, Wzgórza Obłędu, Dolina Gniewu, Terytorium Furii, Zapadlisko Zniewolonych, Pajęczy Las, Otchłań Pajęczych Sieci, Dolina Pajęczych Korytarzy, Arachnitopia p.1, Arachnitopia p.2, Arachnitopia p.3, Arachnitopia p.4, Arachnitopia p.5" },
   };
 
   // ===== E2 (Elity II) lista =====
