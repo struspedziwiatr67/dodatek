@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Bot na exp (iframe-aware exhaustion + throttling + captcha->Discord + ping-pong trasy + only-selected-maps + elite toggle + group-size filter + heros->Discord + obrazki + fixy map/lvl/wt/grupy + FOW cache)
-// @version      2.17.7-losttargetfix
+// @version      2.17.8-lastseen60s-resetall
 // @description  Bot z przechodzeniem map, anty-spam ataku, captcha->Discord, START/STOP, zbijanie wyczerpania, atak tylko na wybranych mapach, elity toggle, filtr grup, powiadomienia o herosach (bez Namiotu Tropicieli Herosów), normalizacja nazw map, odporne parsowanie lvli, poprawki 'wt', stabilny wybór grup przy mgle (cache max rozmiaru grupy)
 // @match        *://*/
 // @match        *://www.margonem.pl/*
@@ -1969,7 +1969,7 @@ function setTempTarget(val){
 
 
   // ===== FOW: pamięć ostatnio widzianych mobów + lock celu (żeby nie "szarpać") =====
-  const NPC_LAST_SEEN_TTL = 20000; // ms – jak długo trzymamy ostatnią pozycję moba
+  const NPC_LAST_SEEN_TTL = 60000; // ms – jak długo trzymamy ostatnią pozycję moba
   const TARGET_LOCK_MS = 6000;    // ms – minimalny czas trzymania wybranego celu
   const LOST_TARGET_GRACE_MS = 2500; // ms – po dojściu do ostatniego punktu jeszcze chwilę nie zmieniaj mapy
   const TARGET_SWITCH_MARGIN = 120; // ile punktów lepszy musi być nowy visible target, by przebić zapamiętanego
@@ -2021,6 +2021,10 @@ function setTempTarget(val){
   }
   function resetRememberedChase(){
     __rememberedChase = null;
+  }
+  function clearAllRememberedMobs(){
+    try{ __npcLastSeen.clear(); }catch(_){ }
+    resetRememberedChase();
   }
   function resetTargetCompletely(useGrace=false){
     try{
@@ -2651,8 +2655,9 @@ window.__adiE2HoldSpot = (!__e2Present && !__manualOverride && hero.x === tx && 
               setTimeout(()=>{ blokada2=false; },900);
             }
 
-            // jeśli doszliśmy do lastSeen i nadal go nie ma – reset celu
+            // jeśli doszliśmy do lastSeen i nadal go nie ma – reset celu + wyczyść pamięć starych mobów
             if(distanceToPoint(snap.x, snap.y) <= REMEMBERED_REACH_RESET_RADIUS){
+              clearAllRememberedMobs();
               resetTargetCompletely(true);
             }
             return ret;
