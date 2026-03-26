@@ -4374,6 +4374,16 @@
         "x": 95,
         "y": 13
       }
+    },
+    {
+      "to": "pajeczy las",
+      "via": {
+        "x": 47,
+        "y": 0
+      }
+    },
+    {
+      "to": "pajeczy las"
     }
   ],
   "złudny trakt": [
@@ -4587,6 +4597,102 @@
         "x": 63,
         "y": 49
       }
+    }
+  ],
+  "pajeczy las": [
+    {
+      "to": "zapadlisko zniewolonych"
+    },
+    {
+      "to": "zapadlisko zniewolonych",
+      "via": {
+        "x": 47,
+        "y": 63
+      }
+    },
+    {
+      "to": "otchłan pajeczych sieci",
+      "via": {
+        "x": 0,
+        "y": 29
+      }
+    }
+  ],
+  "otchłan pajeczych sieci": [
+    {
+      "to": "pajeczy las"
+    },
+    {
+      "to": "dolina pajeczych korytarzy",
+      "via": {
+        "x": 0,
+        "y": 36
+      }
+    }
+  ],
+  "dolina pajeczych korytarzy": [
+    {
+      "to": "otchłan pajeczych sieci"
+    },
+    {
+      "to": "arachnitopia p.1",
+      "via": {
+        "x": 24,
+        "y": 24
+      }
+    }
+  ],
+  "arachnitopia p.1": [
+    {
+      "to": "dolina pajeczych korytarzy"
+    },
+    {
+      "to": "arachnitopia p.2",
+      "via": {
+        "x": 56,
+        "y": 11
+      }
+    }
+  ],
+  "arachnitopia p.2": [
+    {
+      "to": "arachnitopia p.1"
+    },
+    {
+      "to": "arachnitopia p.3",
+      "via": {
+        "x": 45,
+        "y": 22
+      }
+    }
+  ],
+  "arachnitopia p.3": [
+    {
+      "to": "arachnitopia p.2"
+    },
+    {
+      "to": "arachnitopia p.4",
+      "via": {
+        "x": 14,
+        "y": 50
+      }
+    }
+  ],
+  "arachnitopia p.4": [
+    {
+      "to": "arachnitopia p.3"
+    },
+    {
+      "to": "arachnitopia p.5",
+      "via": {
+        "x": 56,
+        "y": 27
+      }
+    }
+  ],
+  "arachnitopia p.5": [
+    {
+      "to": "arachnitopia p.4"
     }
   ]
 }
