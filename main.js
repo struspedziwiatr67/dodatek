@@ -3947,8 +3947,8 @@ try{
         }catch(_){ tpClanChk.checked = true; }
 
         try{
-          tpEscapeChk.checked = localStorage.getItem('adi-bot_tp_enabled') !== '0';
-        }catch(_){ tpEscapeChk.checked = true; }
+          tpEscapeChk.checked = localStorage.getItem('adi-bot_tp_enabled') === '1';
+        }catch(_){ tpEscapeChk.checked = false; }
 
         tpClanChk.addEventListener('change', ()=>{
           try{ localStorage.setItem('adi-bot_tp_clan', tpClanChk.checked ? '1' : '0'); }catch(_){ }
@@ -4127,7 +4127,7 @@ try{
           const el = document.querySelector('#adi-bot_tp_enabled');
           if(el) return !!el.checked;
         }catch(_){ }
-        try{ return localStorage.getItem('adi-bot_tp_enabled') !== '0'; }catch(_){ return true; }
+        try{ return localStorage.getItem('adi-bot_tp_enabled') === '1'; }catch(_){ return false; }
       }
 
       function shouldEscapeClanFriends(){
