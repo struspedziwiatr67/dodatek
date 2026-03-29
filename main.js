@@ -8243,3 +8243,39 @@ async function startAuction(npcId){
 window.__adiAuctionStart = startAuction;
 
 })();
+
+
+// ===== PATCH: NPC exact coords targeting (Test tab) =====
+// When user types NPC name (e.g. "rumianek"), bot will:
+// 1. Find NPC in g.npc by exact/partial match
+// 2. Get its current x,y coordinates
+// 3. Move directly to those coordinates
+
+function adi_findNpcByName(name){
+  try{
+    name = String(name || '').toLowerCase();
+    if(!window.g || !g.npc) return null;
+    for(const id in g.npc){
+      const n = g.npc[id];
+      const nick = String(n.nick || n.name || '').toLowerCase();
+      if(nick.includes(name)){
+        return { id: id, npc: n };
+      }
+    }
+  }catch(e){}
+  return null;
+}
+
+function adi_goToNpcByName(name){
+  const found = adi_findNpcByName(name);
+  if(!found) return false;
+  try{
+    const n = found.npc;
+    if(typeof goTo === 'function'){
+      goTo(n.x, n.y);
+      return true;
+    }
+  }catch(e){}
+  return false;
+}
+// ===== /PATCH =====
