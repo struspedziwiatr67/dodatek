@@ -3807,16 +3807,22 @@ try{
       const t3 = mkTab('Test','test');
       const t4 = mkTab('Wioska startowa','start');
       const tL = mkTab('L','l');
+      const tTP = mkTab('TP','tp');
       const tLBreak = document.createElement('div');
       tLBreak.className = 'adi-tab-break';
       t1.classList.add('active');
 
-      tabs.appendChild(t1); tabs.appendChild(t2); tabs.appendChild(tA); tabs.appendChild(t3); tabs.appendChild(t4); tabs.appendChild(tLBreak); tabs.appendChild(tL);
+      tabs.appendChild(t1); tabs.appendChild(t2); tabs.appendChild(tA); tabs.appendChild(t3); tabs.appendChild(t4); tabs.appendChild(tLBreak); tabs.appendChild(tL); tabs.appendChild(tTP);
 
       const tabL = document.createElement('div');
       tabL.className = 'adi-tab-content';
       tabL.id = 'adi-tab-l';
       tabL.innerHTML = '';
+
+      const tabTP = document.createElement('div');
+      tabTP.className = 'adi-tab-content';
+      tabTP.id = 'adi-tab-tp';
+      tabTP.innerHTML = '';
 
       try{
         const lRow = document.createElement('div');
@@ -3860,6 +3866,112 @@ try{
         tabL.appendChild(lRow);
       }catch(e){ console.warn('[adi-bot] tab L ui failed', e); }
 
+      try{
+        const TP_SCROLL = {
+          name: 'Zwój teleportacji na Kwieciste Przejście',
+          stat: 'amount=14;capacity=15;lvl=70;teleport=344,17,60',
+          icon: 'pap/pap44.gif',
+          pr: 42000,
+          cl: 16
+        };
+
+        function tpItemHtml(item){
+          try{
+            const tip = (typeof itemTip === 'function') ? String(itemTip(item) || '').replace(/"/g,'&quot;') : '';
+            let html = '<div class="item" ctip="t_item" tip="' + tip + '">';
+            const stat = String(item && item.stat || '');
+            if(stat.indexOf('legendary') !== -1) html += '<div class="itemHighlighter t_leg"></div>';
+            if(stat.indexOf('heroic') !== -1) html += '<div class="itemHighlighter t_her"></div>';
+            if(stat.indexOf('unique') !== -1) html += '<div class="itemHighlighter t_uni"></div>';
+            if(stat.indexOf('upgraded') !== -1) html += '<div class="itemHighlighter t_upg"></div>';
+            html += '<img src="/obrazki/itemy/' + String(item.icon || '') + '">';
+            html += '</div>';
+            return html;
+          }catch(_){
+            return '<div class="item"><img src="/obrazki/itemy/pap/pap44.gif"></div>';
+          }
+        }
+
+        const tpWrap = document.createElement('div');
+        tpWrap.style.padding = '8px';
+        tpWrap.style.textAlign = 'left';
+
+        const tpIconWrap = document.createElement('div');
+        tpIconWrap.id = 'adi-bot_tp_item';
+        tpIconWrap.style.width = '32px';
+        tpIconWrap.style.height = '32px';
+        tpIconWrap.style.margin = '0 auto 8px auto';
+        tpIconWrap.style.background = 'rgba(40,40,40,0.5)';
+        tpIconWrap.style.border = '1px solid #333333';
+        tpIconWrap.innerHTML = tpItemHtml(TP_SCROLL);
+
+        const tpClanRow = document.createElement('div');
+        tpClanRow.style.display = 'flex';
+        tpClanRow.style.alignItems = 'center';
+        tpClanRow.style.gap = '6px';
+        tpClanRow.style.marginBottom = '6px';
+
+        const tpClanChk = document.createElement('input');
+        tpClanChk.type = 'checkbox';
+        tpClanChk.id = 'adi-bot_tp_clan';
+
+        const tpClanLbl = document.createElement('label');
+        tpClanLbl.htmlFor = 'adi-bot_tp_clan';
+        tpClanLbl.textContent = 'Uciekać znaj/klan?';
+
+        const tpEscapeRow = document.createElement('div');
+        tpEscapeRow.style.display = 'flex';
+        tpEscapeRow.style.alignItems = 'center';
+        tpEscapeRow.style.gap = '6px';
+
+        const tpEscapeChk = document.createElement('input');
+        tpEscapeChk.type = 'checkbox';
+        tpEscapeChk.id = 'adi-bot_tp_enabled';
+
+        const tpEscapeLbl = document.createElement('label');
+        tpEscapeLbl.htmlFor = 'adi-bot_tp_enabled';
+        tpEscapeLbl.id = 'adi-bot_tp_status';
+        tpEscapeLbl.style.fontWeight = 'bold';
+        tpEscapeLbl.textContent = 'Uciekanie włączone';
+
+        function tpRefreshStatus(){
+          try{
+            const on = !!tpEscapeChk.checked;
+            tpEscapeLbl.textContent = on ? 'Uciekanie włączone' : 'Uciekanie wyłączone';
+            tpEscapeLbl.style.color = on ? 'green' : 'red';
+          }catch(_){ }
+        }
+
+        try{
+          tpClanChk.checked = localStorage.getItem('adi-bot_tp_clan') !== '0';
+        }catch(_){ tpClanChk.checked = true; }
+
+        try{
+          tpEscapeChk.checked = localStorage.getItem('adi-bot_tp_enabled') !== '0';
+        }catch(_){ tpEscapeChk.checked = true; }
+
+        tpClanChk.addEventListener('change', ()=>{
+          try{ localStorage.setItem('adi-bot_tp_clan', tpClanChk.checked ? '1' : '0'); }catch(_){ }
+        });
+
+        tpEscapeChk.addEventListener('change', ()=>{
+          try{ localStorage.setItem('adi-bot_tp_enabled', tpEscapeChk.checked ? '1' : '0'); }catch(_){ }
+          tpRefreshStatus();
+        });
+
+        tpRefreshStatus();
+
+        tpClanRow.appendChild(tpClanChk);
+        tpClanRow.appendChild(tpClanLbl);
+        tpEscapeRow.appendChild(tpEscapeChk);
+        tpEscapeRow.appendChild(tpEscapeLbl);
+
+        tpWrap.appendChild(tpIconWrap);
+        tpWrap.appendChild(tpClanRow);
+        tpWrap.appendChild(tpEscapeRow);
+        tabTP.appendChild(tpWrap);
+      }catch(e){ console.warn('[adi-bot] tab TP ui failed', e); }
+
       const contentWrap = document.createElement('div');
       contentWrap.className = 'adi-tabwrap';
       contentWrap.appendChild(tabExp);
@@ -3869,6 +3981,7 @@ try{
 
       contentWrap.appendChild(tabStart);
       contentWrap.appendChild(tabL);
+      contentWrap.appendChild(tabTP);
 
       box.appendChild(tabs);
       box.appendChild(contentWrap);
@@ -3890,7 +4003,7 @@ try{
       // restore last active tab
       try{
         const saved = (localStorage.getItem('adi-bot_active_tab')||'exp').trim();
-        if(saved==='e2' || saved==='test' || saved==='exp' || saved==='start' || saved==='aukcja' || saved==='l') activateTab(saved);
+        if(saved==='e2' || saved==='test' || saved==='exp' || saved==='start' || saved==='aukcja' || saved==='l' || saved==='tp') activateTab(saved);
       }catch(_){}
     }catch(e){ console.warn('[adi-bot] tabs init failed', e); }
 
@@ -3989,6 +4102,185 @@ try{
           }
         }catch(_){ }
       }, CHECK_MS);
+    })();
+
+    // Zakładka TP: auto teleport na czerwonej mapie po zobaczeniu gracza
+    (function(){
+      const TP_SCROLL = {
+        name: 'Zwój teleportacji na Kwieciste Przejście',
+        stat: 'amount=14;capacity=15;lvl=70;teleport=344,17,60',
+        icon: 'pap/pap44.gif',
+        pr: 42000,
+        cl: 16
+      };
+      const CHECK_MS = 1000;
+      let pendingTeleport = false;
+      let lastTeleportAt = 0;
+      let lastSeenSig = '';
+
+      function isBotRunning(){
+        try{ return localStorage.getItem('adi-bot_enabled') === '1'; }catch(_){ return false; }
+      }
+
+      function isEscapeEnabled(){
+        try{
+          const el = document.querySelector('#adi-bot_tp_enabled');
+          if(el) return !!el.checked;
+        }catch(_){ }
+        try{ return localStorage.getItem('adi-bot_tp_enabled') !== '0'; }catch(_){ return true; }
+      }
+
+      function shouldEscapeClanFriends(){
+        try{
+          const el = document.querySelector('#adi-bot_tp_clan');
+          if(el) return !!el.checked;
+        }catch(_){ }
+        try{ return localStorage.getItem('adi-bot_tp_clan') !== '0'; }catch(_){ return true; }
+      }
+
+      function isRedMap(){
+        try{ return Number(window.map && map.pvp) === 2; }catch(_){ return false; }
+      }
+
+      function findTeleportItemIdByName(name){
+        try{
+          if(!window.g || !g.item) return 0;
+          for(const id in g.item){
+            const it = g.item[id];
+            if(!it) continue;
+            if(String(it.loc || '') !== 'g') continue;
+            if(String(it.name || '') !== String(name || '')) continue;
+            const st = (typeof parseItemStat === 'function') ? parseItemStat(it.stat || '') : {};
+            if(st && st.timelimit){
+              const arr = String(st.timelimit || '').split(',');
+              const end = Number(arr[1] || 0);
+              const now = (typeof unix_time === 'function') ? unix_time() : Math.floor(Date.now()/1000);
+              if(end && now <= end) continue;
+            }
+            return Number(it.id) || Number(id) || 0;
+          }
+        }catch(_){ }
+        return 0;
+      }
+
+      function tpUseNow(){
+        try{
+          const itemId = findTeleportItemIdByName(TP_SCROLL.name);
+          if(!itemId){
+            try{ message('Nie posiadasz teleportu: ' + TP_SCROLL.name); }catch(_){ }
+            return false;
+          }
+          _g('moveitem&st=1&id=' + itemId);
+          lastTeleportAt = Date.now();
+          return true;
+        }catch(_){ return false; }
+      }
+
+      function triggerTeleport(reason){
+        try{
+          const now = Date.now();
+          if(now - lastTeleportAt < 5000) return false;
+          if(window.g && g.battle){
+            pendingTeleport = true;
+            try{ message('Teleport zostanie użyty po walce'); }catch(_){ }
+            return true;
+          }
+          const ok = tpUseNow();
+          if(ok){
+            pendingTeleport = false;
+            try{
+              if(reason && reason.nick) localStorage.setItem('adi-bot_tp_last_person', String(reason.nick) + ' ' + String(reason.lvl || '') + String(reason.prof || '') + ' lvl');
+            }catch(_){ }
+          }
+          return ok;
+        }catch(_){ return false; }
+      }
+
+      function getThreat(){
+        try{
+          if(!isBotRunning() || !isEscapeEnabled() || !isRedMap()) return null;
+          if(!window.g || !g.other) return null;
+          const allowClan = shouldEscapeClanFriends();
+          for(const id in g.other){
+            const p = g.other[id];
+            if(!p) continue;
+            if(!allowClan && (p.relation === 'fr' || p.relation === 'cl')) continue;
+            return p;
+          }
+        }catch(_){ }
+        return null;
+      }
+
+      setInterval(function(){
+        try{
+          const threat = getThreat();
+          if(!threat){
+            lastSeenSig = '';
+            return;
+          }
+          const sig = String(threat.id || '') + '|' + String(threat.nick || '') + '|' + String(threat.lvl || '');
+          if(sig === lastSeenSig && Date.now() - lastTeleportAt < 5000) return;
+          lastSeenSig = sig;
+          triggerTeleport(threat);
+        }catch(_){ }
+      }, CHECK_MS);
+
+      (function(){
+        const hookTimer = setInterval(function(){
+          try{
+            if(typeof window.battleMsg !== 'function' || window.battleMsg.__adiTpWrapped) return;
+            const orig = window.battleMsg;
+            const wrapped = function(){
+              let ret = orig.apply(this, arguments);
+              try{
+                const msg = String(arguments[0] || '');
+                if(msg.indexOf('winner=') !== -1 && pendingTeleport && isBotRunning() && isEscapeEnabled()){
+                  setTimeout(function(){
+                    try{
+                      if(pendingTeleport && !(window.g && g.battle)) {
+                        tpUseNow();
+                        pendingTeleport = false;
+                      }
+                    }catch(_){ }
+                  }, 150);
+                }
+              }catch(_){ }
+              return ret;
+            };
+            wrapped.__adiTpWrapped = true;
+            wrapped.__adiTpOriginal = orig;
+            window.battleMsg = wrapped;
+            clearInterval(hookTimer);
+          }catch(_){ }
+        }, 800);
+        setTimeout(function(){
+          try{
+            if(typeof window.battleMsg === 'function' && !window.battleMsg.__adiTpWrapped){
+              const orig = window.battleMsg;
+              const wrapped = function(){
+                let ret = orig.apply(this, arguments);
+                try{
+                  const msg = String(arguments[0] || '');
+                  if(msg.indexOf('winner=') !== -1 && pendingTeleport && isBotRunning() && isEscapeEnabled()){
+                    setTimeout(function(){
+                      try{
+                        if(pendingTeleport && !(window.g && g.battle)) {
+                          tpUseNow();
+                          pendingTeleport = false;
+                        }
+                      }catch(_){ }
+                    }, 150);
+                  }
+                }catch(_){ }
+                return ret;
+              };
+              wrapped.__adiTpWrapped = true;
+              wrapped.__adiTpOriginal = orig;
+              window.battleMsg = wrapped;
+            }
+          }catch(_){ }
+        }, 300);
+      })();
     })();
 
     let style=document.createElement(`style`); style.type=`text/css`;
