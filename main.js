@@ -1728,7 +1728,7 @@ function setTempTarget(val){
   function a_getWay(x,y){ return new AStar(map.col,map.x,map.y,{x:hero.x,y:hero.y},{x:x,y:y},g.npccol).anotherFindPath(); }
   function a_goTo(x,y){ let r=a_getWay(x,y); if(Array.isArray(r)) window.road=r; }
 
-  const __adiNpcTestTask = { active:false, needle:'', npcId:null, targetX:null, targetY:null, clickAt:0 };
+  const __adiNpcTestTask = { active:false, needle:'', npcId:null, targetX:null, targetY:null, clickAt:0, clickTries:0, lastMoveAt:0 };
 
   function __adiNpcNeedleNorm(s){
     try{
@@ -1767,38 +1767,27 @@ function setTempTarget(val){
 
   function __adiPickNpcApproachTile(npc){
     try{
-      if(!npc || !window.map || !window.g) return null;
-      const candidates = [
-        {x:(npc.x|0)+1, y:(npc.y|0)},
-        {x:(npc.x|0)-1, y:(npc.y|0)},
-        {x:(npc.x|0), y:(npc.y|0)+1},
-        {x:(npc.x|0), y:(npc.y|0)-1}
-      ];
-      let best = null;
-      let bestLen = Infinity;
-      for(const c of candidates){
-        if(c.x < 0 || c.y < 0 || c.x >= (map.x|0) || c.y >= (map.y|0)) continue;
-        const idx = (c.x|0) + 256*(c.y|0);
-        if(g.npccol && g.npccol[idx]) continue;
-        let path = null;
-        try{ path = a_getWay(c.x, c.y); }catch(_){ path = null; }
-        if(Array.isArray(path) && path.length < bestLen){
-          bestLen = path.length;
-          best = c;
-        }
-      }
-      if(best) return best;
-      return {x:(npc.x|0), y:(npc.y|0)+1};
+      // W zakładce Test te "NPC" mogą być w praktyce przedmiotami/obiektami leżącymi na ziemi.
+      // Dlatego idziemy na DOKŁADNIE te same kordy, bez wybierania pola obok.
+      if(!npc) return null;
+      return {x:(npc.x|0), y:(npc.y|0)};
     }catch(_){ return null; }
   }
 
   function __adiNpcTestInteract(npcId){
     try{
       if(!npcId) return false;
-      _g('takeitem&id=' + npcId, r => console.log('takeitem:', r));
-      _g('talk&id=' + npcId, r => console.log('talk:', r));
-      const el = document.querySelector('#npc' + npcId);
-      if(el){ try{ el.click(); }catch(_){ } }
+      try{ _g('talk&id=' + npcId, r => console.log('talk:', r)); }catch(_){ }
+      try{ _g('takeitem&id=' + npcId, r => console.log('takeitem:', r)); }catch(_){ }
+      try{
+        const el = document.querySelector('#npc' + npcId);
+        if(el){
+          try{ el.dispatchEvent(new MouseEvent('mousedown', { bubbles:true, cancelable:true, view:window })); }catch(_){ }
+          try{ el.dispatchEvent(new MouseEvent('mouseup',   { bubbles:true, cancelable:true, view:window })); }catch(_){ }
+          try{ el.dispatchEvent(new MouseEvent('click',     { bubbles:true, cancelable:true, view:window })); }catch(_){ }
+          try{ el.click(); }catch(_){ }
+        }
+      }catch(_){ }
       return true;
     }catch(_){ return false; }
   }
@@ -1820,7 +1809,7 @@ function setTempTarget(val){
       const stand = __adiPickNpcApproachTile(npc);
       if(!stand){
         __adiNpcTestTask.active = false;
-        __adiSetNpcTestStatus('Nie udało się wyznaczyć pola podejścia.', true);
+        __adiSetNpcTestStatus('Nie udało się wyznaczyć kordów celu.', true);
         return false;
       }
       __adiNpcTestTask.active = true;
@@ -1829,8 +1818,10 @@ function setTempTarget(val){
       __adiNpcTestTask.targetX = stand.x|0;
       __adiNpcTestTask.targetY = stand.y|0;
       __adiNpcTestTask.clickAt = 0;
+      __adiNpcTestTask.clickTries = 0;
+      __adiNpcTestTask.lastMoveAt = Date.now();
       a_goTo(__adiNpcTestTask.targetX, __adiNpcTestTask.targetY);
-      __adiSetNpcTestStatus('Idę do NPC: ' + (npc.nick || npc.name || raw) + ' [' + (__adiNpcTestTask.targetX) + ',' + (__adiNpcTestTask.targetY) + ']');
+      __adiSetNpcTestStatus('Idę dokładnie na kordy obiektu: ' + (npc.nick || npc.name || raw) + ' -> [' + (__adiNpcTestTask.targetX) + ',' + (__adiNpcTestTask.targetY) + ']');
       return true;
     }catch(e){
       __adiNpcTestTask.active = false;
@@ -1845,33 +1836,31 @@ function setTempTarget(val){
       const npc = __adiFindNpcForTest(__adiNpcTestTask.needle);
       if(!npc){
         __adiNpcTestTask.active = false;
-        __adiSetNpcTestStatus('NPC zniknął z mapy.', true);
+        __adiSetNpcTestStatus('Obiekt zniknął z mapy.', true);
         return;
       }
       const npcId = npc.id || parseInt(String(npc.id || '').replace(/\D+/g,''),10) || Number(Object.keys(g.npc).find(k => g.npc[k] === npc) || 0);
       __adiNpcTestTask.npcId = npcId;
 
-      if(Math.abs((hero.x|0) - (npc.x|0)) + Math.abs((hero.y|0) - (npc.y|0)) <= 1){
-        if(Date.now() - (__adiNpcTestTask.clickAt || 0) < 1200) return;
-        __adiNpcTestTask.clickAt = Date.now();
-        __adiNpcTestInteract(npcId);
+      // Tu nie traktujemy tego jako klasycznego NPC z blokowanym polem.
+      // Bot ma dojść dokładnie na te same kordy co obiekt/item.
+      __adiNpcTestTask.targetX = (npc.x|0);
+      __adiNpcTestTask.targetY = (npc.y|0);
+
+      if((hero.x|0) === (__adiNpcTestTask.targetX|0) && (hero.y|0) === (__adiNpcTestTask.targetY|0)){
         __adiNpcTestTask.active = false;
-        __adiSetNpcTestStatus('Dotarłem do NPC i użyłem interakcji dla ID ' + npcId + '.');
+        __adiSetNpcTestStatus('Doszedłem dokładnie na kordy obiektu [' + (__adiNpcTestTask.targetX|0) + ',' + (__adiNpcTestTask.targetY|0) + '].');
         return;
       }
 
-      const stand = __adiPickNpcApproachTile(npc);
-      if(stand){
-        __adiNpcTestTask.targetX = stand.x|0;
-        __adiNpcTestTask.targetY = stand.y|0;
-      }
-
-      if((hero.x|0) !== (__adiNpcTestTask.targetX|0) || (hero.y|0) !== (__adiNpcTestTask.targetY|0)){
+      if(Date.now() - (__adiNpcTestTask.lastMoveAt || 0) >= 350){
+        __adiNpcTestTask.lastMoveAt = Date.now();
         a_goTo(__adiNpcTestTask.targetX, __adiNpcTestTask.targetY);
+        __adiSetNpcTestStatus('Idę dokładnie na kordy obiektu [' + (__adiNpcTestTask.targetX|0) + ',' + (__adiNpcTestTask.targetY|0) + '].');
       }
     }catch(e){
       __adiNpcTestTask.active = false;
-      __adiSetNpcTestStatus('Przerwano test NPC.', true);
+      __adiSetNpcTestStatus('Przerwano test obiektu.', true);
     }
   }
 
