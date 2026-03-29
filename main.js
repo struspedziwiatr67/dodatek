@@ -1728,6 +1728,153 @@ function setTempTarget(val){
   function a_getWay(x,y){ return new AStar(map.col,map.x,map.y,{x:hero.x,y:hero.y},{x:x,y:y},g.npccol).anotherFindPath(); }
   function a_goTo(x,y){ let r=a_getWay(x,y); if(Array.isArray(r)) window.road=r; }
 
+  const __adiNpcTestTask = { active:false, needle:'', npcId:null, targetX:null, targetY:null, clickAt:0 };
+
+  function __adiNpcNeedleNorm(s){
+    try{
+      return String(s||'').toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g,'').trim();
+    }catch(_){ return String(s||'').toLowerCase().trim(); }
+  }
+
+  function __adiSetNpcTestStatus(txt, isErr){
+    try{
+      const el = document.querySelector('#adi-bot_test_npc_status');
+      if(!el) return;
+      el.textContent = String(txt || '');
+      el.style.color = isErr ? '#8b0000' : '#111';
+    }catch(_){ }
+  }
+
+  function __adiFindNpcForTest(needle){
+    try{
+      const want = __adiNpcNeedleNorm(needle);
+      if(!want || !window.g || !g.npc) return null;
+      let best = null;
+      let bestDist = Infinity;
+      for(const id in g.npc){
+        const n = g.npc[id];
+        if(!n) continue;
+        const icon = __adiNpcNeedleNorm(n.icon || '');
+        const nick = __adiNpcNeedleNorm(n.nick || '');
+        const name = __adiNpcNeedleNorm(n.name || '');
+        if(!(icon.includes(want) || nick.includes(want) || name.includes(want))) continue;
+        const dist = Math.abs((hero?.x|0) - (n.x|0)) + Math.abs((hero?.y|0) - (n.y|0));
+        if(dist < bestDist){ bestDist = dist; best = n; }
+      }
+      return best;
+    }catch(_){ return null; }
+  }
+
+  function __adiPickNpcApproachTile(npc){
+    try{
+      if(!npc || !window.map || !window.g) return null;
+      const candidates = [
+        {x:(npc.x|0)+1, y:(npc.y|0)},
+        {x:(npc.x|0)-1, y:(npc.y|0)},
+        {x:(npc.x|0), y:(npc.y|0)+1},
+        {x:(npc.x|0), y:(npc.y|0)-1}
+      ];
+      let best = null;
+      let bestLen = Infinity;
+      for(const c of candidates){
+        if(c.x < 0 || c.y < 0 || c.x >= (map.x|0) || c.y >= (map.y|0)) continue;
+        const idx = (c.x|0) + 256*(c.y|0);
+        if(g.npccol && g.npccol[idx]) continue;
+        let path = null;
+        try{ path = a_getWay(c.x, c.y); }catch(_){ path = null; }
+        if(Array.isArray(path) && path.length < bestLen){
+          bestLen = path.length;
+          best = c;
+        }
+      }
+      if(best) return best;
+      return {x:(npc.x|0), y:(npc.y|0)+1};
+    }catch(_){ return null; }
+  }
+
+  function __adiNpcTestInteract(npcId){
+    try{
+      if(!npcId) return false;
+      _g('takeitem&id=' + npcId, r => console.log('takeitem:', r));
+      _g('talk&id=' + npcId, r => console.log('talk:', r));
+      const el = document.querySelector('#npc' + npcId);
+      if(el){ try{ el.click(); }catch(_){ } }
+      return true;
+    }catch(_){ return false; }
+  }
+
+  function __adiStartNpcTestTask(needle){
+    try{
+      const raw = String(needle || '').trim();
+      if(!raw){
+        __adiNpcTestTask.active = false;
+        __adiSetNpcTestStatus('Wpisz nazwę NPC.', true);
+        return false;
+      }
+      const npc = __adiFindNpcForTest(raw);
+      if(!npc){
+        __adiNpcTestTask.active = false;
+        __adiSetNpcTestStatus('Nie znaleziono NPC na tej mapie: ' + raw, true);
+        return false;
+      }
+      const stand = __adiPickNpcApproachTile(npc);
+      if(!stand){
+        __adiNpcTestTask.active = false;
+        __adiSetNpcTestStatus('Nie udało się wyznaczyć pola podejścia.', true);
+        return false;
+      }
+      __adiNpcTestTask.active = true;
+      __adiNpcTestTask.needle = raw;
+      __adiNpcTestTask.npcId = npc.id || parseInt(String(npc.id || '').replace(/\D+/g,''),10) || Number(Object.keys(g.npc).find(k => g.npc[k] === npc) || 0);
+      __adiNpcTestTask.targetX = stand.x|0;
+      __adiNpcTestTask.targetY = stand.y|0;
+      __adiNpcTestTask.clickAt = 0;
+      a_goTo(__adiNpcTestTask.targetX, __adiNpcTestTask.targetY);
+      __adiSetNpcTestStatus('Idę do NPC: ' + (npc.nick || npc.name || raw) + ' [' + (__adiNpcTestTask.targetX) + ',' + (__adiNpcTestTask.targetY) + ']');
+      return true;
+    }catch(e){
+      __adiNpcTestTask.active = false;
+      __adiSetNpcTestStatus('Błąd testu NPC.', true);
+      return false;
+    }
+  }
+
+  function __adiTickNpcTestTask(){
+    try{
+      if(!__adiNpcTestTask.active) return;
+      const npc = __adiFindNpcForTest(__adiNpcTestTask.needle);
+      if(!npc){
+        __adiNpcTestTask.active = false;
+        __adiSetNpcTestStatus('NPC zniknął z mapy.', true);
+        return;
+      }
+      const npcId = npc.id || parseInt(String(npc.id || '').replace(/\D+/g,''),10) || Number(Object.keys(g.npc).find(k => g.npc[k] === npc) || 0);
+      __adiNpcTestTask.npcId = npcId;
+
+      if(Math.abs((hero.x|0) - (npc.x|0)) + Math.abs((hero.y|0) - (npc.y|0)) <= 1){
+        if(Date.now() - (__adiNpcTestTask.clickAt || 0) < 1200) return;
+        __adiNpcTestTask.clickAt = Date.now();
+        __adiNpcTestInteract(npcId);
+        __adiNpcTestTask.active = false;
+        __adiSetNpcTestStatus('Dotarłem do NPC i użyłem interakcji dla ID ' + npcId + '.');
+        return;
+      }
+
+      const stand = __adiPickNpcApproachTile(npc);
+      if(stand){
+        __adiNpcTestTask.targetX = stand.x|0;
+        __adiNpcTestTask.targetY = stand.y|0;
+      }
+
+      if((hero.x|0) !== (__adiNpcTestTask.targetX|0) || (hero.y|0) !== (__adiNpcTestTask.targetY|0)){
+        a_goTo(__adiNpcTestTask.targetX, __adiNpcTestTask.targetY);
+      }
+    }catch(e){
+      __adiNpcTestTask.active = false;
+      __adiSetNpcTestStatus('Przerwano test NPC.', true);
+    }
+  }
+
   // ===== STAN NIEAKTYWNOŚCI: wykryj overlay i wykonaj 1 krok =====
   let __adiLastStasisBreakAt = 0;
   const ADI_STASIS_BREAK_COOLDOWN = 2500;
@@ -3681,14 +3828,6 @@ box.appendChild(autoHealRow);
       tabTest.id = 'adi-tab-test';
       tabTest.className = 'adi-tab-content';
 
-      const tabL = document.createElement('div');
-      tabL.id = 'adi-tab-l';
-      tabL.className = 'adi-tab-content';
-
-      const tabTP = document.createElement('div');
-      tabTP.id = 'adi-tab-tp';
-      tabTP.className = 'adi-tab-content';
-
       const tabAuction = document.createElement('div');
       tabAuction.id = 'adi-tab-aukcja';
       tabAuction.className = 'adi-tab-content';
@@ -3764,6 +3903,60 @@ try{
 }catch(e){ console.warn('[adi-bot] skill test ui failed', e); }
 
 
+// 4b) Test NPC: podejście do NPC po nazwie / fragmencie ikony
+try{
+  const npcRow = document.createElement('div');
+  npcRow.style.display = 'flex';
+  npcRow.style.alignItems = 'center';
+  npcRow.style.justifyContent = 'flex-start';
+  npcRow.style.gap = '6px';
+  npcRow.style.margin = '8px 0 0';
+  npcRow.style.flexWrap = 'wrap';
+
+  const npcInput = document.createElement('input');
+  npcInput.type = 'text';
+  npcInput.id = 'adi-bot_test_npc_name';
+  npcInput.classList.add('adi-bot_inputs');
+  npcInput.placeholder = 'np. rumianek';
+  npcInput.style.width = '150px';
+  npcInput.style.margin = '0';
+  npcInput.setAttribute('tip','Wpisz nazwę NPC lub fragment ikony, np. rumianek');
+
+  const npcBtn = document.createElement('button');
+  npcBtn.id = 'adi-bot_test_npc_go';
+  npcBtn.classList.add('adi-bot_inputs');
+  npcBtn.textContent = 'Podejdź';
+  npcBtn.style.margin = '0';
+  npcBtn.setAttribute('tip','Znajduje NPC na aktualnej mapie, podchodzi i używa takeitem/talk/click');
+
+  const npcStatus = document.createElement('div');
+  npcStatus.id = 'adi-bot_test_npc_status';
+  npcStatus.style.fontSize = '12px';
+  npcStatus.style.margin = '2px 0 6px';
+  npcStatus.style.color = '#111';
+  npcStatus.style.width = '100%';
+  npcStatus.textContent = '';
+
+  try{
+    const savedNpcNeedle = (localStorage.getItem('adi-bot_test_npc_name') || '').trim();
+    if(savedNpcNeedle) npcInput.value = savedNpcNeedle;
+  }catch(_){ }
+
+  npcInput.addEventListener('input', ()=>{
+    try{
+      const raw = String(npcInput.value || '').trim();
+      if(raw) localStorage.setItem('adi-bot_test_npc_name', raw);
+      else localStorage.removeItem('adi-bot_test_npc_name');
+    }catch(_){ }
+  });
+
+  npcRow.appendChild(npcInput);
+  npcRow.appendChild(npcBtn);
+  tabTest.appendChild(npcRow);
+  tabTest.appendChild(npcStatus);
+}catch(e){ console.warn('[adi-bot] npc test ui failed', e); }
+
+
 // 5) Logaj przy 0 wyczerpania i zaloguj o 5:30
 try{
   const exh530Row = document.createElement('div');
@@ -3797,121 +3990,6 @@ try{
   tabTest.appendChild(exh530Row);
 }catch(e){ console.warn('[adi-bot] exhaustion 5:30 ui failed', e); }
 
-// 6) Test: znajdź item/NPC po nazwie i podejdź na jego kordy, potem podnieś
-try{
-  const npcRow = document.createElement('div');
-  npcRow.style.display = 'flex';
-  npcRow.style.alignItems = 'center';
-  npcRow.style.justifyContent = 'center';
-  npcRow.style.gap = '6px';
-  npcRow.style.flexWrap = 'wrap';
-  npcRow.style.margin = '10px 0 0';
-
-  const npcInp = document.createElement('input');
-  npcInp.type = 'text';
-  npcInp.id = 'adi-bot_test_npc_name';
-  npcInp.className = 'adi-bot_inputs';
-  npcInp.placeholder = 'np. rumianek';
-  npcInp.style.margin = '0';
-  npcInp.style.width = '140px';
-
-  const npcBtn = document.createElement('button');
-  npcBtn.type = 'button';
-  npcBtn.id = 'adi-bot_test_npc_go';
-  npcBtn.className = 'adi-bot_btn';
-  npcBtn.textContent = 'Podejdź';
-  npcBtn.style.margin = '0';
-
-  const npcStatus = document.createElement('div');
-  npcStatus.id = 'adi-bot_test_npc_status';
-  npcStatus.style.fontSize = '12px';
-  npcStatus.style.margin = '4px 0 6px';
-  npcStatus.style.color = '#111';
-  npcStatus.textContent = '';
-
-  npcRow.appendChild(npcInp);
-  npcRow.appendChild(npcBtn);
-  tabTest.appendChild(npcRow);
-  tabTest.appendChild(npcStatus);
-}catch(e){ console.warn('[adi-bot] npc test ui failed', e); }
-
-// 7) Zakładka L
-try{
-  const lRow = document.createElement('div');
-  lRow.style.display = 'flex';
-  lRow.style.alignItems = 'center';
-  lRow.style.justifyContent = 'flex-start';
-  lRow.style.gap = '8px';
-  lRow.style.flexWrap = 'wrap';
-  lRow.style.margin = '8px 0';
-
-  const lInp = document.createElement('input');
-  lInp.type = 'number';
-  lInp.min = '1';
-  lInp.max = '300';
-  lInp.step = '1';
-  lInp.id = 'adi-bot_lvl_logout';
-  lInp.className = 'adi-bot_inputs';
-  lInp.placeholder = 'lvl';
-  lInp.style.width = '70px';
-  lInp.style.margin = '0';
-
-  const lLbl = document.createElement('label');
-  lLbl.htmlFor = 'adi-bot_lvl_logout';
-  lLbl.textContent = 'Logaj gdy wbije poziom';
-
-  lRow.appendChild(lInp);
-  lRow.appendChild(lLbl);
-  tabL.appendChild(lRow);
-}catch(e){ console.warn('[adi-bot] L tab ui failed', e); }
-
-// 8) Zakładka TP
-try{
-  const tpRow1 = document.createElement('div');
-  tpRow1.style.display = 'flex';
-  tpRow1.style.alignItems = 'center';
-  tpRow1.style.justifyContent = 'flex-start';
-  tpRow1.style.gap = '6px';
-  tpRow1.style.margin = '8px 0 4px';
-
-  const tpEnabled = document.createElement('input');
-  tpEnabled.type = 'checkbox';
-  tpEnabled.id = 'adi-bot_tp_enabled';
-
-  const tpEnabledLbl = document.createElement('label');
-  tpEnabledLbl.htmlFor = 'adi-bot_tp_enabled';
-  tpEnabledLbl.textContent = 'Uciekanie włączone';
-
-  tpRow1.appendChild(tpEnabled);
-  tpRow1.appendChild(tpEnabledLbl);
-
-  const tpRow2 = document.createElement('div');
-  tpRow2.style.display = 'flex';
-  tpRow2.style.alignItems = 'center';
-  tpRow2.style.justifyContent = 'flex-start';
-  tpRow2.style.gap = '6px';
-  tpRow2.style.margin = '4px 0 4px';
-
-  const tpClan = document.createElement('input');
-  tpClan.type = 'checkbox';
-  tpClan.id = 'adi-bot_tp_clan';
-
-  const tpClanLbl = document.createElement('label');
-  tpClanLbl.htmlFor = 'adi-bot_tp_clan';
-  tpClanLbl.textContent = 'Uciekać znaj/klan?';
-
-  tpRow2.appendChild(tpClan);
-  tpRow2.appendChild(tpClanLbl);
-
-  const tpHint = document.createElement('div');
-  tpHint.style.fontSize = '12px';
-  tpHint.style.margin = '6px 0 0';
-  tpHint.textContent = 'Zwój: Zwój teleportacji na Kwieciste Przejście';
-
-  tabTP.appendChild(tpRow1);
-  tabTP.appendChild(tpRow2);
-  tabTP.appendChild(tpHint);
-}catch(e){ console.warn('[adi-bot] TP tab ui failed', e); }
 
       const tabs = document.createElement('div');
       tabs.className = 'adi-tabs';
@@ -3928,12 +4006,172 @@ try{
       const t2 = mkTab('E2','e2');
       const tA = mkTab('Aukcja','aukcja');
       const t3 = mkTab('Test','test');
+      const t4 = mkTab('Wioska startowa','start');
       const tL = mkTab('L','l');
       const tTP = mkTab('TP','tp');
-      const t4 = mkTab('Wioska startowa','start');
+      const tLBreak = document.createElement('div');
+      tLBreak.className = 'adi-tab-break';
       t1.classList.add('active');
 
-      tabs.appendChild(t1); tabs.appendChild(t2); tabs.appendChild(tA); tabs.appendChild(t3); tabs.appendChild(tL); tabs.appendChild(tTP); tabs.appendChild(t4);
+      tabs.appendChild(t1); tabs.appendChild(t2); tabs.appendChild(tA); tabs.appendChild(t3); tabs.appendChild(t4); tabs.appendChild(tLBreak); tabs.appendChild(tL); tabs.appendChild(tTP);
+
+      const tabL = document.createElement('div');
+      tabL.className = 'adi-tab-content';
+      tabL.id = 'adi-tab-l';
+      tabL.innerHTML = '';
+
+      const tabTP = document.createElement('div');
+      tabTP.className = 'adi-tab-content';
+      tabTP.id = 'adi-tab-tp';
+      tabTP.innerHTML = '';
+
+      try{
+        const lRow = document.createElement('div');
+        lRow.style.display = 'flex';
+        lRow.style.alignItems = 'center';
+        lRow.style.justifyContent = 'flex-start';
+        lRow.style.gap = '8px';
+        lRow.style.padding = '8px';
+        lRow.style.flexWrap = 'wrap';
+
+        const lInput = document.createElement('input');
+        lInput.type = 'number';
+        lInput.min = '1';
+        lInput.step = '1';
+        lInput.id = 'adi-bot_logout_level';
+        lInput.classList.add('adi-bot_inputs');
+        lInput.placeholder = 'np. 40';
+        lInput.style.width = '90px';
+        lInput.setAttribute('tip','Po wbiciu tego poziomu bot przekieruje na stronę margonem.pl');
+
+        const lLabel = document.createElement('label');
+        lLabel.htmlFor = 'adi-bot_logout_level';
+        lLabel.textContent = 'Logaj gdy wbije poziom';
+        lLabel.style.whiteSpace = 'nowrap';
+
+        try{
+          const savedLogoutLvl = (localStorage.getItem('adi-bot_logout_level') || '').trim();
+          if(savedLogoutLvl) lInput.value = savedLogoutLvl;
+        }catch(_){ }
+
+        lInput.addEventListener('input', ()=>{
+          try{
+            const raw = String(lInput.value || '').trim();
+            if(raw) localStorage.setItem('adi-bot_logout_level', raw);
+            else localStorage.removeItem('adi-bot_logout_level');
+          }catch(_){ }
+        });
+
+        lRow.appendChild(lInput);
+        lRow.appendChild(lLabel);
+        tabL.appendChild(lRow);
+      }catch(e){ console.warn('[adi-bot] tab L ui failed', e); }
+
+      try{
+        const TP_SCROLL = {
+          name: 'Zwój teleportacji na Kwieciste Przejście',
+          stat: 'amount=14;capacity=15;lvl=70;teleport=344,17,60',
+          icon: 'pap/pap44.gif',
+          pr: 42000,
+          cl: 16
+        };
+
+        function tpItemHtml(item){
+          try{
+            const tip = (typeof itemTip === 'function') ? String(itemTip(item) || '').replace(/"/g,'&quot;') : '';
+            let html = '<div class="item" ctip="t_item" tip="' + tip + '">';
+            const stat = String(item && item.stat || '');
+            if(stat.indexOf('legendary') !== -1) html += '<div class="itemHighlighter t_leg"></div>';
+            if(stat.indexOf('heroic') !== -1) html += '<div class="itemHighlighter t_her"></div>';
+            if(stat.indexOf('unique') !== -1) html += '<div class="itemHighlighter t_uni"></div>';
+            if(stat.indexOf('upgraded') !== -1) html += '<div class="itemHighlighter t_upg"></div>';
+            html += '<img src="/obrazki/itemy/' + String(item.icon || '') + '">';
+            html += '</div>';
+            return html;
+          }catch(_){
+            return '<div class="item"><img src="/obrazki/itemy/pap/pap44.gif"></div>';
+          }
+        }
+
+        const tpWrap = document.createElement('div');
+        tpWrap.style.padding = '8px';
+        tpWrap.style.textAlign = 'left';
+
+        const tpIconWrap = document.createElement('div');
+        tpIconWrap.id = 'adi-bot_tp_item';
+        tpIconWrap.style.width = '32px';
+        tpIconWrap.style.height = '32px';
+        tpIconWrap.style.margin = '0 auto 8px auto';
+        tpIconWrap.style.background = 'rgba(40,40,40,0.5)';
+        tpIconWrap.style.border = '1px solid #333333';
+        tpIconWrap.innerHTML = tpItemHtml(TP_SCROLL);
+
+        const tpClanRow = document.createElement('div');
+        tpClanRow.style.display = 'flex';
+        tpClanRow.style.alignItems = 'center';
+        tpClanRow.style.gap = '6px';
+        tpClanRow.style.marginBottom = '6px';
+
+        const tpClanChk = document.createElement('input');
+        tpClanChk.type = 'checkbox';
+        tpClanChk.id = 'adi-bot_tp_clan';
+
+        const tpClanLbl = document.createElement('label');
+        tpClanLbl.htmlFor = 'adi-bot_tp_clan';
+        tpClanLbl.textContent = 'Uciekać znaj/klan?';
+
+        const tpEscapeRow = document.createElement('div');
+        tpEscapeRow.style.display = 'flex';
+        tpEscapeRow.style.alignItems = 'center';
+        tpEscapeRow.style.gap = '6px';
+
+        const tpEscapeChk = document.createElement('input');
+        tpEscapeChk.type = 'checkbox';
+        tpEscapeChk.id = 'adi-bot_tp_enabled';
+
+        const tpEscapeLbl = document.createElement('label');
+        tpEscapeLbl.htmlFor = 'adi-bot_tp_enabled';
+        tpEscapeLbl.id = 'adi-bot_tp_status';
+        tpEscapeLbl.style.fontWeight = 'bold';
+        tpEscapeLbl.textContent = 'Uciekanie włączone';
+
+        function tpRefreshStatus(){
+          try{
+            const on = !!tpEscapeChk.checked;
+            tpEscapeLbl.textContent = on ? 'Uciekanie włączone' : 'Uciekanie wyłączone';
+            tpEscapeLbl.style.color = on ? 'green' : 'red';
+          }catch(_){ }
+        }
+
+        try{
+          tpClanChk.checked = localStorage.getItem('adi-bot_tp_clan') !== '0';
+        }catch(_){ tpClanChk.checked = true; }
+
+        try{
+          tpEscapeChk.checked = localStorage.getItem('adi-bot_tp_enabled') === '1';
+        }catch(_){ tpEscapeChk.checked = false; }
+
+        tpClanChk.addEventListener('change', ()=>{
+          try{ localStorage.setItem('adi-bot_tp_clan', tpClanChk.checked ? '1' : '0'); }catch(_){ }
+        });
+
+        tpEscapeChk.addEventListener('change', ()=>{
+          try{ localStorage.setItem('adi-bot_tp_enabled', tpEscapeChk.checked ? '1' : '0'); }catch(_){ }
+          tpRefreshStatus();
+        });
+
+        tpRefreshStatus();
+
+        tpClanRow.appendChild(tpClanChk);
+        tpClanRow.appendChild(tpClanLbl);
+        tpEscapeRow.appendChild(tpEscapeChk);
+        tpEscapeRow.appendChild(tpEscapeLbl);
+
+        tpWrap.appendChild(tpIconWrap);
+        tpWrap.appendChild(tpClanRow);
+        tpWrap.appendChild(tpEscapeRow);
+        tabTP.appendChild(tpWrap);
+      }catch(e){ console.warn('[adi-bot] tab TP ui failed', e); }
 
       const contentWrap = document.createElement('div');
       contentWrap.className = 'adi-tabwrap';
@@ -3941,9 +4179,10 @@ try{
       contentWrap.appendChild(tabE2);
       contentWrap.appendChild(tabAuction);
       contentWrap.appendChild(tabTest);
+
+      contentWrap.appendChild(tabStart);
       contentWrap.appendChild(tabL);
       contentWrap.appendChild(tabTP);
-      contentWrap.appendChild(tabStart);
 
       box.appendChild(tabs);
       box.appendChild(contentWrap);
@@ -3969,7 +4208,281 @@ try{
       }catch(_){}
     }catch(e){ console.warn('[adi-bot] tabs init failed', e); }
 
+
     document.body.appendChild(box);
+
+    // Zakładka L: przekierowanie po wbiciu / posiadaniu wybranego poziomu
+    (function(){
+      const CHECK_MS = 10000;
+      const REDIRECT_URL = 'https://www.margonem.pl/';
+      let redirectTriggered = false;
+      let lastCheckedSignature = '';
+
+      function isBotRunning(){
+        try{ return localStorage.getItem('adi-bot_enabled') === '1'; }catch(_){ return false; }
+      }
+
+      function getTargetLevel(){
+        try{
+          const el = document.querySelector('#adi-bot_logout_level');
+          const raw = String((el && el.value) || localStorage.getItem('adi-bot_logout_level') || '').trim();
+          if(!raw) return 0;
+          const n = parseInt(raw, 10) || 0;
+          return n > 0 ? n : 0;
+        }catch(_){ return 0; }
+      }
+
+      function getLevelFromNickText(){
+        try{
+          const docs = [document];
+          try{
+            const iframes = document.querySelectorAll('iframe');
+            for(const fr of iframes){
+              try{
+                const d = fr.contentDocument || (fr.contentWindow && fr.contentWindow.document);
+                if(d) docs.push(d);
+              }catch(_){ }
+            }
+          }catch(_){ }
+
+          for(const d of docs){
+            try{
+              const nick = d.querySelector('#nick, h1#nick');
+              if(!nick) continue;
+              const txt = String(nick.textContent || '').trim();
+              const m = txt.match(/\((\d+)h\)/i) || txt.match(/\((\d+)\)/);
+              if(m) return parseInt(m[1], 10) || 0;
+            }catch(_){ }
+          }
+        }catch(_){ }
+        return 0;
+      }
+
+      function getCurrentHeroLevel(){
+        try{
+          const lvl = Number(window.hero && hero.lvl) || 0;
+          if(lvl > 0) return lvl;
+        }catch(_){ }
+        return getLevelFromNickText();
+      }
+
+      function doRedirect(){
+        try{ window.location.href = REDIRECT_URL; }catch(_){ }
+      }
+
+      setInterval(()=>{
+        try{
+          const cur = getCurrentHeroLevel();
+          const target = getTargetLevel();
+          const sig = String(cur) + '|' + String(target) + '|' + (isBotRunning() ? '1' : '0');
+
+          if(sig !== lastCheckedSignature){
+            redirectTriggered = false;
+            lastCheckedSignature = sig;
+          }
+
+          if(!isBotRunning()){
+            redirectTriggered = false;
+            return;
+          }
+
+          if(!target || cur <= 0){
+            redirectTriggered = false;
+            return;
+          }
+
+          // Loguj tylko przy dokładnej zgodności poziomów.
+          if(cur === target && !redirectTriggered){
+            redirectTriggered = true;
+            doRedirect();
+            return;
+          }
+
+          if(cur !== target){
+            redirectTriggered = false;
+          }
+        }catch(_){ }
+      }, CHECK_MS);
+    })();
+
+    // Zakładka TP: auto teleport na czerwonej mapie po zobaczeniu gracza
+    (function(){
+      const TP_SCROLL = {
+        name: 'Zwój teleportacji na Kwieciste Przejście',
+        stat: 'amount=14;capacity=15;lvl=70;teleport=344,17,60',
+        icon: 'pap/pap44.gif',
+        pr: 42000,
+        cl: 16
+      };
+      const CHECK_MS = 1000;
+      let pendingTeleport = false;
+      let lastTeleportAt = 0;
+      let lastSeenSig = '';
+
+      function isBotRunning(){
+        try{ return localStorage.getItem('adi-bot_enabled') === '1'; }catch(_){ return false; }
+      }
+
+      function isEscapeEnabled(){
+        try{
+          const el = document.querySelector('#adi-bot_tp_enabled');
+          if(el) return !!el.checked;
+        }catch(_){ }
+        try{ return localStorage.getItem('adi-bot_tp_enabled') === '1'; }catch(_){ return false; }
+      }
+
+      function shouldEscapeClanFriends(){
+        try{
+          const el = document.querySelector('#adi-bot_tp_clan');
+          if(el) return !!el.checked;
+        }catch(_){ }
+        try{ return localStorage.getItem('adi-bot_tp_clan') !== '0'; }catch(_){ return true; }
+      }
+
+      function isRedMap(){
+        try{ return Number(window.map && map.pvp) === 2; }catch(_){ return false; }
+      }
+
+      function findTeleportItemIdByName(name){
+        try{
+          if(!window.g || !g.item) return 0;
+          for(const id in g.item){
+            const it = g.item[id];
+            if(!it) continue;
+            if(String(it.loc || '') !== 'g') continue;
+            if(String(it.name || '') !== String(name || '')) continue;
+            const st = (typeof parseItemStat === 'function') ? parseItemStat(it.stat || '') : {};
+            if(st && st.timelimit){
+              const arr = String(st.timelimit || '').split(',');
+              const end = Number(arr[1] || 0);
+              const now = (typeof unix_time === 'function') ? unix_time() : Math.floor(Date.now()/1000);
+              if(end && now <= end) continue;
+            }
+            return Number(it.id) || Number(id) || 0;
+          }
+        }catch(_){ }
+        return 0;
+      }
+
+      function tpUseNow(){
+        try{
+          const itemId = findTeleportItemIdByName(TP_SCROLL.name);
+          if(!itemId){
+            try{ message('Nie posiadasz teleportu: ' + TP_SCROLL.name); }catch(_){ }
+            return false;
+          }
+          _g('moveitem&st=1&id=' + itemId);
+          lastTeleportAt = Date.now();
+          return true;
+        }catch(_){ return false; }
+      }
+
+      function triggerTeleport(reason){
+        try{
+          const now = Date.now();
+          if(now - lastTeleportAt < 5000) return false;
+          if(window.g && g.battle){
+            pendingTeleport = true;
+            try{ message('Teleport zostanie użyty po walce'); }catch(_){ }
+            return true;
+          }
+          const ok = tpUseNow();
+          if(ok){
+            pendingTeleport = false;
+            try{
+              if(reason && reason.nick) localStorage.setItem('adi-bot_tp_last_person', String(reason.nick) + ' ' + String(reason.lvl || '') + String(reason.prof || '') + ' lvl');
+            }catch(_){ }
+          }
+          return ok;
+        }catch(_){ return false; }
+      }
+
+      function getThreat(){
+        try{
+          if(!isBotRunning() || !isEscapeEnabled() || !isRedMap()) return null;
+          if(!window.g || !g.other) return null;
+          const allowClan = shouldEscapeClanFriends();
+          for(const id in g.other){
+            const p = g.other[id];
+            if(!p) continue;
+            if(!allowClan && (p.relation === 'fr' || p.relation === 'cl')) continue;
+            return p;
+          }
+        }catch(_){ }
+        return null;
+      }
+
+      setInterval(function(){
+        try{
+          const threat = getThreat();
+          if(!threat){
+            lastSeenSig = '';
+            return;
+          }
+          const sig = String(threat.id || '') + '|' + String(threat.nick || '') + '|' + String(threat.lvl || '');
+          if(sig === lastSeenSig && Date.now() - lastTeleportAt < 5000) return;
+          lastSeenSig = sig;
+          triggerTeleport(threat);
+        }catch(_){ }
+      }, CHECK_MS);
+
+      (function(){
+        const hookTimer = setInterval(function(){
+          try{
+            if(typeof window.battleMsg !== 'function' || window.battleMsg.__adiTpWrapped) return;
+            const orig = window.battleMsg;
+            const wrapped = function(){
+              let ret = orig.apply(this, arguments);
+              try{
+                const msg = String(arguments[0] || '');
+                if(msg.indexOf('winner=') !== -1 && pendingTeleport && isBotRunning() && isEscapeEnabled()){
+                  setTimeout(function(){
+                    try{
+                      if(pendingTeleport && !(window.g && g.battle)) {
+                        tpUseNow();
+                        pendingTeleport = false;
+                      }
+                    }catch(_){ }
+                  }, 150);
+                }
+              }catch(_){ }
+              return ret;
+            };
+            wrapped.__adiTpWrapped = true;
+            wrapped.__adiTpOriginal = orig;
+            window.battleMsg = wrapped;
+            clearInterval(hookTimer);
+          }catch(_){ }
+        }, 800);
+        setTimeout(function(){
+          try{
+            if(typeof window.battleMsg === 'function' && !window.battleMsg.__adiTpWrapped){
+              const orig = window.battleMsg;
+              const wrapped = function(){
+                let ret = orig.apply(this, arguments);
+                try{
+                  const msg = String(arguments[0] || '');
+                  if(msg.indexOf('winner=') !== -1 && pendingTeleport && isBotRunning() && isEscapeEnabled()){
+                    setTimeout(function(){
+                      try{
+                        if(pendingTeleport && !(window.g && g.battle)) {
+                          tpUseNow();
+                          pendingTeleport = false;
+                        }
+                      }catch(_){ }
+                    }, 150);
+                  }
+                }catch(_){ }
+                return ret;
+              };
+              wrapped.__adiTpWrapped = true;
+              wrapped.__adiTpOriginal = orig;
+              window.battleMsg = wrapped;
+            }
+          }catch(_){ }
+        }, 300);
+      })();
+    })();
 
     let style=document.createElement(`style`); style.type=`text/css`;
     style.appendChild(document.createTextNode(`
@@ -3980,7 +4493,8 @@ try{
 
 
       /* ===== Tabs ===== */
-      #adi-bot_box .adi-tabs{display:flex;flex-wrap:wrap;gap:0;background:#0f0f0f;border-bottom:1px solid #000;margin:-5px -5px 6px -5px;}
+      #adi-bot_box .adi-tabs{display:flex;flex-wrap:wrap;align-items:flex-start;gap:0;background:#0f0f0f;border-bottom:1px solid #000;margin:-5px -5px 6px -5px;}
+      #adi-bot_box .adi-tab-break{flex-basis:100%;height:0;}
       #adi-bot_box .adi-tab{padding:6px 14px;cursor:pointer;background:#1a1a1a;border-right:1px solid #000;font-size:13px;user-select:none;color:#eae3e3;}
       #adi-bot_box .adi-tab:last-child{border-right:none;}
       #adi-bot_box .adi-tab:hover{background:#2a2a2a;}
@@ -4163,6 +4677,19 @@ try{
     exhSel.addEventListener("keyup", ()=>{ localStorage.setItem("adi-bot_exh_selector", exhSel.value.trim()); });
 
     exhTest.addEventListener("click", ()=>{ const v=getExhaustionMinutes(false); message(`[BOT] Wykryte wyczerpanie: ${v===null?"brak":v+" min"}`); });
+
+    try{
+      const npcInputEl = document.getElementById('adi-bot_test_npc_name');
+      const npcBtnEl = document.getElementById('adi-bot_test_npc_go');
+      if(npcBtnEl){
+        npcBtnEl.addEventListener('click', ()=>{
+          const needle = npcInputEl ? String(npcInputEl.value || '').trim() : '';
+          __adiStartNpcTestTask(needle);
+        });
+      }
+    }catch(e){ console.warn('[adi-bot] npc test bind failed', e); }
+
+    setInterval(__adiTickNpcTestTask, 350);
 
     // ===== Relog przy 0 wyczerpania -> logowanie o 5:30 =====
     (function(){
