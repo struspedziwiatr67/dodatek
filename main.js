@@ -3806,9 +3806,17 @@ try{
       const tA = mkTab('Aukcja','aukcja');
       const t3 = mkTab('Test','test');
       const t4 = mkTab('Wioska startowa','start');
+      const tL = mkTab('L','l');
+      const tLBreak = document.createElement('div');
+      tLBreak.className = 'adi-tab-break';
       t1.classList.add('active');
 
-      tabs.appendChild(t1); tabs.appendChild(t2); tabs.appendChild(tA); tabs.appendChild(t3); tabs.appendChild(t4);
+      tabs.appendChild(t1); tabs.appendChild(t2); tabs.appendChild(tA); tabs.appendChild(t3); tabs.appendChild(t4); tabs.appendChild(tLBreak); tabs.appendChild(tL);
+
+      const tabL = document.createElement('div');
+      tabL.className = 'adi-tab-content';
+      tabL.id = 'adi-tab-l';
+      tabL.innerHTML = '<div style="padding:8px;text-align:left;">Zakładka L.</div>';
 
       const contentWrap = document.createElement('div');
       contentWrap.className = 'adi-tabwrap';
@@ -3818,6 +3826,7 @@ try{
       contentWrap.appendChild(tabTest);
 
       contentWrap.appendChild(tabStart);
+      contentWrap.appendChild(tabL);
 
       box.appendChild(tabs);
       box.appendChild(contentWrap);
@@ -3839,7 +3848,7 @@ try{
       // restore last active tab
       try{
         const saved = (localStorage.getItem('adi-bot_active_tab')||'exp').trim();
-        if(saved==='e2' || saved==='test' || saved==='exp' || saved==='start' || saved==='aukcja') activateTab(saved);
+        if(saved==='e2' || saved==='test' || saved==='exp' || saved==='start' || saved==='aukcja' || saved==='l') activateTab(saved);
       }catch(_){}
     }catch(e){ console.warn('[adi-bot] tabs init failed', e); }
 
@@ -3854,7 +3863,8 @@ try{
 
 
       /* ===== Tabs ===== */
-      #adi-bot_box .adi-tabs{display:flex;gap:0;background:#0f0f0f;border-bottom:1px solid #000;margin:-5px -5px 6px -5px;}
+      #adi-bot_box .adi-tabs{display:flex;flex-wrap:wrap;align-items:flex-start;gap:0;background:#0f0f0f;border-bottom:1px solid #000;margin:-5px -5px 6px -5px;}
+      #adi-bot_box .adi-tab-break{flex-basis:100%;height:0;}
       #adi-bot_box .adi-tab{padding:6px 14px;cursor:pointer;background:#1a1a1a;border-right:1px solid #000;font-size:13px;user-select:none;color:#eae3e3;}
       #adi-bot_box .adi-tab:last-child{border-right:none;}
       #adi-bot_box .adi-tab:hover{background:#2a2a2a;}
