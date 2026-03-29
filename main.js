@@ -3816,7 +3816,49 @@ try{
       const tabL = document.createElement('div');
       tabL.className = 'adi-tab-content';
       tabL.id = 'adi-tab-l';
-      tabL.innerHTML = '<div style="padding:8px;text-align:left;">Zakładka L.</div>';
+      tabL.innerHTML = '';
+
+      try{
+        const lRow = document.createElement('div');
+        lRow.style.display = 'flex';
+        lRow.style.alignItems = 'center';
+        lRow.style.justifyContent = 'flex-start';
+        lRow.style.gap = '8px';
+        lRow.style.padding = '8px';
+        lRow.style.flexWrap = 'wrap';
+
+        const lInput = document.createElement('input');
+        lInput.type = 'number';
+        lInput.min = '1';
+        lInput.step = '1';
+        lInput.id = 'adi-bot_logout_level';
+        lInput.classList.add('adi-bot_inputs');
+        lInput.placeholder = 'np. 40';
+        lInput.style.width = '90px';
+        lInput.setAttribute('tip','Po wbiciu tego poziomu bot przekieruje na stronę margonem.pl');
+
+        const lLabel = document.createElement('label');
+        lLabel.htmlFor = 'adi-bot_logout_level';
+        lLabel.textContent = 'Logaj gdy wbije poziom';
+        lLabel.style.whiteSpace = 'nowrap';
+
+        try{
+          const savedLogoutLvl = (localStorage.getItem('adi-bot_logout_level') || '').trim();
+          if(savedLogoutLvl) lInput.value = savedLogoutLvl;
+        }catch(_){ }
+
+        lInput.addEventListener('input', ()=>{
+          try{
+            const raw = String(lInput.value || '').trim();
+            if(raw) localStorage.setItem('adi-bot_logout_level', raw);
+            else localStorage.removeItem('adi-bot_logout_level');
+          }catch(_){ }
+        });
+
+        lRow.appendChild(lInput);
+        lRow.appendChild(lLabel);
+        tabL.appendChild(lRow);
+      }catch(e){ console.warn('[adi-bot] tab L ui failed', e); }
 
       const contentWrap = document.createElement('div');
       contentWrap.className = 'adi-tabwrap';
@@ -3852,7 +3894,92 @@ try{
       }catch(_){}
     }catch(e){ console.warn('[adi-bot] tabs init failed', e); }
 
+
     document.body.appendChild(box);
+
+    // Zakładka L: przekierowanie po wbiciu wybranego poziomu
+    (function(){
+      const CHECK_MS = 10000;
+      const REDIRECT_URL = 'https://www.margonem.pl/';
+      let lastSeenLevel = 0;
+      let redirectTriggered = false;
+
+      function isBotRunning(){
+        try{ return localStorage.getItem('adi-bot_enabled') === '1'; }catch(_){ return false; }
+      }
+
+      function getTargetLevel(){
+        try{
+          const el = document.querySelector('#adi-bot_logout_level');
+          const raw = String((el && el.value) || localStorage.getItem('adi-bot_logout_level') || '').trim();
+          if(!raw) return 0;
+          const n = parseInt(raw, 10) || 0;
+          return n > 0 ? n : 0;
+        }catch(_){ return 0; }
+      }
+
+      function getLevelFromNickText(){
+        try{
+          const docs = [document];
+          try{
+            const iframes = document.querySelectorAll('iframe');
+            for(const fr of iframes){
+              try{
+                const d = fr.contentDocument || (fr.contentWindow && fr.contentWindow.document);
+                if(d) docs.push(d);
+              }catch(_){ }
+            }
+          }catch(_){ }
+
+          for(const d of docs){
+            try{
+              const nick = d.querySelector('#nick, h1#nick');
+              if(!nick) continue;
+              const txt = String(nick.textContent || '').trim();
+              const m = txt.match(/\((\d+)h\)/i) || txt.match(/\((\d+)\)/);
+              if(m) return parseInt(m[1], 10) || 0;
+            }catch(_){ }
+          }
+        }catch(_){ }
+        return 0;
+      }
+
+      function getCurrentHeroLevel(){
+        try{
+          const lvl = Number(window.hero && hero.lvl) || 0;
+          if(lvl > 0) return lvl;
+        }catch(_){ }
+        return getLevelFromNickText();
+      }
+
+      function doRedirect(){
+        try{ window.location.href = REDIRECT_URL; }catch(_){ }
+      }
+
+      setInterval(()=>{
+        try{
+          const target = getTargetLevel();
+          if(!target){
+            redirectTriggered = false;
+            return;
+          }
+          if(!isBotRunning()) return;
+
+          const cur = getCurrentHeroLevel();
+          if(cur <= 0) return;
+
+          if(cur !== lastSeenLevel){
+            lastSeenLevel = cur;
+            if(cur < target) redirectTriggered = false;
+          }
+
+          if(!redirectTriggered && cur >= target){
+            redirectTriggered = true;
+            doRedirect();
+          }
+        }catch(_){ }
+      }, CHECK_MS);
+    })();
 
     let style=document.createElement(`style`); style.type=`text/css`;
     style.appendChild(document.createTextNode(`
