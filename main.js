@@ -3902,6 +3902,7 @@ try{
       const CHECK_MS = 10000;
       const REDIRECT_URL = 'https://www.margonem.pl/';
       let lastSeenLevel = 0;
+      let armedTargetLevel = 0;
       let redirectTriggered = false;
 
       function isBotRunning(){
@@ -3958,25 +3959,51 @@ try{
 
       setInterval(()=>{
         try{
+          const cur = getCurrentHeroLevel();
           const target = getTargetLevel();
-          if(!target){
+
+          if(cur > 0 && !lastSeenLevel) lastSeenLevel = cur;
+
+          if(!isBotRunning()){
             redirectTriggered = false;
+            armedTargetLevel = 0;
+            if(cur > 0) lastSeenLevel = cur;
             return;
           }
-          if(!isBotRunning()) return;
 
-          const cur = getCurrentHeroLevel();
+          if(!target){
+            redirectTriggered = false;
+            armedTargetLevel = 0;
+            if(cur > 0) lastSeenLevel = cur;
+            return;
+          }
+
           if(cur <= 0) return;
 
-          if(cur !== lastSeenLevel){
+          // Uzbrój tylko dla poziomu wyższego od aktualnego.
+          // Dzięki temu wpisanie dowolnego już-zbitego lvla nie zrobi natychmiastowego przekierowania.
+          if(target !== armedTargetLevel){
+            armedTargetLevel = target;
+            redirectTriggered = false;
             lastSeenLevel = cur;
-            if(cur < target) redirectTriggered = false;
+            if(target <= cur){
+              armedTargetLevel = 0;
+            }
+            return;
           }
 
-          if(!redirectTriggered && cur >= target){
+          if(!armedTargetLevel) {
+            lastSeenLevel = cur;
+            return;
+          }
+
+          if(cur > lastSeenLevel && cur === armedTargetLevel && !redirectTriggered){
             redirectTriggered = true;
             doRedirect();
+            return;
           }
+
+          if(cur !== lastSeenLevel) lastSeenLevel = cur;
         }catch(_){ }
       }, CHECK_MS);
     })();
