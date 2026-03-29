@@ -3897,13 +3897,12 @@ try{
 
     document.body.appendChild(box);
 
-    // Zakładka L: przekierowanie po wbiciu wybranego poziomu
+    // Zakładka L: przekierowanie po wbiciu / posiadaniu wybranego poziomu
     (function(){
       const CHECK_MS = 10000;
       const REDIRECT_URL = 'https://www.margonem.pl/';
-      let lastSeenLevel = 0;
-      let armedTargetLevel = 0;
       let redirectTriggered = false;
+      let lastCheckedSignature = '';
 
       function isBotRunning(){
         try{ return localStorage.getItem('adi-bot_enabled') === '1'; }catch(_){ return false; }
@@ -3961,49 +3960,33 @@ try{
         try{
           const cur = getCurrentHeroLevel();
           const target = getTargetLevel();
+          const sig = String(cur) + '|' + String(target) + '|' + (isBotRunning() ? '1' : '0');
 
-          if(cur > 0 && !lastSeenLevel) lastSeenLevel = cur;
+          if(sig !== lastCheckedSignature){
+            redirectTriggered = false;
+            lastCheckedSignature = sig;
+          }
 
           if(!isBotRunning()){
             redirectTriggered = false;
-            armedTargetLevel = 0;
-            if(cur > 0) lastSeenLevel = cur;
             return;
           }
 
-          if(!target){
+          if(!target || cur <= 0){
             redirectTriggered = false;
-            armedTargetLevel = 0;
-            if(cur > 0) lastSeenLevel = cur;
             return;
           }
 
-          if(cur <= 0) return;
-
-          // Uzbrój tylko dla poziomu wyższego od aktualnego.
-          // Dzięki temu wpisanie dowolnego już-zbitego lvla nie zrobi natychmiastowego przekierowania.
-          if(target !== armedTargetLevel){
-            armedTargetLevel = target;
-            redirectTriggered = false;
-            lastSeenLevel = cur;
-            if(target <= cur){
-              armedTargetLevel = 0;
-            }
-            return;
-          }
-
-          if(!armedTargetLevel) {
-            lastSeenLevel = cur;
-            return;
-          }
-
-          if(cur > lastSeenLevel && cur === armedTargetLevel && !redirectTriggered){
+          // Loguj tylko przy dokładnej zgodności poziomów.
+          if(cur === target && !redirectTriggered){
             redirectTriggered = true;
             doRedirect();
             return;
           }
 
-          if(cur !== lastSeenLevel) lastSeenLevel = cur;
+          if(cur !== target){
+            redirectTriggered = false;
+          }
         }catch(_){ }
       }, CHECK_MS);
     })();
