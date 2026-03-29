@@ -1848,8 +1848,29 @@ function setTempTarget(val){
       __adiNpcTestTask.targetY = (npc.y|0);
 
       if((hero.x|0) === (__adiNpcTestTask.targetX|0) && (hero.y|0) === (__adiNpcTestTask.targetY|0)){
-        __adiNpcTestTask.active = false;
-        __adiSetNpcTestStatus('Doszedłem dokładnie na kordy obiektu [' + (__adiNpcTestTask.targetX|0) + ',' + (__adiNpcTestTask.targetY|0) + '].');
+        if(Date.now() - (__adiNpcTestTask.clickAt || 0) < 350) return;
+        __adiNpcTestTask.clickAt = Date.now();
+        __adiNpcTestTask.clickTries = (__adiNpcTestTask.clickTries|0) + 1;
+
+        // Po dojściu na dokładne kordy próbujemy podnieść obiekt tym samym kodem,
+        // który wcześniej odpowiadał za podnoszenie.
+        try{ _g('takeitem&id=' + npcId, r => console.log('takeitem:', r)); }catch(_){ }
+        try{ __adiNpcTestInteract(npcId); }catch(_){ }
+
+        const stillThere = __adiFindNpcForTest(__adiNpcTestTask.needle);
+        if(!stillThere){
+          __adiNpcTestTask.active = false;
+          __adiSetNpcTestStatus('Doszedłem na kordy i podniosłem obiekt.');
+          return;
+        }
+
+        if((__adiNpcTestTask.clickTries|0) >= 10){
+          __adiNpcTestTask.active = false;
+          __adiSetNpcTestStatus('Doszedłem na kordy obiektu, ale nie udało się go podnieść po 10 próbach.', true);
+          return;
+        }
+
+        __adiSetNpcTestStatus('Stoję na kordach obiektu [' + (__adiNpcTestTask.targetX|0) + ',' + (__adiNpcTestTask.targetY|0) + '] i próbuję podnieść (próba ' + __adiNpcTestTask.clickTries + ').');
         return;
       }
 
