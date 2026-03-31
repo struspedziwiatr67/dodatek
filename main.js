@@ -1728,7 +1728,7 @@ function setTempTarget(val){
   function a_getWay(x,y){ return new AStar(map.col,map.x,map.y,{x:hero.x,y:hero.y},{x:x,y:y},g.npccol).anotherFindPath(); }
   function a_goTo(x,y){ let r=a_getWay(x,y); if(Array.isArray(r)) window.road=r; }
 
-  const __adiNpcTestTask = { active:false, needle:'', npcId:null, targetX:null, targetY:null, clickAt:0, clickTries:0, lastMoveAt:0 };
+  const __adiNpcTestTask = { active:false, needle:'', npcId:null, targetX:null, targetY:null, clickAt:0, clickTries:0, lastMoveAt:0, pickedOnce:false };
 
   function __adiNpcNeedleNorm(s){
     try{
@@ -1833,17 +1833,31 @@ function setTempTarget(val){
   function __adiTickNpcTestTask(){
     try{
       if(!__adiNpcTestTask.active) return;
-      const npc = __adiFindNpcForTest(__adiNpcTestTask.needle);
-      if(!npc){
-        __adiNpcTestTask.active = false;
-        __adiSetNpcTestStatus('Obiekt zniknął z mapy.', true);
-        return;
-      }
-      const npcId = npc.id || parseInt(String(npc.id || '').replace(/\D+/g,''),10) || Number(Object.keys(g.npc).find(k => g.npc[k] === npc) || 0);
-      __adiNpcTestTask.npcId = npcId;
 
-      // Tu nie traktujemy tego jako klasycznego NPC z blokowanym polem.
-      // Bot ma dojść dokładnie na te same kordy co obiekt/item.
+      const lockedId = Number(__adiNpcTestTask.npcId || 0);
+      let npc = null;
+
+      try{
+        if(lockedId && window.g && g.npc && g.npc[lockedId]) npc = g.npc[lockedId];
+      }catch(_){ }
+
+      if(!npc){
+        if(__adiNpcTestTask.pickedOnce){
+          __adiNpcTestTask.active = false;
+          __adiSetNpcTestStatus('Podniosłem jeden item i kończę task.');
+          return;
+        }
+        npc = __adiFindNpcForTest(__adiNpcTestTask.needle);
+        if(!npc){
+          __adiNpcTestTask.active = false;
+          __adiSetNpcTestStatus('Obiekt zniknął z mapy.', true);
+          return;
+        }
+        const foundId = npc.id || parseInt(String(npc.id || '').replace(/\D+/g,''),10) || Number(Object.keys(g.npc).find(k => g.npc[k] === npc) || 0);
+        __adiNpcTestTask.npcId = foundId;
+      }
+
+      const npcId = Number(__adiNpcTestTask.npcId || 0);
       __adiNpcTestTask.targetX = (npc.x|0);
       __adiNpcTestTask.targetY = (npc.y|0);
 
@@ -1852,15 +1866,15 @@ function setTempTarget(val){
         __adiNpcTestTask.clickAt = Date.now();
         __adiNpcTestTask.clickTries = (__adiNpcTestTask.clickTries|0) + 1;
 
-        // Po dojściu na dokładne kordy próbujemy podnieść obiekt tym samym kodem,
-        // który wcześniej odpowiadał za podnoszenie.
         try{ _g('takeitem&id=' + npcId, r => console.log('takeitem:', r)); }catch(_){ }
         try{ __adiNpcTestInteract(npcId); }catch(_){ }
 
-        const stillThere = __adiFindNpcForTest(__adiNpcTestTask.needle);
-        if(!stillThere){
+        __adiNpcTestTask.pickedOnce = true;
+
+        const stillSameItem = !!(window.g && g.npc && g.npc[npcId]);
+        if(!stillSameItem){
           __adiNpcTestTask.active = false;
-          __adiSetNpcTestStatus('Doszedłem na kordy i podniosłem obiekt.');
+          __adiSetNpcTestStatus('Podniosłem jeden item i kończę task.');
           return;
         }
 
@@ -1870,7 +1884,7 @@ function setTempTarget(val){
           return;
         }
 
-        __adiSetNpcTestStatus('Stoję na kordach obiektu [' + (__adiNpcTestTask.targetX|0) + ',' + (__adiNpcTestTask.targetY|0) + '] i próbuję podnieść (próba ' + __adiNpcTestTask.clickTries + ').');
+        __adiSetNpcTestStatus('Stoję na kordach obiektu [' + (__adiNpcTestTask.targetX|0) + ',' + (__adiNpcTestTask.targetY|0) + '] i próbuję podnieść TEN jeden item (próba ' + __adiNpcTestTask.clickTries + ').');
         return;
       }
 
