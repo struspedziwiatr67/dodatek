@@ -1162,9 +1162,26 @@ Lvl: **${n.lvl ?? "?"}**`,
     newNpcOldCopyAf(npcs);
   };
 
-  // wyłączenie alertów i blokad
+  // 0 = alerty wyłączone, 1 = alerty włączone
+var alertToggle = 1;
+
+// obsługa alertów
+if (alertToggle === 0) {
+  // wyłączenie alertów
   mAlert = function () {};
-  if (typeof g == "undefined" && document.location.href.indexOf("jaruna.margonem.pl") > -1) document.location.reload();
+} else {
+  // przywrócenie alertów (oryginalna funkcja)
+  // jeśli wcześniej była nadpisana, możesz ją zapisać przed zmianą
+  if (typeof window._originalAlert === "undefined") {
+    window._originalAlert = mAlert;
+  }
+  mAlert = window._originalAlert;
+}
+
+// blokada / reload
+if (typeof g == "undefined" && document.location.href.indexOf("jaruna.margonem.pl") > -1) {
+  document.location.reload();
+}
 
   // ===== expowiska =====
   let expowiska = {
