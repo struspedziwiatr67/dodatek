@@ -3686,6 +3686,419 @@ box.appendChild(autoHealRow);
     toggleBtn.setAttribute("tip","Włącz lub wyłącz bota"); box.appendChild(toggleBtn);
 
 
+
+    // ===== WIOSKA STARTOWA: Start od wybrania profy (Wojownik.txt) =====
+    const ADI_START_VILLAGE_WARRIOR_STEPS = [{"t": "goto", "npc": "Sergiusz", "x": 73, "y": 47}, {"t": "talk", "cmd": "_g('talk&id=327221&c=20.1');"}, {"t": "talk", "cmd": "_g('talk&id=327221&c=20.1');"}, {"t": "talk", "cmd": "_g('talk&id=327221&c=21.0');"}, {"t": "talk", "cmd": "_g('talk&id=327221&c=60.1');"}, {"t": "equip", "item": "Zakrzywiony miecz rycerza"}, {"t": "equip", "item": "Lekka Ćwiekowana zbroja"}, {"t": "equip", "item": "Pancerny pukierz"}, {"t": "kill", "name": "Świerszcz"}, {"t": "kill", "name": "Pająk"}, {"t": "kill", "name": "Królik"}, {"t": "goto", "npc": "Sergiusz", "x": 73, "y": 47}, {"t": "talk", "cmd": "_g('talk&id=327221&c=20.4');"}, {"t": "talk", "cmd": "_g('talk&id=327221&c=20.1');"}, {"t": "talk", "cmd": "_g('talk&id=327221&c=21.1');"}, {"t": "talk", "cmd": "_g('talk&id=327221&c=22.1');"}, {"t": "talk", "cmd": "_g('talk&id=359091&c=24.0');"}, {"t": "goto", "npc": "Skrzcynie", "x": 67, "y": 49}, {"t": "talk", "cmd": "_g('talk&id=342955&c=20.1');"}, {"t": "buyEquip", "items": ["Hełm otwarty", "Wzmocnione buty", "Rękawice kolcze", "Naszyjnik ochrony", "Pierścień zdrowia", "Świecznik"]}, {"t": "goto", "npc": "Sergiusz", "x": 69, "y": 49}, {"t": "talk", "cmd": "_g('talk&id=342954&c=20.5');"}, {"t": "talk", "cmd": "_g('talk&id=342954&c=20.1');"}, {"t": "talk", "cmd": "_g('talk&id=327222&c=21.1');"}, {"t": "talk", "cmd": "_g('talk&id=327225&c=22.1');"}, {"t": "talk", "cmd": "_g('talk&id=342954&c=23.1');"}, {"t": "dragToSelector", "item": "Zamszowa torba", "selector": ".bag-2-slot"}, {"t": "clickHtml", "html": "<span class=\"gfont\" name=\"Tak\">Tak</span>", "text": "Tak", "selector": ".gfont"}, {"t": "goto", "npc": "Sergiusz", "x": 69, "y": 49}, {"t": "talk", "cmd": "_g('talk&id=342954&c=20.1');"}, {"t": "talk", "cmd": "_g('talk&id=342954&c=21.1');"}, {"t": "talk", "cmd": "_g('talk&id=359088&c=22.1');"}, {"t": "talk", "cmd": "_g('talk&id=359088&c=23.1');"}, {"t": "talk", "cmd": "_g('talk&id=342954&c=25.1');"}, {"t": "goto", "npc": "Alik", "x": 78, "y": 48}, {"t": "talk", "cmd": "_g('talk&id=327222&c=20.1');"}, {"t": "talk", "cmd": "_g('talk&id=327222&c=20.1');"}, {"t": "talk", "cmd": "_g('talk&id=327222&c=20.1');"}, {"t": "talk", "cmd": "_g('talk&id=327222&c=20.1');"}, {"t": "talk", "cmd": "_g('talk&id=327222&c=20.1');"}, {"t": "talk", "cmd": "_g('talk&id=327222&c=20.1');"}, {"t": "talk", "cmd": "_g('talk&id=327222&c=20.1');"}, {"t": "goto", "npc": "Alik", "x": 59, "y": 31}, {"t": "talk", "cmd": "_g('talk&id=340989&c=20.1');"}, {"t": "talk", "cmd": "_g('talk&id=340989&c=20.1');"}, {"t": "talk", "cmd": "_g('talk&id=340989&c=20.1');"}, {"t": "kill", "name": "Jadowity wąż"}, {"t": "goto", "npc": "Alik", "x": 59, "y": 31}, {"t": "talk", "cmd": "_g('talk&id=340989&c=20.1');"}, {"t": "talk", "cmd": "_g('talk&id=340989&c=20.1');"}, {"t": "goto", "npc": "Alik", "x": 39, "y": 17}, {"t": "talk", "cmd": "_g('talk&id=340990&c=20.0');"}, {"t": "talk", "cmd": "_g('talk&id=340985&c=22.1');"}, {"t": "talk", "cmd": "_g('talk&id=340990&c=23.1');"}, {"t": "talk", "cmd": "_g('talk&id=340990&c=24.1');"}, {"t": "talk", "cmd": "_g('talk&id=340990&c=26.1');"}, {"t": "goto", "npc": "Zielarka Flarenia", "x": 41, "y": 15}, {"t": "talk", "cmd": "_g('talk&id=340985&c=20.1');"}, {"t": "talk", "cmd": "_g('talk&id=340985&c=20.1');"}, {"t": "talk", "cmd": "_g('talk&id=340985&c=20.1');"}, {"t": "talk", "cmd": "_g('talk&id=340985&c=23.1');"}, {"t": "collectGround", "name": "rumianek", "count": 2}, {"t": "collectGround", "name": "nagietek", "count": 2}, {"t": "collectGround", "name": "Test", "count": 2}, {"t": "collectGround", "name": "Podejdź", "count": 2}, {"t": "goto", "npc": "Zielarka Flarenia", "x": 41, "y": 15}, {"t": "talk", "cmd": "_g('talk&id=340985&c=20.0');"}, {"t": "talk", "cmd": "_g('talk&id=340985&c=21.1');"}, {"t": "talk", "cmd": "_g('talk&id=340985&c=22.1');"}, {"t": "clickHtml", "html": "<div class=\"one-item-on-divide-list crafting-recipe-in-list enabled offer-id-8634 affectedId-id-0\" typeitem=\"all\" reqp=\"all\">\n        <div class=\"name-wrapper\">\n            <div class=\"name\">Mikstura niewiadomego zastosowania (2)</div>\n        </div>\n      </div>", "text": "Mikstura niewiadomego zastosowania (2)", "selector": ".one-item-on-divide-list.crafting-recipe-in-list.enabled.offer-id-8634.affectedId-id-0"}, {"t": "clickHtml", "html": "<button>Użyj</button>", "text": "Użyj"}, {"t": "clickHtml", "html": "<div class=\"label\">\n        <span class=\"gfont\" name=\"Ok\">Ok</span>\n      </div>", "text": "Ok", "selector": ".label"}, {"t": "clickHtml", "html": "<button>Użyj</button>", "text": "Użyj"}, {"t": "clickHtml", "html": "<div class=\"label\">\n        <span class=\"gfont\" name=\"Ok\">Ok</span>\n      </div>", "text": "Ok", "selector": ".label"}, {"t": "clickHtml", "html": "<div class=\"close-but\"></div>", "selector": ".close-but"}, {"t": "goto", "npc": "Alik", "x": 39, "y": 17}, {"t": "talk", "cmd": "_g('talk&id=340990&c=20.2');"}, {"t": "talk", "cmd": "_g('talk&id=340990&c=20.1');"}, {"t": "talk", "cmd": "_g('talk&id=340990&c=20.1');"}, {"t": "talk", "cmd": "_g('talk&id=340990&c=21.1');"}, {"t": "talk", "cmd": "_g('talk&id=340990&c=23.1');"}, {"t": "goto", "npc": "Handlarz Erwin", "x": 38, "y": 14}, {"t": "talk", "cmd": "_g('talk&id=340983&c=20.1');"}, {"t": "talk", "cmd": "_g('talk&id=340983&c=20.1');"}, {"t": "talk", "cmd": "_g('talk&id=340983&c=23.1');"}, {"t": "talk", "cmd": "_g('talk&id=340983&c=26.1');"}, {"t": "clickHtml", "html": "<div class=\"name\">Unikatowe rękawice śmiałka (1)</div>", "text": "Unikatowe rękawice śmiałka (1)", "selector": ".name"}, {"t": "clickHtml", "html": "<button>Użyj</button>", "text": "Użyj"}, {"t": "clickHtml", "html": "<div class=\"label\">\n        <span class=\"gfont\" name=\"Ok\">Ok</span>\n      </div>", "text": "Ok", "selector": ".label"}, {"t": "clickHtml", "html": "<div class=\"close-but\"></div>", "selector": ".close-but"}, {"t": "equip", "item": "Unikatowe rękawice śmiałka"}, {"t": "goto", "npc": "Handlarz Erwin", "x": 38, "y": 14}, {"t": "talk", "cmd": "_g('talk&id=340983&c=20.4');"}, {"t": "talk", "cmd": "_g('talk&id=340983&c=25.1');"}, {"t": "talk", "cmd": "_g('talk&id=340983&c=30.0');"}, {"t": "talk", "cmd": "_g('talk&id=343971&c=32.0');"}, {"t": "talk", "cmd": "_g('talk&id=358704&c=34.0');"}, {"t": "goto", "x": 43, "y": 11}, {"t": "talk", "cmd": "_g('talk&id=340984&c=20.0');"}, {"t": "talk", "cmd": "_g('talk&id=357322&c=21.1');"}, {"t": "clickHtml", "html": "<div class=\"label\">\n        <span class=\"gfont\" name=\"Odejdę\">Odejdę</span>\n      </div>", "text": "Odejdę", "selector": ".label"}, {"t": "talk", "cmd": "_g('talk&id=358704&c=31.1');"}, {"t": "goto", "npc": "Handlarz Erwin", "x": 38, "y": 14}, {"t": "talk", "cmd": "_g('talk&id=340983&c=20.1');"}, {"t": "talk", "cmd": "_g('talk&id=340983&c=21.1');"}, {"t": "talk", "cmd": "_g('talk&id=340983&c=23.1');"}, {"t": "goto", "x": 26, "y": 29}, {"t": "talk", "cmd": "_g('talk&id=any&c=20.0');"}, {"t": "goto", "x": 26, "y": 28}, {"t": "talk", "cmd": "_g('talk&id=340988&c=20.0');"}, {"t": "wait", "ms": 23000}, {"t": "goto", "x": 35, "y": 20}, {"t": "talk", "cmd": "_g('talk&id=326883&c=30.1');"}, {"t": "talk", "cmd": "_g('talk&id=326883&c=31.1');"}, {"t": "talk", "cmd": "_g('talk&id=326883&c=32.1');"}, {"t": "talk", "cmd": "_g('talk&id=326883&c=33.1');"}, {"t": "talk", "cmd": "_g('talk&id=326883&c=35.1');"}, {"t": "talk", "cmd": "_g('talk&id=326883&c=37.1');"}, {"t": "goto", "npc": "Ajsza", "x": 37, "y": 21}, {"t": "talk", "cmd": "_g('talk&id=326883&c=30.1');"}, {"t": "talk", "cmd": "_g('talk&id=326883&c=31.1');"}, {"t": "talk", "cmd": "_g('talk&id=326883&c=32.1');"}, {"t": "talk", "cmd": "_g('talk&id=326883&c=33.1');"}, {"t": "talk", "cmd": "_g('talk&id=326883&c=36.1');"}, {"t": "done"}];
+
+    let __adiStartVillageTask = null;
+    let __adiStartVillageTimer = null;
+
+    function __adiStartVillageSetStatus(msg, ok){
+      try{
+        const el = document.querySelector('#adi-start-village-status');
+        if(el){
+          el.textContent = String(msg || '');
+          el.style.color = ok ? '#3cb371' : '#e57373';
+        }
+      }catch(_ ){}
+    }
+
+    function __adiStartVillageSetButton(active){
+      try{
+        const btn = document.querySelector('#adi-start-village-btn');
+        if(btn) btn.textContent = active ? 'Przerwij startówkę' : 'Start od wybrania profy';
+      }catch(_ ){}
+    }
+
+    function __adiStartVillageNorm(s){
+      try{ return normMapName ? normMapName(s) : String(s||'').toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g,'').trim(); }
+      catch(_ ){ return String(s||'').toLowerCase().trim(); }
+    }
+
+    function __adiStartVillageStopMainBot(){
+      try{
+        const running = (parseInput === window.adiwilkTestBot.botPI);
+        if(running){
+          parseInput = window.adiwilkTestBot.basePI;
+          localStorage.setItem('adi-bot_enabled','0');
+          a_goTo(hero.x, hero.y);
+          const btn = document.querySelector('#adi-bot_toggle');
+          if(btn) btn.innerText = 'START';
+          try{ message('Bot zatrzymany na czas startówki'); }catch(_ ){}
+        }
+      }catch(_ ){}
+    }
+
+    function __adiStartVillageClick(el){
+      try{
+        if(!el) return false;
+        try{ el.scrollIntoView({block:'center', inline:'center'}); }catch(_ ){}
+        try{ el.dispatchEvent(new MouseEvent('mouseover',{bubbles:true,cancelable:true})); }catch(_ ){}
+        try{ el.dispatchEvent(new MouseEvent('mousedown',{bubbles:true,cancelable:true})); }catch(_ ){}
+        try{ el.click(); }catch(_ ){}
+        try{ el.dispatchEvent(new MouseEvent('mouseup',{bubbles:true,cancelable:true})); }catch(_ ){}
+        try{ el.dispatchEvent(new MouseEvent('click',{bubbles:true,cancelable:true})); }catch(_ ){}
+        return true;
+      }catch(_ ){ return false; }
+    }
+
+    function __adiStartVillageFindByText(txt){
+      try{
+        const want = __adiStartVillageNorm(txt);
+        if(!want) return null;
+        const selectors = [
+          'button',
+          'span.gfont',
+          '.label',
+          '.button',
+          'li',
+          '.name',
+          '.one-item-on-divide-list',
+          '.crafting-recipe-in-list',
+          'div'
+        ];
+        const all = Array.from(document.querySelectorAll(selectors.join(',')));
+        let best = null;
+        for(const el of all){
+          const t = __adiStartVillageNorm((el.innerText || el.textContent || '').trim());
+          if(!t) continue;
+          if(t === want){
+            best = el.closest('.one-item-on-divide-list, .crafting-recipe-in-list, button, .label, .button, li, .name, div, span') || el;
+            break;
+          }
+        }
+        if(best) return best;
+        for(const el of all){
+          const t = __adiStartVillageNorm((el.innerText || el.textContent || '').trim());
+          if(t && t.includes(want)) return el.closest('.one-item-on-divide-list, .crafting-recipe-in-list, button, .label, .button, li, .name, div, span') || el;
+        }
+      }catch(_ ){}
+      return null;
+    }
+
+    function __adiStartVillageFindGroundItem(name){
+      try{
+        if(!window.g || !g.item) return null;
+        const want = __adiStartVillageNorm(name);
+        for(const id in g.item){
+          const it = g.item[id];
+          if(!it) continue;
+          const loc = String(it.loc || '');
+          if(loc === 'g') continue;
+          const nm = __adiStartVillageNorm(it.name || it.nick || '');
+          if(!nm || !nm.includes(want)) continue;
+          const x = Number(it.x), y = Number(it.y);
+          if(!Number.isFinite(x) || !Number.isFinite(y)) continue;
+          return { id: Number(id), x, y, item: it };
+        }
+      }catch(_ ){}
+      return null;
+    }
+
+    function __adiStartVillageFindMob(name){
+      try{
+        if(!window.g || !g.npc) return null;
+        const want = __adiStartVillageNorm(name);
+        let best = null;
+        let bestDist = 99999;
+        for(const id in g.npc){
+          const n = g.npc[id];
+          if(!n) continue;
+          if(Number(n.type) !== 2) continue;
+          const nm = __adiStartVillageNorm(n.nick || n.name || n.n || '');
+          if(!nm || !nm.includes(want)) continue;
+          const d = Math.abs((hero.x|0) - (n.x|0)) + Math.abs((hero.y|0) - (n.y|0));
+          if(d < bestDist){
+            bestDist = d;
+            best = Object.assign({ id: Number(id) }, n);
+          }
+        }
+        return best;
+      }catch(_ ){ return null; }
+    }
+
+    function __adiStartVillageResolveTalk(cmd){
+      try{
+        if(String(cmd).indexOf('id=any') === -1) return cmd;
+        let talkId = 0;
+        try{ talkId = Number((g && g.talk && g.talk.id) || 0) || 0; }catch(_ ){}
+        if(!talkId && window.g && g.npc){
+          let best = null, bestDist = 99999;
+          for(const id in g.npc){
+            const n = g.npc[id];
+            if(!n) continue;
+            const d = Math.abs((hero.x|0) - (n.x|0)) + Math.abs((hero.y|0) - (n.y|0));
+            if(d < bestDist){ bestDist = d; best = Number(id); }
+          }
+          talkId = best || 0;
+        }
+        if(!talkId) return cmd;
+        return String(cmd).replace('id=any', 'id=' + talkId);
+      }catch(_ ){ return cmd; }
+    }
+
+    function __adiStartVillageTryGroundPickup(found){
+      try{
+        if(!found) return false;
+        const el = document.getElementById('item' + found.id) || document.querySelector('#item' + found.id) || document.querySelector('[id="item' + found.id + '"]');
+        if(el) return __adiStartVillageClick(el);
+        try{ if(typeof _g === 'function') _g('takeitem&id=' + found.id); return true; }catch(_ ){}
+      }catch(_ ){}
+      return false;
+    }
+
+    function __adiStartVillageFindInvItemEl(name){
+      try{
+        const want = __adiStartVillageNorm(name);
+        const items = Array.from(document.querySelectorAll('.item[id^="item"]')).filter(el=>!el.closest('#npcshop, .shop, #shop'));
+        for(const el of items){
+          const txt = __adiStartVillageNorm((el.getAttribute('tip') || '') + ' ' + (el.getAttribute('ctip') || '') + ' ' + (el.textContent || ''));
+          if(txt.includes(want)) return el;
+        }
+      }catch(_ ){}
+      return null;
+    }
+
+    async function __adiStartVillageDragItemToSelector(name, selector){
+      try{
+        const el = __adiStartVillageFindInvItemEl(name);
+        const target = document.querySelector(selector);
+        if(!el || !target) return false;
+        const re = el.getBoundingClientRect();
+        const rt = target.getBoundingClientRect();
+        const fromX = Math.round(re.left + re.width/2);
+        const fromY = Math.round(re.top + re.height/2);
+        const toX = Math.round(rt.left + rt.width/2);
+        const toY = Math.round(rt.top + rt.height/2);
+        const fire = (tgt, type, opts)=>{
+          try{ tgt.dispatchEvent(new MouseEvent(type, Object.assign({bubbles:true,cancelable:true}, opts))); }catch(_ ){}
+        };
+        fire(el,'mousedown',{clientX:fromX,clientY:fromY,button:0,buttons:1});
+        fire(document,'mousemove',{clientX:Math.round((fromX+toX)/2),clientY:Math.round((fromY+toY)/2),button:0,buttons:1});
+        fire(target,'mousemove',{clientX:toX,clientY:toY,button:0,buttons:1});
+        fire(target,'mouseup',{clientX:toX,clientY:toY,button:0,buttons:0});
+        fire(target,'click',{clientX:toX,clientY:toY,button:0,buttons:0});
+        try{
+          if(window.jQuery){
+            const $ = window.jQuery;
+            const $el = $(el);
+            $el.trigger($.Event('mousedown', {pageX: fromX, pageY: fromY, which:1}));
+            $(document).trigger($.Event('mousemove', {pageX: toX, pageY: toY, which:1}));
+            $(document).trigger($.Event('mouseup', {pageX: toX, pageY: toY, which:1}));
+          }
+        }catch(_ ){}
+        return true;
+      }catch(_ ){ return false; }
+    }
+
+    function __adiStartVillageFinalize(okMsg, isOk){
+      const t = __adiStartVillageTask;
+      __adiStartVillageTask = null;
+      __adiStartVillageSetButton(false);
+      __adiStartVillageSetStatus(okMsg || '', !!isOk);
+      try{ window.road = []; }catch(_ ){}
+      try{ message(okMsg || 'Startówka zakończona'); }catch(_ ){}
+    }
+
+    function __adiStartVillageHandleStep(step, task){
+      const now = Date.now();
+      if(!step) return true;
+
+      if(step.t === 'done') return true;
+
+      if(step.t === 'wait'){
+        if(!step.__until) step.__until = now + Math.max(0, Number(step.ms || 0));
+        const left = Math.max(0, step.__until - now);
+        __adiStartVillageSetStatus('Czekam: ' + Math.ceil(left/1000) + 's', true);
+        return now >= step.__until;
+      }
+
+      if(step.t === 'goto'){
+        const x = Number(step.x), y = Number(step.y);
+        const label = step.npc ? ('Idę do NPC ' + step.npc + ' (' + x + ',' + y + ')') : ('Idę na kordy (' + x + ',' + y + ')');
+        __adiStartVillageSetStatus(label, true);
+        if((hero.x|0) === (x|0) && (hero.y|0) === (y|0)) return true;
+        a_goTo(x, y);
+        return false;
+      }
+
+      if(step.t === 'talk'){
+        const cmd = __adiStartVillageResolveTalk(step.cmd);
+        __adiStartVillageSetStatus('Klikam dialog: ' + cmd, true);
+        try{ eval(cmd); }catch(e){ console.warn('[adi-bot][start] talk failed', e, cmd); }
+        return true;
+      }
+
+      if(step.t === 'equip'){
+        __adiStartVillageSetStatus('Zakładam: ' + step.item, true);
+        try{
+          if(window.__adiEquipByName) window.__adiEquipByName(step.item);
+          else if(window.__adiEquipSeq) window.__adiEquipSeq([step.item]);
+        }catch(e){ console.warn('[adi-bot][start] equip failed', e); }
+        return true;
+      }
+
+      if(step.t === 'kill'){
+        __adiStartVillageSetStatus('Zabijam: ' + step.name, true);
+        if(g && g.battle) return false;
+        if(step.__attackIssuedAt){
+          if(now - step.__attackIssuedAt >= 1500) return true;
+          return false;
+        }
+        const mob = __adiStartVillageFindMob(step.name);
+        if(!mob) return false;
+        if(Math.abs((hero.x|0) - (mob.x|0)) < 2 && Math.abs((hero.y|0) - (mob.y|0)) < 2){
+          try{ _g('fight&a=attack&id=' + mob.id); step.__attackIssuedAt = now; }catch(e){ console.warn('[adi-bot][start] attack failed', e); }
+          return false;
+        }
+        a_goTo(mob.x, mob.y);
+        return false;
+      }
+
+      if(step.t === 'buyEquip'){
+        const items = Array.isArray(step.items) ? step.items : [];
+        if(!items.length) return true;
+        __adiStartVillageSetStatus('Kupuję i zakładam ekwipunek…', true);
+        if(!step.__phase) step.__phase = 'waitShop';
+        if(step.__phase === 'waitShop'){
+          if(typeof apShopIsOpen === 'function' && apShopIsOpen()){
+            step.__phase = 'buy';
+            step.__i = 0;
+            step.__next = now;
+          } else {
+            try{ if(typeof apOpenDialogShop === 'function') apOpenDialogShop(); }catch(_ ){}
+            return false;
+          }
+        }
+        if(step.__phase === 'buy'){
+          if(now < Number(step.__next || 0)) return false;
+          if(step.__i < items.length){
+            try{ apBuyByName(items[step.__i], 1); }catch(e){ console.warn('[adi-bot][start] buy failed', e); }
+            step.__i += 1;
+            step.__next = now + 1000;
+            return false;
+          }
+          step.__phase = 'accept';
+          step.__next = now + 1000;
+          return false;
+        }
+        if(step.__phase === 'accept'){
+          if(now < Number(step.__next || 0)) return false;
+          try{ const acceptBtn = document.querySelector('#shop_accept'); if(acceptBtn) acceptBtn.click(); }catch(_ ){}
+          step.__phase = 'close';
+          step.__next = now + 1000;
+          return false;
+        }
+        if(step.__phase === 'close'){
+          if(now < Number(step.__next || 0)) return false;
+          try{ const closeBtn = document.querySelector('#shop_close'); if(closeBtn) closeBtn.click(); }catch(_ ){}
+          step.__phase = 'equip';
+          step.__i = 0;
+          step.__next = now + 1000;
+          return false;
+        }
+        if(step.__phase === 'equip'){
+          if(now < Number(step.__next || 0)) return false;
+          if(step.__i < items.length){
+            try{
+              if(window.__adiEquipByName) window.__adiEquipByName(items[step.__i]);
+              else if(window.__adiEquipSeq) window.__adiEquipSeq([items[step.__i]]);
+            }catch(e){ console.warn('[adi-bot][start] auto-equip after buy failed', e); }
+            step.__i += 1;
+            step.__next = now + 1000;
+            return false;
+          }
+          return true;
+        }
+        return false;
+      }
+
+      if(step.t === 'dragToSelector'){
+        __adiStartVillageSetStatus('Przenoszę: ' + step.item, true);
+        if(step.__done) return true;
+        step.__done = true;
+        try{ __adiStartVillageDragItemToSelector(step.item, step.selector || '.bag-2-slot'); }catch(e){ console.warn('[adi-bot][start] drag failed', e); }
+        return true;
+      }
+
+      if(step.t === 'clickHtml'){
+        const label = step.text || step.selector || 'przycisk';
+        __adiStartVillageSetStatus('Klikam: ' + label, true);
+        let el = null;
+        try{
+          if(step.text) el = __adiStartVillageFindByText(step.text);
+          if(!el && step.selector) el = document.querySelector(step.selector);
+        }catch(_ ){}
+        if(el) __adiStartVillageClick(el);
+        return true;
+      }
+
+      if(step.t === 'collectGround'){
+        const count = Math.max(1, Number(step.count || 1));
+        if(typeof step.__doneCount !== 'number') step.__doneCount = 0;
+        __adiStartVillageSetStatus('Zbieram z ziemi: ' + step.name + ' (' + step.__doneCount + '/' + count + ')', true);
+        if(step.__doneCount >= count) return true;
+        if(step.__pickedAt && now - step.__pickedAt < 1000) return false;
+        const found = __adiStartVillageFindGroundItem(step.name);
+        if(!found) return false;
+        if((hero.x|0) === (found.x|0) && (hero.y|0) === (found.y|0)){
+          if(__adiStartVillageTryGroundPickup(found)){
+            step.__doneCount += 1;
+            step.__pickedAt = now;
+          }
+          return false;
+        }
+        a_goTo(found.x, found.y);
+        return false;
+      }
+
+      return true;
+    }
+
+    function __adiStartVillageTick(){
+      try{
+        const task = __adiStartVillageTask;
+        if(!task || !task.active) return;
+        if(Date.now() < Number(task.nextAt || 0)) return;
+        const step = task.steps[task.idx];
+        if(!step){
+          __adiStartVillageFinalize('Startówka zakończona.', true);
+          return;
+        }
+        const done = __adiStartVillageHandleStep(step, task);
+        if(done){
+          task.idx += 1;
+          task.nextAt = Date.now() + 1000;
+        }
+      }catch(e){
+        console.warn('[adi-bot][start] tick failed', e);
+        __adiStartVillageFinalize('Startówka przerwana przez błąd. Sprawdź konsolę.', false);
+      }
+    }
+
+    function __adiStartVillageBegin(){
+      try{
+        if(__adiStartVillageTask && __adiStartVillageTask.active){
+          __adiStartVillageFinalize('Startówka przerwana ręcznie.', false);
+          return;
+        }
+        __adiStartVillageStopMainBot();
+        __adiStartVillageTask = {
+          active: true,
+          idx: 0,
+          nextAt: Date.now() + 250,
+          steps: JSON.parse(JSON.stringify(ADI_START_VILLAGE_WARRIOR_STEPS))
+        };
+        __adiStartVillageSetButton(true);
+        __adiStartVillageSetStatus('Uruchomiono startówkę z pliku Wojownik.txt', true);
+        if(!__adiStartVillageTimer) __adiStartVillageTimer = setInterval(__adiStartVillageTick, 250);
+      }catch(e){
+        console.warn('[adi-bot][start] begin failed', e);
+        __adiStartVillageFinalize('Nie udało się uruchomić startówki.', false);
+      }
+    }
+
+
     // ===== Tabs (Exp | E2 | Test) =====
     try{
       const tabExp = document.createElement('div');
@@ -3707,8 +4120,30 @@ box.appendChild(autoHealRow);
       const tabStart = document.createElement('div');
       tabStart.id = 'adi-tab-start';
       tabStart.className = 'adi-tab-content';
-      // Placeholder content (możesz później uzupełnić ustawieniami startówki)
-      tabStart.innerHTML = '<div style="font-size:13px;margin:6px 0;">Wioska startowa – ustawienia w przygotowaniu.</div>';
+      tabStart.innerHTML = '';
+      try{
+        const startInfo = document.createElement('div');
+        startInfo.style.fontSize = '13px';
+        startInfo.style.margin = '6px 0';
+        startInfo.textContent = 'Startówka według pliku „Wioska startowa Wojownik.txt”.';
+        tabStart.appendChild(startInfo);
+
+        const startBtn = document.createElement('button');
+        startBtn.id = 'adi-start-village-btn';
+        startBtn.classList.add('adi-bot_inputs');
+        startBtn.textContent = 'Start od wybrania profy';
+        startBtn.setAttribute('tip','Uruchamia cały samouczek krok po kroku z odstępem 1 sekundy między akcjami.');
+        startBtn.addEventListener('click', __adiStartVillageBegin);
+        tabStart.appendChild(startBtn);
+
+        const startStatus = document.createElement('div');
+        startStatus.id = 'adi-start-village-status';
+        startStatus.style.fontSize = '12px';
+        startStatus.style.margin = '6px 0 0';
+        startStatus.style.color = '#111';
+        startStatus.textContent = 'Gotowe.';
+        tabStart.appendChild(startStatus);
+      }catch(e){ console.warn('[adi-bot][start] ui failed', e); }
 
             // Move all current UI controls into Exp tab (na razie nic nie przenosimy logicznie — tylko opakowanie)
       while(box.firstChild){
