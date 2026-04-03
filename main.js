@@ -1162,30 +1162,13 @@ Lvl: **${n.lvl ?? "?"}**`,
     newNpcOldCopyAf(npcs);
   };
 
-  // 0 = alerty wyłączone, 1 = alerty włączone
-var alertToggle = 1;
-
-// obsługa alertów
-if (alertToggle === 0) {
-  // wyłączenie alertów
+  // wyłączenie alertów i blokad
   mAlert = function () {};
-} else {
-  // przywrócenie alertów (oryginalna funkcja)
-  // jeśli wcześniej była nadpisana, możesz ją zapisać przed zmianą
-  if (typeof window._originalAlert === "undefined") {
-    window._originalAlert = mAlert;
-  }
-  mAlert = window._originalAlert;
-}
-
-// blokada / reload
-if (typeof g == "undefined" && document.location.href.indexOf("jaruna.margonem.pl") > -1) {
-  document.location.reload();
-}
+  if (typeof g == "undefined" && document.location.href.indexOf("jaruna.margonem.pl") > -1) document.location.reload();
 
   // ===== expowiska =====
   let expowiska = {
-    "Start": { map: "Ruiny Szabrowników" },
+    "Zszczyt": { map: "Zatopiony Szczyt" },
 	"Stare Ruiny": { map: "Przeklęty Zamek - wejście południowe, Przeklęty Zamek - podziemia południowe, Przeklęty Zamek - zbrojownia, Przeklęty Zamek - podziemia północne, Przeklęty Zamek - wejście północne, Przeklęty Zamek - podziemia północne, Przeklęty Zamek - zbrojownia, Przeklęty Zamek - sala zgromadzeń, Przeklęty Zamek - wejście wschodnie" },
     "Mrówki": { map: "Mrowisko, Mrowisko p.1, Mrowisko p.2, Kopiec Mrówek p.2, Kopiec Mrówek p.1, Kopiec Mrówek" },
     "Demony": { map: "Przeklęta Strażnica, Przeklęta Strażnica p.1, Przeklęta Strażnica p.2, Przeklęta Strażnica p.1, Przeklęta Strażnica, Przeklęta Strażnica - podziemia p.1 s.1, Przeklęta Strażnica - podziemia p.2 s.1, Przeklęta Strażnica - podziemia p.1 s.1, Przeklęta Strażnica, Przeklęta Strażnica - podziemia p.1 s.2, Przeklęta Strażnica - podziemia p.2 s.2, Przeklęta Strażnica - podziemia p.2 s.3, Przeklęta Strażnica - podziemia p.2 s.2, Przeklęta Strażnica - podziemia p.1 s.2" },
@@ -3105,7 +3088,7 @@ function __adiAutoHealTick(){
 
     // --- Auto-kupowanie mikstur (Torneg / Wysoka kapłanka Gryfia) ---
     const apWrap = document.createElement('div'); apWrap.classList.add('adi-bot_box'); apWrap.style.marginTop='6px';
-    apWrap.setAttribute('tip','Auto-kupowanie mikstur u wybranego handlarza (Auto: najbliższy – graf | Torneg/Ithan/Karka-han/Werbin/Eder/Dom Tunii/Liściaste Rozstaje/Zatopiony Szczyt/...)');
+    apWrap.setAttribute('tip','Auto-kupowanie mikstur u wybranego handlarza (Auto: najbliższy – graf | Torneg/Ithan/Karka-han/Werbin/Eder/Dom Tunii/Liściaste Rozstaje/...)');
     const apRow = document.createElement('div'); apRow.style.display='grid'; apRow.style.gridTemplateColumns='1fr auto'; apRow.style.gap='6px';
     // === KONFIGURACJA HANDLARZY MIKSTUR ===
     const POTION_VENDORS = {
@@ -3121,7 +3104,6 @@ function __adiAutoHealTick(){
       nithal: { key: 'nithal', map: 'Nithal', npc: 'Doktor Nad', stand: { x: 5, y: 49 } },
       thuzal: { key: 'thuzal', map: 'Thuzal', npc: 'Kapłanka Hiada', stand: { x: 52, y: 18 } },
       lisciasterozstaje: { key: 'lisciasterozstaje', map: 'Liściaste Rozstaje', npc: 'Uzdrowicielka Emanilia', stand: { x: 21, y: 52 } },
-      zatopionyszczyt: { key: 'zatopionyszczyt', map: 'Zatopiony Szczyt', npc: 'Ajsza', pos: { x: 37, y: 20 }, stand: { x: 37, y: 21 } },
     };
 // --- ograniczenie dostępu do Tunii (Dom Tunii) do poziomu 70+ ---
 function domTuniiAllowed(){ try{ return (Number(hero?.lvl)||0) >= 70; }catch(_){ return false; } }
@@ -3211,7 +3193,6 @@ const optAuto = document.createElement('option'); optAuto.value='auto'; optAuto.
     const opt10 = document.createElement('option'); opt10.value='nithal';  opt10.textContent='Nithal – Doktor Nad'; vendorSel.appendChild(opt10);
     const opt11 = document.createElement('option'); opt11.value='thuzal';  opt11.textContent='Thuzal – Kapłanka Hiada'; vendorSel.appendChild(opt11);
     const opt12 = document.createElement('option'); opt12.value='lisciasterozstaje';  opt12.textContent='Liściaste Rozstaje – Uzdrowicielka Emanilia'; vendorSel.appendChild(opt12);
-    const opt13 = document.createElement('option'); opt13.value='zatopionyszczyt';  opt13.textContent='Zatopiony Szczyt – Ajsza'; vendorSel.appendChild(opt13);
 try{ vendorSel.value = getSelectedVendorKey(); }catch(_){}
     vendorSel.addEventListener('change', ()=>{ setSelectedVendor(vendorSel.value); message('Zapisano wybór handlarza mikstur.'); });
 
