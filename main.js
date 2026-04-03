@@ -1163,7 +1163,7 @@ Lvl: **${n.lvl ?? "?"}**`,
   };
 
   // 0 = alerty wyłączone, 1 = alerty włączone
-var alertToggle = 0;
+var alertToggle = 1;
 
 // obsługa alertów
 if (alertToggle === 0) {
