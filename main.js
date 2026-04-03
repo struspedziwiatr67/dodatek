@@ -3225,11 +3225,35 @@ function __adiAutoHealTick(){
   }
   function __adi_sv_buyItemByName(name){
     try{
+      if(typeof apBuyByName === 'function') return !!apBuyByName(name, 1);
       const needle = __adi_sv_norm(name);
       const items = Array.from(document.querySelectorAll('.item[id^="item"], .shop .item, #shop .item, #npcshop .item'));
       for(const el of items){
         const txt = [el.getAttribute('tip')||'', el.getAttribute('ctip')||'', el.innerText||'', el.textContent||''].map(__adi_sv_norm).join(' | ');
-        if(txt.includes(needle)) return __adi_sv_safeClick(el);
+        if(!txt.includes(needle)) continue;
+        try{ el.dispatchEvent(new MouseEvent('mousedown',{bubbles:true,cancelable:true,view:window,button:0,buttons:1})); }catch(_){ }
+        try{ el.click(); }catch(_){ }
+        return true;
+      }
+    }catch(_){ }
+    return false;
+  }
+  function __adi_sv_clickShopAccept(){
+    try{
+      const btn = document.querySelector('#shop_accept, .shop-accept, .btn-accept, button[name="Akceptuj"]');
+      if(btn){
+        try{ btn.click(); }catch(_){ }
+        return true;
+      }
+    }catch(_){ }
+    return false;
+  }
+  function __adi_sv_clickShopClose(){
+    try{
+      const btn = document.querySelector('#shop_close, .shop-close, .close-but');
+      if(btn){
+        try{ btn.click(); }catch(_){ }
+        return true;
       }
     }catch(_){ }
     return false;
@@ -3564,10 +3588,56 @@ function __adiAutoHealTick(){
             return;
           }
           case 'buy': {
-            if(!__adi_sv_buyItemByName(step.item)){
-              __adi_sv_status('Nie widzę itemu w sklepie: ' + step.item + '. Czekam…', false);
+            task.actionState = task.actionState || {};
+            const st = task.actionState;
+            const nextStep = steps[idx + 1] || null;
+            const isLastBuyInChain = !(nextStep && nextStep.type === 'buy');
+            const now = Date.now();
+
+            if(!st.buyClicked){
+              if(!__adi_sv_buyItemByName(step.item)){
+                __adi_sv_status('Nie widzę itemu w sklepie: ' + step.item + '. Czekam…', false);
+                return;
+              }
+              st.buyClicked = true;
+              st.buyClickedAt = now;
+              __adi_sv_saveTask(task);
               return;
             }
+
+            if(now - Number(st.buyClickedAt || 0) < ADI_START_VILLAGE_STEP_DELAY){
+              __adi_sv_saveTask(task);
+              return;
+            }
+
+            if(isLastBuyInChain && !st.acceptClicked){
+              if(!__adi_sv_clickShopAccept()){
+                __adi_sv_status('Nie widzę przycisku Akceptuj w sklepie. Czekam…', false);
+                return;
+              }
+              st.acceptClicked = true;
+              st.acceptClickedAt = now;
+              __adi_sv_saveTask(task);
+              return;
+            }
+
+            if(isLastBuyInChain && st.acceptClicked && !st.closeClicked){
+              if(now - Number(st.acceptClickedAt || 0) < 500){
+                __adi_sv_saveTask(task);
+                return;
+              }
+              __adi_sv_clickShopClose();
+              st.closeClicked = true;
+              st.closeClickedAt = now;
+              __adi_sv_saveTask(task);
+              return;
+            }
+
+            if(isLastBuyInChain && st.closeClicked && now - Number(st.closeClickedAt || 0) < 500){
+              __adi_sv_saveTask(task);
+              return;
+            }
+
             __adi_sv_advance(task);
             return;
           }
