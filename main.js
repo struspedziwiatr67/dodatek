@@ -3817,6 +3817,29 @@ box.appendChild(autoHealRow);
       }catch(_ ){ return null; }
     }
 
+    function __adiStartVillageFindNpc(name, x, y){
+      try{
+        if(!window.g || !g.npc) return null;
+        const want = __adiStartVillageNorm(name);
+        let best = null;
+        let bestDist = 99999;
+        for(const id in g.npc){
+          const n = g.npc[id];
+          if(!n) continue;
+          if(Number(n.type) === 2) continue;
+          const nm = __adiStartVillageNorm(n.nick || n.name || n.n || '');
+          if(!nm) continue;
+          if(want && !nm.includes(want)) continue;
+          const d = Math.abs(((Number.isFinite(x) ? x : hero.x)|0) - (n.x|0)) + Math.abs(((Number.isFinite(y) ? y : hero.y)|0) - (n.y|0));
+          if(d < bestDist){
+            bestDist = d;
+            best = Object.assign({ id: Number(id) }, n);
+          }
+        }
+        return best;
+      }catch(_ ){ return null; }
+    }
+
     function __adiStartVillageFindMobElement(id){
       try{
         const sid = String(id);
@@ -3965,10 +3988,37 @@ box.appendChild(autoHealRow);
       if(step.t === 'goto'){
         const x = Number(step.x), y = Number(step.y);
         const label = step.npc ? ('Idę do NPC ' + step.npc + ' (' + x + ',' + y + ')') : ('Idę na kordy (' + x + ',' + y + ')');
-        __adiStartVillageSetStatus(label, true);
-        if((hero.x|0) === (x|0) && (hero.y|0) === (y|0)) return true;
-        a_goTo(x, y);
-        return false;
+        if((hero.x|0) !== (x|0) || (hero.y|0) !== (y|0)){
+          step.__npcClickedAt = 0;
+          step.__npcClickTried = false;
+          __adiStartVillageSetStatus(label, true);
+          a_goTo(x, y);
+          return false;
+        }
+        if(step.npc){
+          if(!step.__npcClickedAt){
+            __adiStartVillageSetStatus('Klikam NPC ' + step.npc + ' i czekam 1s na otwarcie dialogu…', true);
+            if(!step.__npcClickTried){
+              step.__npcClickTried = true;
+              try{
+                const npc = __adiStartVillageFindNpc(step.npc, x, y);
+                if(npc){
+                  const el = document.getElementById('npc' + npc.id) || document.querySelector('#npc' + npc.id) || document.querySelector('[data-id="' + npc.id + '"]') || document.querySelector('[data-npc-id="' + npc.id + '"]');
+                  if(el) __adiStartVillageClick(el);
+                  else if(typeof _g === 'function') _g('talk&id=' + npc.id);
+                }
+              }catch(e){ console.warn('[adi-bot][start] npc pre-click failed', e); }
+            }
+            step.__npcClickedAt = now;
+            return false;
+          }
+          const left = 1000 - (now - Number(step.__npcClickedAt || 0));
+          if(left > 0){
+            __adiStartVillageSetStatus('Czekam po kliknięciu NPC ' + step.npc + ': ' + Math.ceil(left/1000) + 's', true);
+            return false;
+          }
+        }
+        return true;
       }
 
       if(step.t === 'talk'){
