@@ -3623,23 +3623,53 @@ function __adiAutoHealTick(){
             task.actionState = task.actionState || {};
             const st = task.actionState;
             const inBattle = !!(window.g && g.battle);
+            const now = Date.now();
 
-            // Jak już weszliśmy do walki w tym kroku, to po jej zakończeniu
-            // od razu przechodzimy dalej. Nie szukamy kolejnego moba o tej samej nazwie,
-            // bo w samouczku ma zabić dokładnie 1 sztukę i iść do następnego kroku.
-            if(inBattle){
-              st.inBattleSeen = true;
+            // W samouczku krok "zabij" ma zabić dokładnie 1 sztukę.
+            // Po wysłaniu ataku NIE szukamy kolejnego moba o tej samej nazwie,
+            // tylko czekamy aż: (a) walka się zacznie i skończy, albo
+            // (b) zaatakowany mob zniknie z mapy.
+            if(st.attackSent){
+              if(inBattle){
+                st.inBattleSeen = true;
+                __adi_sv_saveTask(task);
+                return;
+              }
+              if(st.inBattleSeen){
+                __adi_sv_advance(task);
+                return;
+              }
+
+              let targetStillExists = false;
+              try{
+                const curNpc = window.g && g.npc ? g.npc[st.targetId] : null;
+                targetStillExists = !!curNpc;
+              }catch(_){ }
+
+              if(!targetStillExists && st.targetId != null){
+                __adi_sv_advance(task);
+                return;
+              }
+
+              // jeśli atak został wysłany, ale nic się nie wydarzyło, ponów dopiero po dłuższej chwili
+              if(now - Number(st.attackSentAt || 0) < 2500){
+                __adi_sv_status('Czekam na zakończenie walki z: ' + step.mob, true);
+                __adi_sv_saveTask(task);
+                return;
+              }
+
+              // po timeoutcie czyścimy stan i próbujemy jeszcze raz na tym samym kroku
+              task.actionState = {};
               __adi_sv_saveTask(task);
-              return;
-            }
-            if(st.inBattleSeen){
-              __adi_sv_advance(task);
               return;
             }
 
             const mob = __adi_sv_getNearestMobByName(step.mob);
             if(!mob){ __adi_sv_status('Nie widzę moba: ' + step.mob + '. Czekam…', false); return; }
             if(Math.abs((hero?.x||0)-mob.x) < 2 && Math.abs((hero?.y||0)-mob.y) < 2){
+              st.targetId = mob.id;
+              st.attackSent = true;
+              st.attackSentAt = now;
               try{ safeAttack(mob.id); }catch(_){ try{ _g('fight&a=attack&id=' + mob.id); }catch(__){} }
               __adi_sv_saveTask(task);
               return;
