@@ -8491,16 +8491,17 @@ window.__adiAuctionStart = startAuction;
         info.style.margin = '6px 0';
         info.textContent = 'Start tutorialu z pliku „Wioska startowa Wojownik.txt”.';
 
-        const btn = document.createElement('button');
+        const btn = document.createElement('div');
         btn.id = 'adi-start-prof-btn';
-        btn.className = 'adi-bot_inputs';
+        btn.className = 'adi-start-prof-ui-btn';
         btn.textContent = 'Start od wybrania profy';
-        btn.style.fontWeight = 'bold';
+        btn.style.cssText = 'box-sizing:content-box;margin:0 auto 3px;padding:2px;cursor:pointer;border:2px solid lime;border-radius:5px;font:normal 16px/normal Comic Sans MS, Times, serif;color:#000;background:rgba(234,227,227,1);box-shadow:2px 2px 2px 0 rgba(0,0,0,0.2) inset;text-shadow:1px 1px 0 rgba(255,255,255,0.66);display:block;text-align:center;font-weight:bold;user-select:none;';
 
-        const stopBtn = document.createElement('button');
+        const stopBtn = document.createElement('div');
         stopBtn.id = 'adi-start-prof-stop';
-        stopBtn.className = 'adi-bot_inputs';
+        stopBtn.className = 'adi-start-prof-ui-btn';
         stopBtn.textContent = 'Przerwij task';
+        stopBtn.style.cssText = 'box-sizing:content-box;margin:0 auto 3px;padding:2px;cursor:pointer;border:2px solid #a33;border-radius:5px;font:normal 16px/normal Comic Sans MS, Times, serif;color:#000;background:rgba(234,227,227,1);box-shadow:2px 2px 2px 0 rgba(0,0,0,0.2) inset;text-shadow:1px 1px 0 rgba(255,255,255,0.66);display:block;text-align:center;user-select:none;';
 
         const st = document.createElement('div');
         st.id = 'adi-start-prof-status';
@@ -8509,16 +8510,6 @@ window.__adiAuctionStart = startAuction;
         st.style.textAlign = 'left';
         st.style.maxWidth = '280px';
         st.textContent = 'Gotowe.';
-
-        btn.addEventListener('click', (ev)=>{
-          try{ ev.preventDefault(); ev.stopPropagation(); }catch(_){ }
-          status('Kliknięto Start od wybrania profy...', true);
-          if(!window.__adiStartProfRunning) runTutorial();
-        });
-        stopBtn.addEventListener('click', (ev)=>{
-          try{ ev.preventDefault(); ev.stopPropagation(); }catch(_){ }
-          window.__adiStartProfAbort = true; status('Przerywam task...', false);
-        });
 
         tab.appendChild(info);
         tab.appendChild(btn);
@@ -8534,18 +8525,18 @@ window.__adiAuctionStart = startAuction;
     // Delegowane handlery — działają nawet jeśli UI zostanie przebudowane przez inne fragmenty skryptu.
     document.addEventListener('click', (ev)=>{
       try{
-        const startBtn = ev.target && ev.target.closest ? ev.target.closest('#adi-start-prof-btn') : null;
-        if(startBtn){
-          ev.preventDefault();
-          ev.stopPropagation();
+        const trg = ev.target && ev.target.closest ? ev.target.closest('#adi-start-prof-btn, #adi-start-prof-stop') : null;
+        if(!trg) return;
+        try{ ev.preventDefault(); }catch(_){ }
+        try{ ev.stopPropagation(); }catch(_){ }
+        try{ ev.stopImmediatePropagation(); }catch(_){ }
+
+        if(trg.id === 'adi-start-prof-btn'){
           status('Kliknięto Start od wybrania profy...', true);
           if(!window.__adiStartProfRunning) runTutorial();
           return;
         }
-        const stopBtn = ev.target && ev.target.closest ? ev.target.closest('#adi-start-prof-stop') : null;
-        if(stopBtn){
-          ev.preventDefault();
-          ev.stopPropagation();
+        if(trg.id === 'adi-start-prof-stop'){
           window.__adiStartProfAbort = true;
           status('Przerywam task...', false);
           return;
