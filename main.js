@@ -1162,13 +1162,30 @@ Lvl: **${n.lvl ?? "?"}**`,
     newNpcOldCopyAf(npcs);
   };
 
-  // wyłączenie alertów i blokad
+  // 0 = alerty wyłączone, 1 = alerty włączone
+var alertToggle = 1;
+
+// obsługa alertów
+if (alertToggle === 0) {
+  // wyłączenie alertów
   mAlert = function () {};
-  if (typeof g == "undefined" && document.location.href.indexOf("jaruna.margonem.pl") > -1) document.location.reload();
+} else {
+  // przywrócenie alertów (oryginalna funkcja)
+  // jeśli wcześniej była nadpisana, możesz ją zapisać przed zmianą
+  if (typeof window._originalAlert === "undefined") {
+    window._originalAlert = mAlert;
+  }
+  mAlert = window._originalAlert;
+}
+
+// blokada / reload
+if (typeof g == "undefined" && document.location.href.indexOf("jaruna.margonem.pl") > -1) {
+  document.location.reload();
+}
 
   // ===== expowiska =====
   let expowiska = {
-    "Zszczyt": { map: "Zatopiony Szczyt" },
+    "Start": { map: "Ruiny Szabrowników" },
 	"Stare Ruiny": { map: "Przeklęty Zamek - wejście południowe, Przeklęty Zamek - podziemia południowe, Przeklęty Zamek - zbrojownia, Przeklęty Zamek - podziemia północne, Przeklęty Zamek - wejście północne, Przeklęty Zamek - podziemia północne, Przeklęty Zamek - zbrojownia, Przeklęty Zamek - sala zgromadzeń, Przeklęty Zamek - wejście wschodnie" },
     "Mrówki": { map: "Mrowisko, Mrowisko p.1, Mrowisko p.2, Kopiec Mrówek p.2, Kopiec Mrówek p.1, Kopiec Mrówek" },
     "Demony": { map: "Przeklęta Strażnica, Przeklęta Strażnica p.1, Przeklęta Strażnica p.2, Przeklęta Strażnica p.1, Przeklęta Strażnica, Przeklęta Strażnica - podziemia p.1 s.1, Przeklęta Strażnica - podziemia p.2 s.1, Przeklęta Strażnica - podziemia p.1 s.1, Przeklęta Strażnica, Przeklęta Strażnica - podziemia p.1 s.2, Przeklęta Strażnica - podziemia p.2 s.2, Przeklęta Strażnica - podziemia p.2 s.3, Przeklęta Strażnica - podziemia p.2 s.2, Przeklęta Strażnica - podziemia p.1 s.2" },
@@ -1728,177 +1745,6 @@ function setTempTarget(val){
   function a_getWay(x,y){ return new AStar(map.col,map.x,map.y,{x:hero.x,y:hero.y},{x:x,y:y},g.npccol).anotherFindPath(); }
   function a_goTo(x,y){ let r=a_getWay(x,y); if(Array.isArray(r)) window.road=r; }
 
-  const __adiNpcTestTask = { active:false, needle:'', npcId:null, targetX:null, targetY:null, clickAt:0, clickTries:0, lastMoveAt:0, pickedOnce:false };
-
-  function __adiNpcNeedleNorm(s){
-    try{
-      return String(s||'').toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g,'').trim();
-    }catch(_){ return String(s||'').toLowerCase().trim(); }
-  }
-
-  function __adiSetNpcTestStatus(txt, isErr){
-    try{
-      const el = document.querySelector('#adi-bot_test_npc_status');
-      if(!el) return;
-      el.textContent = String(txt || '');
-      el.style.color = isErr ? '#8b0000' : '#111';
-    }catch(_){ }
-  }
-
-  function __adiFindNpcForTest(needle){
-    try{
-      const want = __adiNpcNeedleNorm(needle);
-      if(!want || !window.g || !g.npc) return null;
-      let best = null;
-      let bestDist = Infinity;
-      for(const id in g.npc){
-        const n = g.npc[id];
-        if(!n) continue;
-        const icon = __adiNpcNeedleNorm(n.icon || '');
-        const nick = __adiNpcNeedleNorm(n.nick || '');
-        const name = __adiNpcNeedleNorm(n.name || '');
-        if(!(icon.includes(want) || nick.includes(want) || name.includes(want))) continue;
-        const dist = Math.abs((hero?.x|0) - (n.x|0)) + Math.abs((hero?.y|0) - (n.y|0));
-        if(dist < bestDist){ bestDist = dist; best = n; }
-      }
-      return best;
-    }catch(_){ return null; }
-  }
-
-  function __adiPickNpcApproachTile(npc){
-    try{
-      // W zakładce Test te "NPC" mogą być w praktyce przedmiotami/obiektami leżącymi na ziemi.
-      // Dlatego idziemy na DOKŁADNIE te same kordy, bez wybierania pola obok.
-      if(!npc) return null;
-      return {x:(npc.x|0), y:(npc.y|0)};
-    }catch(_){ return null; }
-  }
-
-  function __adiNpcTestInteract(npcId){
-    try{
-      if(!npcId) return false;
-      try{ _g('talk&id=' + npcId, r => console.log('talk:', r)); }catch(_){ }
-      try{ _g('takeitem&id=' + npcId, r => console.log('takeitem:', r)); }catch(_){ }
-      try{
-        const el = document.querySelector('#npc' + npcId);
-        if(el){
-          try{ el.dispatchEvent(new MouseEvent('mousedown', { bubbles:true, cancelable:true, view:window })); }catch(_){ }
-          try{ el.dispatchEvent(new MouseEvent('mouseup',   { bubbles:true, cancelable:true, view:window })); }catch(_){ }
-          try{ el.dispatchEvent(new MouseEvent('click',     { bubbles:true, cancelable:true, view:window })); }catch(_){ }
-          try{ el.click(); }catch(_){ }
-        }
-      }catch(_){ }
-      return true;
-    }catch(_){ return false; }
-  }
-
-  function __adiStartNpcTestTask(needle){
-    try{
-      const raw = String(needle || '').trim();
-      if(!raw){
-        __adiNpcTestTask.active = false;
-        __adiSetNpcTestStatus('Wpisz nazwę NPC.', true);
-        return false;
-      }
-      const npc = __adiFindNpcForTest(raw);
-      if(!npc){
-        __adiNpcTestTask.active = false;
-        __adiSetNpcTestStatus('Nie znaleziono NPC na tej mapie: ' + raw, true);
-        return false;
-      }
-      const stand = __adiPickNpcApproachTile(npc);
-      if(!stand){
-        __adiNpcTestTask.active = false;
-        __adiSetNpcTestStatus('Nie udało się wyznaczyć kordów celu.', true);
-        return false;
-      }
-      __adiNpcTestTask.active = true;
-      __adiNpcTestTask.needle = raw;
-      __adiNpcTestTask.npcId = npc.id || parseInt(String(npc.id || '').replace(/\D+/g,''),10) || Number(Object.keys(g.npc).find(k => g.npc[k] === npc) || 0);
-      __adiNpcTestTask.targetX = stand.x|0;
-      __adiNpcTestTask.targetY = stand.y|0;
-      __adiNpcTestTask.clickAt = 0;
-      __adiNpcTestTask.clickTries = 0;
-      __adiNpcTestTask.lastMoveAt = Date.now();
-      a_goTo(__adiNpcTestTask.targetX, __adiNpcTestTask.targetY);
-      __adiSetNpcTestStatus('Idę dokładnie na kordy obiektu: ' + (npc.nick || npc.name || raw) + ' -> [' + (__adiNpcTestTask.targetX) + ',' + (__adiNpcTestTask.targetY) + ']');
-      return true;
-    }catch(e){
-      __adiNpcTestTask.active = false;
-      __adiSetNpcTestStatus('Błąd testu NPC.', true);
-      return false;
-    }
-  }
-
-  function __adiTickNpcTestTask(){
-    try{
-      if(!__adiNpcTestTask.active) return;
-
-      const lockedId = Number(__adiNpcTestTask.npcId || 0);
-      let npc = null;
-
-      try{
-        if(lockedId && window.g && g.npc && g.npc[lockedId]) npc = g.npc[lockedId];
-      }catch(_){ }
-
-      if(!npc){
-        if(__adiNpcTestTask.pickedOnce){
-          __adiNpcTestTask.active = false;
-          __adiSetNpcTestStatus('Podniosłem jeden item i kończę task.');
-          return;
-        }
-        npc = __adiFindNpcForTest(__adiNpcTestTask.needle);
-        if(!npc){
-          __adiNpcTestTask.active = false;
-          __adiSetNpcTestStatus('Obiekt zniknął z mapy.', true);
-          return;
-        }
-        const foundId = npc.id || parseInt(String(npc.id || '').replace(/\D+/g,''),10) || Number(Object.keys(g.npc).find(k => g.npc[k] === npc) || 0);
-        __adiNpcTestTask.npcId = foundId;
-      }
-
-      const npcId = Number(__adiNpcTestTask.npcId || 0);
-      __adiNpcTestTask.targetX = (npc.x|0);
-      __adiNpcTestTask.targetY = (npc.y|0);
-
-      if((hero.x|0) === (__adiNpcTestTask.targetX|0) && (hero.y|0) === (__adiNpcTestTask.targetY|0)){
-        if(Date.now() - (__adiNpcTestTask.clickAt || 0) < 350) return;
-        __adiNpcTestTask.clickAt = Date.now();
-        __adiNpcTestTask.clickTries = (__adiNpcTestTask.clickTries|0) + 1;
-
-        try{ _g('takeitem&id=' + npcId, r => console.log('takeitem:', r)); }catch(_){ }
-        try{ __adiNpcTestInteract(npcId); }catch(_){ }
-
-        __adiNpcTestTask.pickedOnce = true;
-
-        const stillSameItem = !!(window.g && g.npc && g.npc[npcId]);
-        if(!stillSameItem){
-          __adiNpcTestTask.active = false;
-          __adiSetNpcTestStatus('Podniosłem jeden item i kończę task.');
-          return;
-        }
-
-        if((__adiNpcTestTask.clickTries|0) >= 10){
-          __adiNpcTestTask.active = false;
-          __adiSetNpcTestStatus('Doszedłem na kordy obiektu, ale nie udało się go podnieść po 10 próbach.', true);
-          return;
-        }
-
-        __adiSetNpcTestStatus('Stoję na kordach obiektu [' + (__adiNpcTestTask.targetX|0) + ',' + (__adiNpcTestTask.targetY|0) + '] i próbuję podnieść TEN jeden item (próba ' + __adiNpcTestTask.clickTries + ').');
-        return;
-      }
-
-      if(Date.now() - (__adiNpcTestTask.lastMoveAt || 0) >= 350){
-        __adiNpcTestTask.lastMoveAt = Date.now();
-        a_goTo(__adiNpcTestTask.targetX, __adiNpcTestTask.targetY);
-        __adiSetNpcTestStatus('Idę dokładnie na kordy obiektu [' + (__adiNpcTestTask.targetX|0) + ',' + (__adiNpcTestTask.targetY|0) + '].');
-      }
-    }catch(e){
-      __adiNpcTestTask.active = false;
-      __adiSetNpcTestStatus('Przerwano test obiektu.', true);
-    }
-  }
-
   // ===== STAN NIEAKTYWNOŚCI: wykryj overlay i wykonaj 1 krok =====
   let __adiLastStasisBreakAt = 0;
   const ADI_STASIS_BREAK_COOLDOWN = 2500;
@@ -2276,8 +2122,9 @@ function setTempTarget(val){
       const nid = (n.id!=null) ? Number(n.id) : Number(i);
       if(__adiIsBlacklisted(nid)) continue;
       const wtOk = (typeof n.wt !== 'number') || (n.wt <= 20);
-      if(!((n.type==2||n.type==3) && wtOk && min!=null && max!=null &&
-           n.lvl<=max && n.lvl>=min && checkGrp(n.id) && (!__adiIsBlacklisted||!__adiIsBlacklisted(n.id)) && !globalArray.includes(n.id))) continue;
+      const tutorialIgnoreLvl = !!window.__adiTutorialIgnoreMobLvl;
+      const lvlOk = tutorialIgnoreLvl || (min!=null && max!=null && n.lvl<=max && n.lvl>=min);
+      if(!((n.type==2||n.type==3) && wtOk && lvlOk && checkGrp(n.id) && (!__adiIsBlacklisted||!__adiIsBlacklisted(n.id)) && !globalArray.includes(n.id))) continue;
 
       const cand = getVisibleMobScore(n);
       if(!cand) continue;
@@ -2448,6 +2295,20 @@ function setTempTarget(val){
 
 
       updateNpcLastSeen();
+
+      try{
+        const __svTask = __adi_sv_loadTask();
+        if(__svTask && __svTask.active){
+          try{ window.__adiTutorialIgnoreMobLvl = true; }catch(_){ }
+          $m_id = undefined;
+          clearTargetLock();
+          blokada = false;
+          blokada2 = false;
+          return ret;
+        }else{
+          try{ window.__adiTutorialIgnoreMobLvl = false; }catch(_){ }
+        }
+      }catch(_){ }
 
 // ===== PRIORITY: equipment task overrides exping =====
       try{
@@ -3205,6 +3066,764 @@ function __adiAutoHealTick(){
     return;
   };
 
+
+
+  // ===== START VILLAGE (tutorial from selected profession) =====
+  const ADI_START_VILLAGE_TASK_KEY = 'adi-bot_start_village_task';
+  const ADI_START_VILLAGE_PROF_KEY = 'adi-bot_start_village_prof';
+  const ADI_START_VILLAGE_STEP_DELAY = 1000;
+
+  function __adi_sv_now(){ return Date.now(); }
+  function __adi_sv_wait(task, ms){ task.waitUntil = __adi_sv_now() + Math.max(0, Number(ms)||0); }
+  function __adi_sv_norm(s){
+    try{ return String(s||'').toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g,'').replace(/\u00A0/g,' ').replace(/[^a-z0-9]+/g,' ').replace(/\s+/g,' ').trim(); }
+    catch(_){ return String(s||'').toLowerCase().trim(); }
+  }
+  function __adi_sv_saveTask(task){ try{ localStorage.setItem(ADI_START_VILLAGE_TASK_KEY, JSON.stringify(task||{})); }catch(_){ } }
+  function __adi_sv_loadTask(){
+    try{
+      const raw = localStorage.getItem(ADI_START_VILLAGE_TASK_KEY);
+      if(!raw) return null;
+      const t = JSON.parse(raw);
+      return (t && t.active) ? t : null;
+    }catch(_){ return null; }
+  }
+  function __adi_sv_clearTask(){ try{ localStorage.removeItem(ADI_START_VILLAGE_TASK_KEY); }catch(_){ } }
+  function __adi_sv_status(msg, ok){
+    try{
+      const el = document.querySelector('#adi-bot_start_status');
+      if(el){ el.textContent = String(msg||''); el.style.color = ok ? '#3cb371' : '#e57373'; }
+    }catch(_){ }
+  }
+  function __adi_sv_setRunningUi(running){
+    try{
+      const btn = document.querySelector('#adi-bot_start_selected_prof');
+      if(btn) btn.textContent = running ? 'Tutorial w toku…' : 'Start od wybrania profy';
+      if(btn) btn.disabled = !!running;
+      const stop = document.querySelector('#adi-bot_stop_start_task');
+      if(stop) stop.disabled = !running;
+    }catch(_){ }
+  }
+  function __adi_sv_finish(msg){
+    __adi_sv_clearTask();
+    __adi_sv_setRunningUi(false);
+    __adi_sv_status(msg || 'Samouczek zakończony.', true);
+    try{ setTempTarget(null); }catch(_){ }
+    try{ window.__adiTutorialIgnoreMobLvl = false; }catch(_){ }
+    try{ message(msg || 'Samouczek zakończony.'); }catch(_){ }
+  }
+  function __adi_sv_fail(msg){
+    __adi_sv_clearTask();
+    __adi_sv_setRunningUi(false);
+    __adi_sv_status(msg || 'Błąd samouczka.', false);
+    try{ setTempTarget(null); }catch(_){ }
+    try{ window.__adiTutorialIgnoreMobLvl = false; }catch(_){ }
+    try{ message(msg || 'Błąd samouczka.'); }catch(_){ }
+  }
+  function __adi_sv_advance(task, extraDelay){
+    task.stepIndex = Number(task.stepIndex||0) + 1;
+    task.actionState = null;
+    __adi_sv_wait(task, extraDelay == null ? ADI_START_VILLAGE_STEP_DELAY : extraDelay);
+    __adi_sv_saveTask(task);
+  }
+  function __adi_sv_findNpcByName(name){
+    try{
+      if(!window.g || !g.npc) return null;
+      const needle = __adi_sv_norm(name);
+      let best = null;
+      for(const id in g.npc){
+        const n = g.npc[id];
+        if(!n) continue;
+        const nm = __adi_sv_norm(n.nick || n.name || n.n || '');
+        if(!nm || nm !== needle) continue;
+        const dist = Math.abs((hero?.x||0) - (n.x||0)) + Math.abs((hero?.y||0) - (n.y||0));
+        if(!best || dist < best.dist) best = { npc:n, dist };
+      }
+      return best ? best.npc : null;
+    }catch(_){ return null; }
+  }
+  function __adi_sv_getNpcById(id){
+    try{
+      if(!window.g || !g.npc) return null;
+      const want = Number(String(id||'').replace(/[^\d\-]/g,''));
+      if(!Number.isFinite(want)) return null;
+      return g.npc[want] || g.npc[String(want)] || null;
+    }catch(_){ return null; }
+  }
+  function __adi_sv_findNpcElementById(id){
+    try{
+      const sid = String(id||'').replace(/[^\d\-]/g,'');
+      if(!sid) return null;
+      const selectors = [
+        '#npc' + sid,
+        '[id="npc' + sid + '"]',
+        '[data-id="' + sid + '"]',
+        '[data-npc-id="' + sid + '"]',
+        '.npc[id="npc' + sid + '"]',
+        '.npc[data-id="' + sid + '"]',
+        '.othernpc[data-id="' + sid + '"]'
+      ];
+      for(const sel of selectors){
+        const el = document.querySelector(sel);
+        if(el) return el;
+      }
+    }catch(_){ }
+    return null;
+  }
+  function __adi_sv_openNpcDialogByClick(id){
+    try{
+      const npc = __adi_sv_getNpcById(id);
+      if(!npc) return false;
+      const dist = Math.abs((hero?.x||0) - (npc.x||0)) + Math.abs((hero?.y||0) - (npc.y||0));
+      if(dist > 3) return false;
+      const el = __adi_sv_findNpcElementById(id);
+      if(el) return __adi_sv_safeClick(el);
+      if(typeof window.npcTalk === 'function'){
+        try{ window.npcTalk(Number(id)); return true; }catch(_){ }
+      }
+      if(typeof window._npcs !== 'undefined' && window._npcs && typeof window._npcs.talk === 'function'){
+        try{ window._npcs.talk(Number(id)); return true; }catch(_){ }
+      }
+    }catch(_){ }
+    return false;
+  }
+  function __adi_sv_safeClick(el){
+    try{
+      if(!el) return false;
+      el.dispatchEvent(new MouseEvent('mouseover',{bubbles:true,cancelable:true,view:window}));
+      el.dispatchEvent(new MouseEvent('mousedown',{bubbles:true,cancelable:true,view:window}));
+      el.dispatchEvent(new MouseEvent('mouseup',{bubbles:true,cancelable:true,view:window}));
+      el.dispatchEvent(new MouseEvent('click',{bubbles:true,cancelable:true,view:window}));
+      try{ el.click(); }catch(_){ }
+      return true;
+    }catch(_){ try{ el.click(); return true; }catch(__){ return false; } }
+  }
+  function __adi_sv_findElements(selector){
+    try{ return Array.from(document.querySelectorAll(selector)); }catch(_){ return []; }
+  }
+  function __adi_sv_findClickableByText(text, selectors){
+    try{
+      const needle = __adi_sv_norm(text);
+      const nodes = Array.from(document.querySelectorAll(selectors || 'button, .button, .label, span, div, li, a'));
+      for(const el of nodes){
+        const txt = __adi_sv_norm(el.innerText || el.textContent || '');
+        if(!(txt === needle || txt.includes(needle))) continue;
+        const clickable = el.closest('button, .btn, .button, .label, [id^="a_"], .close-but, a, li, div');
+        if(clickable) return clickable;
+        return el;
+      }
+    }catch(_){ }
+    return null;
+  }
+  function __adi_sv_clickRecipeByText(text){
+    try{
+      const needle = __adi_sv_norm(text);
+      const nodes = Array.from(document.querySelectorAll('.one-item-on-divide-list, .crafting-recipe-in-list, .name, .name-wrapper'));
+      for(const el of nodes){
+        const txt = __adi_sv_norm(el.innerText || el.textContent || '');
+        if(txt.includes(needle)) return __adi_sv_safeClick(el.closest('.one-item-on-divide-list, .crafting-recipe-in-list') || el);
+      }
+    }catch(_){ }
+    return false;
+  }
+  function __adi_sv_buyItemByName(name){
+    try{
+      if(typeof apBuyByName === 'function') return !!apBuyByName(name, 1);
+      const needle = __adi_sv_norm(name);
+      const items = Array.from(document.querySelectorAll('.item[id^="item"], .shop .item, #shop .item, #npcshop .item'));
+      for(const el of items){
+        const txt = [el.getAttribute('tip')||'', el.getAttribute('ctip')||'', el.innerText||'', el.textContent||''].map(__adi_sv_norm).join(' | ');
+        if(!txt.includes(needle)) continue;
+        try{ el.dispatchEvent(new MouseEvent('mousedown',{bubbles:true,cancelable:true,view:window,button:0,buttons:1})); }catch(_){ }
+        try{ el.click(); }catch(_){ }
+        return true;
+      }
+    }catch(_){ }
+    return false;
+  }
+  function __adi_sv_clickShopAccept(){
+    try{
+      const btn = document.querySelector('#shop_accept, .shop-accept, .btn-accept, button[name="Akceptuj"]');
+      if(btn){
+        try{ btn.click(); }catch(_){ }
+        return true;
+      }
+    }catch(_){ }
+    return false;
+  }
+  function __adi_sv_clickShopClose(){
+    try{
+      if(typeof shop_close === 'function'){
+        try{ shop_close(); return true; }catch(_){ }
+      }
+      const btn = document.querySelector('#shop_close, .shop-close, .close-but');
+      if(btn){
+        try{ btn.click(); }catch(_){ }
+        return true;
+      }
+    }catch(_){ }
+    return false;
+  }
+  function __adi_sv_findInvItemElement(name){
+    try{
+      const needle = __adi_sv_norm(name);
+      const items = Array.from(document.querySelectorAll('.item[id^="item"]'));
+      for(const el of items){
+        if(el.closest('#npcshop, .shop, #shop')) continue;
+        const txt = [el.getAttribute('tip')||'', el.getAttribute('ctip')||'', el.innerText||'', el.textContent||''].map(__adi_sv_norm).join(' | ');
+        if(txt.includes(needle)) return el;
+      }
+    }catch(_){ }
+    return null;
+  }
+  async function __adi_sv_dragItemToSelector(name, selector){
+    try{
+      const el = __adi_sv_findInvItemElement(name);
+      const target = document.querySelector(selector);
+      if(!el || !target) return false;
+      const re = el.getBoundingClientRect();
+      const rt = target.getBoundingClientRect();
+      const fromX = Math.round(re.left + re.width/2);
+      const fromY = Math.round(re.top + re.height/2);
+      const toX = Math.round(rt.left + rt.width/2);
+      const toY = Math.round(rt.top + rt.height/2);
+      function fire(tgt, type, opts){
+        try{ tgt.dispatchEvent(new MouseEvent(type, Object.assign({bubbles:true,cancelable:true,view:window}, opts))); }catch(_){ }
+        try{ document.dispatchEvent(new MouseEvent(type, Object.assign({bubbles:true,cancelable:true,view:window}, opts))); }catch(_){ }
+      }
+      fire(el, 'mousedown', {clientX:fromX, clientY:fromY, buttons:1, button:0});
+      await new Promise(r=>setTimeout(r, 40));
+      const steps = 7;
+      for(let i=1;i<=steps;i++){
+        const x = Math.round(fromX + (toX-fromX)*(i/steps));
+        const y = Math.round(fromY + (toY-fromY)*(i/steps));
+        fire(document, 'mousemove', {clientX:x, clientY:y, buttons:1, button:0});
+        const under = document.elementFromPoint(x,y);
+        if(under) fire(under, 'mousemove', {clientX:x, clientY:y, buttons:1, button:0});
+        await new Promise(r=>setTimeout(r, 30));
+      }
+      const drop = document.elementFromPoint(toX,toY) || target;
+      fire(drop, 'mouseup', {clientX:toX, clientY:toY, buttons:0, button:0});
+      fire(drop, 'click', {clientX:toX, clientY:toY, buttons:0, button:0});
+      return true;
+    }catch(_){ return false; }
+  }
+  function __adi_sv_getNearestMobByName(name){
+    try{
+      if(!window.g || !g.npc) return null;
+      const needle = __adi_sv_norm(name);
+      let best = null;
+      for(const id in g.npc){
+        const n = g.npc[id];
+        if(!n) continue;
+        if(!(n.type==2 || n.type==3)) continue;
+        const nm = __adi_sv_norm(n.nick || n.name || n.n || '');
+        if(nm !== needle) continue;
+        const dist = Math.abs((hero?.x||0) - (n.x||0)) + Math.abs((hero?.y||0) - (n.y||0));
+        if(!best || dist < best.dist) best = { mob:n, dist };
+      }
+      return best ? best.mob : null;
+    }catch(_){ return null; }
+  }
+  function __adi_sv_getNearestGroundItemByName(name){
+    try{
+      const needle = __adi_sv_norm(name);
+      if(!needle || !window.g || !g.npc) return null;
+      let best = null;
+      for(const id in g.npc){
+        const n = g.npc[id];
+        if(!n) continue;
+        const x = Number(n.x), y = Number(n.y);
+        if(!Number.isFinite(x) || !Number.isFinite(y)) continue;
+        const hay = [n.icon, n.nick, n.name, n.n, n.tip, n.ctip, n.stat, n.desc].map(__adi_sv_norm).join(' | ');
+        if(!hay.includes(needle)) continue;
+        const dist = Math.abs((hero?.x||0) - x) + Math.abs((hero?.y||0) - y);
+        if(!best || dist < best.dist) best = { id:Number(n.id)||Number(id)||0, x, y, dist, raw:n };
+      }
+      return best;
+    }catch(_){ return null; }
+  }
+  function __adi_sv_takeGroundItemById(id){
+    try{
+      if(!id) return false;
+      try{ if(typeof _g === 'function') _g('takeitem&id=' + id); }catch(_){ }
+      const selectors = ['#npc' + id, '[id="npc' + id + '"]', '#item' + id, '[id="item' + id + '"]'];
+      for(const sel of selectors){
+        const el = document.querySelector(sel);
+        if(el){ __adi_sv_safeClick(el); break; }
+      }
+      return true;
+    }catch(_){ return false; }
+  }
+  const ADI_START_VILLAGE_WARRIOR_STEPS = [
+    {type:'move', x:73, y:47, label:'NPC Sergiusz (73,47)'},
+    {type:'talk', cmd:"talk&id=327221&c=20.1"},
+    {type:'talk', cmd:"talk&id=327221&c=20.1"},
+    {type:'talk', cmd:"talk&id=327221&c=21.0"},
+    {type:'talk', cmd:"talk&id=327221&c=60.1"},
+    {type:'equip', item:'Zakrzywiony miecz rycerza'},
+    {type:'equip', item:'Lekka Ćwiekowana zbroja'},
+    {type:'equip', item:'Pancerny pukierz'},
+    {type:'kill', mob:'Świerszcz'},
+    {type:'kill', mob:'Pająk'},
+    {type:'kill', mob:'Królik'},
+    {type:'move', x:73, y:47, label:'NPC Sergiusz (73,47)'},
+    {type:'talk', cmd:"talk&id=327221&c=20.4"},
+    {type:'talk', cmd:"talk&id=327221&c=20.1"},
+    {type:'talk', cmd:"talk&id=327221&c=21.1"},
+    {type:'talk', cmd:"talk&id=327221&c=22.1"},
+    {type:'talk', cmd:"talk&id=359091&c=24.0"},
+    {type:'move', x:67, y:49, label:'NPC Skrzcynie (67,49)'},
+    {type:'talk', cmd:"talk&id=342955&c=20.1"},
+    {type:'buy', item:'Hełm otwarty'},
+    {type:'buy', item:'Wzmocnione buty'},
+    {type:'buy', item:'Rękawice kolcze'},
+    {type:'buy', item:'Naszyjnik ochrony'},
+    {type:'buy', item:'Pierścień zdrowia'},
+    {type:'buy', item:'Świecznik'},
+    {type:'equip', item:'Hełm otwarty'},
+    {type:'equip', item:'Wzmocnione buty'},
+    {type:'equip', item:'Rękawice kolcze'},
+    {type:'equip', item:'Naszyjnik ochrony'},
+    {type:'equip', item:'Pierścień zdrowia'},
+    {type:'equip', item:'Świecznik'},
+    {type:'move', x:69, y:49, label:'NPC Sergiusz (69,49)'},
+    {type:'talk', cmd:"talk&id=342954&c=20.5"},
+    {type:'talk', cmd:"talk&id=342954&c=20.1"},
+    {type:'talk', cmd:"talk&id=327222&c=21.1"},
+    {type:'talk', cmd:"talk&id=327225&c=22.1"},
+    {type:'talk', cmd:"talk&id=342954&c=23.1"},
+    {type:'drag', item:'Zamszowa torba', selector:'.bag-2-slot'},
+    {type:'clickText', text:'Tak'},
+    {type:'move', x:69, y:49, label:'NPC Sergiusz (69,49)'},
+    {type:'talk', cmd:"talk&id=342954&c=20.1"},
+    {type:'talk', cmd:"talk&id=342954&c=21.1"},
+    {type:'talk', cmd:"talk&id=359088&c=22.1"},
+    {type:'talk', cmd:"talk&id=359088&c=23.1"},
+    {type:'talk', cmd:"talk&id=342954&c=25.1"},
+    {type:'move', x:78, y:48, label:'NPC Alik (78,48)'},
+    {type:'talk', cmd:"talk&id=327222&c=20.1"},
+    {type:'talk', cmd:"talk&id=327222&c=20.1"},
+    {type:'talk', cmd:"talk&id=327222&c=20.1"},
+    {type:'talk', cmd:"talk&id=327222&c=20.1"},
+    {type:'talk', cmd:"talk&id=327222&c=20.1"},
+    {type:'talk', cmd:"talk&id=327222&c=20.1"},
+    {type:'talk', cmd:"talk&id=327222&c=20.1"},
+    {type:'move', x:59, y:31, label:'NPC Alik (59,31)'},
+    {type:'talk', cmd:"talk&id=340989&c=20.1"},
+    {type:'talk', cmd:"talk&id=340989&c=20.1"},
+    {type:'talk', cmd:"talk&id=340989&c=20.1"},
+    {type:'talk', cmd:"talk&id=340989&c=22.1"},
+    {type:'kill', mob:'Jadowity wąż'},
+    {type:'move', x:59, y:31, label:'NPC Alik (59,31)'},
+    {type:'talk', cmd:"talk&id=340989&c=20.1"},
+    {type:'talk', cmd:"talk&id=340989&c=20.1"},
+    {type:'move', x:39, y:17, label:'NPC Alik (39,17)'},
+    {type:'talk', cmd:"talk&id=340990&c=20.0"},
+    {type:'talk', cmd:"talk&id=340985&c=22.1"},
+    {type:'talk', cmd:"talk&id=340990&c=23.1"},
+    {type:'talk', cmd:"talk&id=340990&c=24.1"},
+    {type:'talk', cmd:"talk&id=340990&c=26.1"},
+    {type:'move', x:41, y:15, label:'NPC Zielarka Flarenia (41,15)'},
+    {type:'talk', cmd:"talk&id=340985&c=20.1"},
+    {type:'talk', cmd:"talk&id=340985&c=20.1"},
+    {type:'talk', cmd:"talk&id=340985&c=20.1"},
+    {type:'talk', cmd:"talk&id=340985&c=23.1"},
+    {type:'collect', item:'rumianek'},
+    {type:'collect', item:'rumianek'},
+    {type:'collect', item:'nagietek'},
+    {type:'collect', item:'nagietek'},
+    {type:'move', x:41, y:15, label:'NPC Zielarka Flarenia (41,15)'},
+    {type:'talk', cmd:"talk&id=340985&c=20.0"},
+    {type:'talk', cmd:"talk&id=340985&c=21.1"},
+    {type:'talk', cmd:"talk&id=340985&c=22.1"},
+    {type:'clickRecipe', text:'Mikstura niewiadomego zastosowania (2)'},
+    {type:'clickText', text:'Użyj'},
+    {type:'clickText', text:'Ok'},
+    {type:'clickText', text:'Użyj'},
+    {type:'clickText', text:'Ok'},
+    {type:'clickSelector', selector:'.close-but'},
+    {type:'move', x:39, y:17, label:'NPC Alik (39,17)'},
+    {type:'talk', cmd:"talk&id=340990&c=20.2"},
+    {type:'talk', cmd:"talk&id=340990&c=20.1"},
+    {type:'talk', cmd:"talk&id=340990&c=20.1"},
+    {type:'talk', cmd:"talk&id=340990&c=21.1"},
+    {type:'talk', cmd:"talk&id=340990&c=23.1"},
+    {type:'move', x:38, y:14, label:'NPC Handlarz Erwin (38,14)'},
+    {type:'talk', cmd:"talk&id=340983&c=20.1"},
+    {type:'talk', cmd:"talk&id=340983&c=20.1"},
+    {type:'talk', cmd:"talk&id=340983&c=23.1"},
+    {type:'talk', cmd:"talk&id=340983&c=26.1"},
+    {type:'clickText', text:'Unikatowe rękawice śmiałka (1)'},
+    {type:'clickText', text:'Użyj'},
+    {type:'clickText', text:'Ok'},
+    {type:'clickSelector', selector:'.close-but'},
+    {type:'equip', item:'Unikatowe rękawice śmiałka'},
+    {type:'move', x:38, y:14, label:'NPC Handlarz Erwin (38,14)'},
+    {type:'talk', cmd:"talk&id=340983&c=20.4"},
+    {type:'talk', cmd:"talk&id=340983&c=25.1"},
+    {type:'talk', cmd:"talk&id=340983&c=30.0"},
+    {type:'talk', cmd:"talk&id=343971&c=32.0"},
+    {type:'talk', cmd:"talk&id=358704&c=34.0"},
+    {type:'move', x:43, y:11, label:'Kordy (43,11)'},
+    {type:'talk', cmd:"talk&id=340984&c=20.0"},
+    {type:'talk', cmd:"talk&id=357322&c=21.1"},
+    {type:'clickText', text:'Odejdę'},
+    {type:'talk', cmd:"talk&id=358704&c=31.1"},
+    {type:'move', x:38, y:14, label:'NPC Handlarz Erwin (38,14)'},
+    {type:'talk', cmd:"talk&id=340983&c=20.1"},
+    {type:'talk', cmd:"talk&id=340983&c=21.1"},
+    {type:'talk', cmd:"talk&id=340983&c=23.1"},
+    {type:'move', x:26, y:29, label:'Kordy (26,29)'},
+    {type:'talk', cmd:"talk&id=any&c=20.0", useNearestNpc:true},
+    {type:'move', x:26, y:28, label:'Kordy (26,28)'},
+    {type:'talk', cmd:"talk&id=340988&c=20.0"},
+    {type:'wait', ms:23000},
+    {type:'move', x:35, y:20, label:'Kordy (35,20)'},
+    {type:'talk', cmd:"talk&id=326883&c=30.1"},
+    {type:'talk', cmd:"talk&id=326883&c=31.1"},
+    {type:'talk', cmd:"talk&id=326883&c=32.1"},
+    {type:'talk', cmd:"talk&id=326883&c=33.1"},
+    {type:'talk', cmd:"talk&id=326883&c=35.1"},
+    {type:'talk', cmd:"talk&id=326883&c=37.1"},
+    {type:'move', x:37, y:21, label:'NPC Ajsza (37,21)'},
+    {type:'talk', cmd:"talk&id=326883&c=30.1"},
+    {type:'talk', cmd:"talk&id=326883&c=31.1"},
+    {type:'talk', cmd:"talk&id=326883&c=32.1"},
+    {type:'talk', cmd:"talk&id=326883&c=33.1"},
+    {type:'talk', cmd:"talk&id=326883&c=36.1"}
+  ];
+  function __adi_sv_getStepsForProfile(profile){
+    const p = String(profile||'wojownik').toLowerCase();
+    if(p === 'wojownik') return ADI_START_VILLAGE_WARRIOR_STEPS;
+    return ADI_START_VILLAGE_WARRIOR_STEPS;
+  }
+  function __adi_sv_start(profile){
+    const steps = __adi_sv_getStepsForProfile(profile);
+    const task = {
+      active:true,
+      profile:String(profile||'wojownik').toLowerCase(),
+      stepIndex:0,
+      waitUntil:0,
+      startedAt:__adi_sv_now(),
+      actionState:null
+    };
+    __adi_sv_saveTask(task);
+    __adi_sv_setRunningUi(true);
+    __adi_sv_status('Startuję samouczek: ' + task.profile + '.', true);
+    try{ window.__adiTutorialIgnoreMobLvl = true; }catch(_){ }
+    try{ message('Uruchomiono samouczek startowy: ' + task.profile); }catch(_){ }
+  }
+  function __adi_sv_stop(){
+    __adi_sv_clearTask();
+    __adi_sv_setRunningUi(false);
+    __adi_sv_status('Samouczek zatrzymany.', false);
+    try{ setTempTarget(null); }catch(_){ }
+    try{ window.__adiTutorialIgnoreMobLvl = false; }catch(_){ }
+  }
+  let __adiStartVillageTimer = null;
+  function __adi_sv_boot(){
+    if(__adiStartVillageTimer) return;
+    __adiStartVillageTimer = setInterval(async function(){
+      try{
+        const task = __adi_sv_loadTask();
+        if(!task){ __adi_sv_setRunningUi(false); return; }
+        __adi_sv_setRunningUi(true);
+        const steps = __adi_sv_getStepsForProfile(task.profile);
+        const idx = Number(task.stepIndex||0);
+        if(idx >= steps.length){ __adi_sv_finish('Samouczek zakończony.'); return; }
+        if(Number(task.waitUntil||0) > __adi_sv_now()) return;
+        const step = steps[idx];
+        if(!step){ __adi_sv_finish('Samouczek zakończony.'); return; }
+        __adi_sv_status('Krok ' + (idx+1) + '/' + steps.length + ': ' + (step.label || step.item || step.mob || step.text || step.cmd || step.selector || step.type), true);
+        switch(step.type){
+          case 'move': {
+            try{ setTempTarget(null); }catch(_){ }
+            if((hero?.x|0) === (step.x|0) && (hero?.y|0) === (step.y|0)){
+              task.pendingNpcClick = true;
+              task.pendingNpcClickDone = false;
+              task.pendingNpcClickId = null;
+              __adi_sv_advance(task);
+              return;
+            }
+            a_goTo(step.x, step.y);
+            __adi_sv_saveTask(task);
+            return;
+          }
+          case 'talk': {
+            task.actionState = task.actionState || {};
+            const st = task.actionState;
+            let cmd = String(step.cmd||'').trim().replace(/^_g\(['"]/, '').replace(/['"]\);?$/, '');
+            if(step.useNearestNpc || /id=any/.test(cmd)){
+              const nearestNpc = (function(){
+                if(!window.g || !g.npc) return null;
+                let best=null;
+                for(const id in g.npc){
+                  const n=g.npc[id]; if(!n) continue;
+                  const dist=Math.abs((hero?.x||0)-(n.x||0))+Math.abs((hero?.y||0)-(n.y||0));
+                  if(!best || dist<best.dist) best={id:Number(n.id)||Number(id)||0, dist};
+                }
+                return best;
+              })();
+              if(nearestNpc && nearestNpc.id) cmd = cmd.replace('id=any', 'id=' + nearestNpc.id);
+            }
+            const idMatch = cmd.match(/(?:^|&)id=([^&]+)/);
+            const talkNpcId = idMatch ? String(idMatch[1]||'').replace(/[^\d\-]/g,'') : '';
+            const needsNpcClick = !!task.pendingNpcClick;
+            if(needsNpcClick && !task.pendingNpcClickDone && talkNpcId){
+              const opened = __adi_sv_openNpcDialogByClick(talkNpcId);
+              if(!opened){
+                __adi_sv_status('Nie udało się kliknąć NPC id=' + talkNpcId + '. Czekam…', false);
+                return;
+              }
+              task.pendingNpcClickDone = true;
+              task.pendingNpcClick = false;
+              task.pendingNpcClickId = talkNpcId;
+              __adi_sv_wait(task, ADI_START_VILLAGE_STEP_DELAY);
+              __adi_sv_saveTask(task);
+              return;
+            }
+            if(task.pendingNpcClickDone){
+              task.pendingNpcClickDone = false;
+              task.pendingNpcClickId = null;
+            }
+            if(typeof _g === 'function') _g(cmd);
+            __adi_sv_advance(task);
+            return;
+          }
+          case 'equip': {
+            try{ if(typeof window.__adiEquipByName === 'function') window.__adiEquipByName(step.item); }catch(_){ }
+            __adi_sv_advance(task);
+            return;
+          }
+          case 'buy': {
+            task.actionState = task.actionState || {};
+            const st = task.actionState;
+            const nextStep = steps[idx + 1] || null;
+            const isLastBuyInChain = !(nextStep && nextStep.type === 'buy');
+            const now = Date.now();
+
+            if(!st.buyClicked){
+              if(!__adi_sv_buyItemByName(step.item)){
+                __adi_sv_status('Nie widzę itemu w sklepie: ' + step.item + '. Czekam…', false);
+                return;
+              }
+              st.buyClicked = true;
+              st.buyClickedAt = now;
+              __adi_sv_saveTask(task);
+              return;
+            }
+
+            if(now - Number(st.buyClickedAt || 0) < ADI_START_VILLAGE_STEP_DELAY){
+              __adi_sv_saveTask(task);
+              return;
+            }
+
+            if(isLastBuyInChain && !st.acceptClicked){
+              if(!__adi_sv_clickShopAccept()){
+                __adi_sv_status('Nie widzę przycisku Akceptuj w sklepie. Czekam…', false);
+                return;
+              }
+              st.acceptClicked = true;
+              st.acceptClickedAt = now;
+              __adi_sv_saveTask(task);
+              return;
+            }
+
+            if(isLastBuyInChain && st.acceptClicked && !st.closeClicked){
+              if(now - Number(st.acceptClickedAt || 0) < ADI_START_VILLAGE_STEP_DELAY){
+                __adi_sv_saveTask(task);
+                return;
+              }
+              if(!__adi_sv_clickShopClose()){
+                __adi_sv_status('Nie udało się zamknąć sklepu. Czekam…', false);
+                return;
+              }
+              st.closeClicked = true;
+              st.closeClickedAt = now;
+              __adi_sv_saveTask(task);
+              return;
+            }
+
+            if(isLastBuyInChain && st.closeClicked && now - Number(st.closeClickedAt || 0) < ADI_START_VILLAGE_STEP_DELAY){
+              __adi_sv_saveTask(task);
+              return;
+            }
+
+            __adi_sv_advance(task);
+            return;
+          }
+          case 'drag': {
+            const ok = await __adi_sv_dragItemToSelector(step.item, step.selector);
+            if(!ok){ __adi_sv_status('Nie udało się przenieść itemu: ' + step.item + '. Czekam…', false); return; }
+            __adi_sv_advance(task);
+            return;
+          }
+          case 'clickSelector': {
+            const el = document.querySelector(step.selector);
+            if(!el){ __adi_sv_status('Nie widzę przycisku: ' + step.selector + '. Czekam…', false); return; }
+            __adi_sv_safeClick(el);
+            __adi_sv_advance(task);
+            return;
+          }
+          case 'clickRecipe': {
+            if(!__adi_sv_clickRecipeByText(step.text)){
+              __adi_sv_status('Nie widzę recepty: ' + step.text + '. Czekam…', false);
+              return;
+            }
+            __adi_sv_advance(task);
+            return;
+          }
+          case 'clickText': {
+            let el = null;
+            if(__adi_sv_norm(step.text) === 'tak'){
+              el = document.querySelector('#a_ok, #a_ok .label, #a_ok .gfont[name="Tak"], .btn.btn-wood#a_ok');
+            }
+            if(!el) el = __adi_sv_findClickableByText(step.text);
+            if(!el){ __adi_sv_status('Nie widzę przycisku: ' + step.text + '. Czekam…', false); return; }
+            __adi_sv_safeClick(el);
+            __adi_sv_advance(task);
+            return;
+          }
+          case 'wait': {
+            __adi_sv_wait(task, step.ms || ADI_START_VILLAGE_STEP_DELAY);
+            task.stepIndex = idx + 1;
+            task.actionState = null;
+            __adi_sv_saveTask(task);
+            return;
+          }
+          case 'collect': {
+            task.actionState = task.actionState || {};
+            const st = task.actionState;
+            let gi = null;
+
+            if(st.targetId){
+              try{
+                const cur = window.g && g.npc ? g.npc[st.targetId] : null;
+                if(cur){
+                  gi = { id:Number(st.targetId)||0, x:Number(cur.x)||0, y:Number(cur.y)||0, raw:cur };
+                }
+              }catch(_){ }
+            }
+
+            if(!gi){
+              gi = __adi_sv_getNearestGroundItemByName(step.item);
+              if(gi){
+                st.targetId = gi.id;
+                st.clickTries = 0;
+                st.lastActionAt = 0;
+              }
+            }
+
+            if(!gi){ __adi_sv_status('Nie widzę na ziemi: ' + step.item + '. Czekam…', false); return; }
+
+            if((hero?.x|0) !== (gi.x|0) || (hero?.y|0) !== (gi.y|0)){
+              if(Date.now() - Number(st.lastMoveAt || 0) >= 350){
+                st.lastMoveAt = Date.now();
+                a_goTo(gi.x, gi.y);
+                __adi_sv_saveTask(task);
+              }
+              return;
+            }
+
+            if(Date.now() - Number(st.lastActionAt || 0) < 350) return;
+            st.lastActionAt = Date.now();
+            st.clickTries = Number(st.clickTries || 0) + 1;
+            __adi_sv_takeGroundItemById(gi.id);
+            __adi_sv_saveTask(task);
+
+            setTimeout(()=>{
+              try{
+                const stillExists = !!(window.g && g.npc && g.npc[gi.id]);
+                const t = __adi_sv_loadTask();
+                if(!t || !t.active) return;
+                if(Number(t.stepIndex||0) !== idx) return;
+                if(!stillExists){
+                  t.actionState = null;
+                  __adi_sv_advance(t);
+                  return;
+                }
+                if(Number((t.actionState||{}).clickTries || 0) >= 10){
+                  __adi_sv_fail('Nie udało się podnieść: ' + step.item);
+                }else{
+                  __adi_sv_status('Stoję na przedmiocie i próbuję podnieść: ' + step.item + ' (próba ' + Number((t.actionState||{}).clickTries || 0) + ').', false);
+                }
+              }catch(_){ }
+            }, 250);
+            return;
+          }
+          case 'kill': {
+            try{ window.__adiTutorialIgnoreMobLvl = true; }catch(_){ }
+            task.actionState = task.actionState || {};
+            const st = task.actionState;
+            const inBattle = !!(window.g && g.battle);
+            const now = Date.now();
+
+            // W samouczku krok "zabij" ma zabić dokładnie 1 sztukę.
+            // Po wysłaniu ataku NIE szukamy kolejnego moba o tej samej nazwie,
+            // tylko czekamy aż: (a) walka się zacznie i skończy, albo
+            // (b) zaatakowany mob zniknie z mapy.
+            if(st.attackSent){
+              if(inBattle){
+                st.inBattleSeen = true;
+                __adi_sv_saveTask(task);
+                return;
+              }
+              if(st.inBattleSeen){
+                __adi_sv_advance(task);
+                return;
+              }
+
+              let targetStillExists = false;
+              try{
+                const curNpc = window.g && g.npc ? g.npc[st.targetId] : null;
+                targetStillExists = !!curNpc;
+              }catch(_){ }
+
+              if(!targetStillExists && st.targetId != null){
+                __adi_sv_advance(task);
+                return;
+              }
+
+              // jeśli atak został wysłany, ale nic się nie wydarzyło, ponów dopiero po dłuższej chwili
+              if(now - Number(st.attackSentAt || 0) < 2500){
+                __adi_sv_status('Czekam na zakończenie walki z: ' + step.mob, true);
+                __adi_sv_saveTask(task);
+                return;
+              }
+
+              // po timeoutcie czyścimy stan i próbujemy jeszcze raz na tym samym kroku
+              task.actionState = {};
+              __adi_sv_saveTask(task);
+              return;
+            }
+
+            const mob = __adi_sv_getNearestMobByName(step.mob);
+            if(!mob){ __adi_sv_status('Nie widzę moba: ' + step.mob + '. Czekam…', false); return; }
+            if(Math.abs((hero?.x||0)-mob.x) < 2 && Math.abs((hero?.y||0)-mob.y) < 2){
+              st.targetId = mob.id;
+              st.attackSent = true;
+              st.attackSentAt = now;
+              try{ safeAttack(mob.id); }catch(_){ try{ _g('fight&a=attack&id=' + mob.id); }catch(__){} }
+              __adi_sv_saveTask(task);
+              return;
+            }
+            a_goTo(mob.x, mob.y);
+            __adi_sv_saveTask(task);
+            return;
+          }
+          default: {
+            __adi_sv_advance(task);
+            return;
+          }
+        }
+      }catch(e){
+        console.warn('[adi-bot] start village task error', e);
+      }
+    }, 250);
+  }
+  __adi_sv_boot();
+
   // ===== UI =====
   this.initHTML=function(){
     if(!localStorage.getItem(`adi-bot_position`)) localStorage.setItem(`adi-bot_position`, JSON.stringify({x:0,y:0}));
@@ -3259,7 +3878,7 @@ function __adiAutoHealTick(){
 
     // --- Auto-kupowanie mikstur (Torneg / Wysoka kapłanka Gryfia) ---
     const apWrap = document.createElement('div'); apWrap.classList.add('adi-bot_box'); apWrap.style.marginTop='6px';
-    apWrap.setAttribute('tip','Auto-kupowanie mikstur u wybranego handlarza (Auto: najbliższy – graf | Torneg/Ithan/Karka-han/Werbin/Eder/Dom Tunii/Liściaste Rozstaje/...)');
+    apWrap.setAttribute('tip','Auto-kupowanie mikstur u wybranego handlarza (Auto: najbliższy – graf | Torneg/Ithan/Karka-han/Werbin/Eder/Dom Tunii/Liściaste Rozstaje/Zatopiony Szczyt/...)');
     const apRow = document.createElement('div'); apRow.style.display='grid'; apRow.style.gridTemplateColumns='1fr auto'; apRow.style.gap='6px';
     // === KONFIGURACJA HANDLARZY MIKSTUR ===
     const POTION_VENDORS = {
@@ -3275,6 +3894,7 @@ function __adiAutoHealTick(){
       nithal: { key: 'nithal', map: 'Nithal', npc: 'Doktor Nad', stand: { x: 5, y: 49 } },
       thuzal: { key: 'thuzal', map: 'Thuzal', npc: 'Kapłanka Hiada', stand: { x: 52, y: 18 } },
       lisciasterozstaje: { key: 'lisciasterozstaje', map: 'Liściaste Rozstaje', npc: 'Uzdrowicielka Emanilia', stand: { x: 21, y: 52 } },
+      zatopionyszczyt: { key: 'zatopionyszczyt', map: 'Zatopiony Szczyt', npc: 'Ajsza', pos: { x: 37, y: 20 }, stand: { x: 37, y: 21 } },
     };
 // --- ograniczenie dostępu do Tunii (Dom Tunii) do poziomu 70+ ---
 function domTuniiAllowed(){ try{ return (Number(hero?.lvl)||0) >= 70; }catch(_){ return false; } }
@@ -3364,6 +3984,7 @@ const optAuto = document.createElement('option'); optAuto.value='auto'; optAuto.
     const opt10 = document.createElement('option'); opt10.value='nithal';  opt10.textContent='Nithal – Doktor Nad'; vendorSel.appendChild(opt10);
     const opt11 = document.createElement('option'); opt11.value='thuzal';  opt11.textContent='Thuzal – Kapłanka Hiada'; vendorSel.appendChild(opt11);
     const opt12 = document.createElement('option'); opt12.value='lisciasterozstaje';  opt12.textContent='Liściaste Rozstaje – Uzdrowicielka Emanilia'; vendorSel.appendChild(opt12);
+    const opt13 = document.createElement('option'); opt13.value='zatopionyszczyt';  opt13.textContent='Zatopiony Szczyt – Ajsza'; vendorSel.appendChild(opt13);
 try{ vendorSel.value = getSelectedVendorKey(); }catch(_){}
     vendorSel.addEventListener('change', ()=>{ setSelectedVendor(vendorSel.value); message('Zapisano wybór handlarza mikstur.'); });
 
@@ -3859,8 +4480,66 @@ box.appendChild(autoHealRow);
       const tabStart = document.createElement('div');
       tabStart.id = 'adi-tab-start';
       tabStart.className = 'adi-tab-content';
-      // Placeholder content (możesz później uzupełnić ustawieniami startówki)
-      tabStart.innerHTML = '<div style="font-size:13px;margin:6px 0;">Wioska startowa – ustawienia w przygotowaniu.</div>';
+      tabStart.innerHTML = '';
+      try{
+        const startWrap = document.createElement('div');
+        startWrap.style.padding = '8px';
+        startWrap.style.textAlign = 'left';
+
+        const startInfo = document.createElement('div');
+        startInfo.textContent = 'Uruchamia cały samouczek startowy krok po kroku z 1s odstępu między akcjami.';
+        startInfo.style.fontSize = '12px';
+        startInfo.style.marginBottom = '8px';
+        startWrap.appendChild(startInfo);
+
+        const profSel = document.createElement('select');
+        profSel.id = 'adi-bot_start_prof';
+        profSel.className = 'adi-bot_inputs';
+        const p1 = document.createElement('option');
+        p1.value = 'wojownik';
+        p1.textContent = 'Wojownik';
+        profSel.appendChild(p1);
+        try{ profSel.value = localStorage.getItem(ADI_START_VILLAGE_PROF_KEY) || 'wojownik'; }catch(_){ profSel.value = 'wojownik'; }
+        profSel.addEventListener('change', ()=>{
+          try{ localStorage.setItem(ADI_START_VILLAGE_PROF_KEY, profSel.value); }catch(_){ }
+        });
+        startWrap.appendChild(profSel);
+
+        const startBtn = document.createElement('button');
+        startBtn.id = 'adi-bot_start_selected_prof';
+        startBtn.className = 'adi-bot_btn';
+        startBtn.textContent = 'Start od wybrania profy';
+        startBtn.style.width = '100%';
+        startBtn.style.marginTop = '6px';
+        startBtn.addEventListener('click', ()=>{
+          const running = __adi_sv_loadTask();
+          if(running){ __adi_sv_status('Samouczek już działa.', false); return; }
+          const prof = (profSel.value || 'wojownik').toLowerCase();
+          try{ localStorage.setItem(ADI_START_VILLAGE_PROF_KEY, prof); }catch(_){ }
+          __adi_sv_start(prof);
+        });
+        startWrap.appendChild(startBtn);
+
+        const stopBtn = document.createElement('button');
+        stopBtn.id = 'adi-bot_stop_start_task';
+        stopBtn.className = 'adi-bot_btn';
+        stopBtn.textContent = 'Stop samouczek';
+        stopBtn.style.width = '100%';
+        stopBtn.style.marginTop = '6px';
+        stopBtn.disabled = !__adi_sv_loadTask();
+        stopBtn.addEventListener('click', ()=>{ __adi_sv_stop(); });
+        startWrap.appendChild(stopBtn);
+
+        const startStatus = document.createElement('div');
+        startStatus.id = 'adi-bot_start_status';
+        startStatus.style.fontSize = '12px';
+        startStatus.style.marginTop = '8px';
+        startStatus.style.whiteSpace = 'normal';
+        startStatus.textContent = __adi_sv_loadTask() ? 'Wznowiono zapisany samouczek.' : 'Gotowe do startu.';
+        startWrap.appendChild(startStatus);
+
+        tabStart.appendChild(startWrap);
+      }catch(e){ console.warn('[adi-bot] start village ui failed', e); }
 
             // Move all current UI controls into Exp tab (na razie nic nie przenosimy logicznie — tylko opakowanie)
       while(box.firstChild){
@@ -3925,60 +4604,6 @@ try{
   tabTest.appendChild(skillBtn);
   tabTest.appendChild(skillStatus);
 }catch(e){ console.warn('[adi-bot] skill test ui failed', e); }
-
-
-// 4b) Test NPC: podejście do NPC po nazwie / fragmencie ikony
-try{
-  const npcRow = document.createElement('div');
-  npcRow.style.display = 'flex';
-  npcRow.style.alignItems = 'center';
-  npcRow.style.justifyContent = 'flex-start';
-  npcRow.style.gap = '6px';
-  npcRow.style.margin = '8px 0 0';
-  npcRow.style.flexWrap = 'wrap';
-
-  const npcInput = document.createElement('input');
-  npcInput.type = 'text';
-  npcInput.id = 'adi-bot_test_npc_name';
-  npcInput.classList.add('adi-bot_inputs');
-  npcInput.placeholder = 'np. rumianek';
-  npcInput.style.width = '150px';
-  npcInput.style.margin = '0';
-  npcInput.setAttribute('tip','Wpisz nazwę NPC lub fragment ikony, np. rumianek');
-
-  const npcBtn = document.createElement('button');
-  npcBtn.id = 'adi-bot_test_npc_go';
-  npcBtn.classList.add('adi-bot_inputs');
-  npcBtn.textContent = 'Podejdź';
-  npcBtn.style.margin = '0';
-  npcBtn.setAttribute('tip','Znajduje NPC na aktualnej mapie, podchodzi i używa takeitem/talk/click');
-
-  const npcStatus = document.createElement('div');
-  npcStatus.id = 'adi-bot_test_npc_status';
-  npcStatus.style.fontSize = '12px';
-  npcStatus.style.margin = '2px 0 6px';
-  npcStatus.style.color = '#111';
-  npcStatus.style.width = '100%';
-  npcStatus.textContent = '';
-
-  try{
-    const savedNpcNeedle = (localStorage.getItem('adi-bot_test_npc_name') || '').trim();
-    if(savedNpcNeedle) npcInput.value = savedNpcNeedle;
-  }catch(_){ }
-
-  npcInput.addEventListener('input', ()=>{
-    try{
-      const raw = String(npcInput.value || '').trim();
-      if(raw) localStorage.setItem('adi-bot_test_npc_name', raw);
-      else localStorage.removeItem('adi-bot_test_npc_name');
-    }catch(_){ }
-  });
-
-  npcRow.appendChild(npcInput);
-  npcRow.appendChild(npcBtn);
-  tabTest.appendChild(npcRow);
-  tabTest.appendChild(npcStatus);
-}catch(e){ console.warn('[adi-bot] npc test ui failed', e); }
 
 
 // 5) Logaj przy 0 wyczerpania i zaloguj o 5:30
@@ -4701,19 +5326,6 @@ try{
     exhSel.addEventListener("keyup", ()=>{ localStorage.setItem("adi-bot_exh_selector", exhSel.value.trim()); });
 
     exhTest.addEventListener("click", ()=>{ const v=getExhaustionMinutes(false); message(`[BOT] Wykryte wyczerpanie: ${v===null?"brak":v+" min"}`); });
-
-    try{
-      const npcInputEl = document.getElementById('adi-bot_test_npc_name');
-      const npcBtnEl = document.getElementById('adi-bot_test_npc_go');
-      if(npcBtnEl){
-        npcBtnEl.addEventListener('click', ()=>{
-          const needle = npcInputEl ? String(npcInputEl.value || '').trim() : '';
-          __adiStartNpcTestTask(needle);
-        });
-      }
-    }catch(e){ console.warn('[adi-bot] npc test bind failed', e); }
-
-    setInterval(__adiTickNpcTestTask, 350);
 
     // ===== Relog przy 0 wyczerpania -> logowanie o 5:30 =====
     (function(){
@@ -8267,39 +8879,3 @@ async function startAuction(npcId){
 window.__adiAuctionStart = startAuction;
 
 })();
-
-
-// ===== PATCH: NPC exact coords targeting (Test tab) =====
-// When user types NPC name (e.g. "rumianek"), bot will:
-// 1. Find NPC in g.npc by exact/partial match
-// 2. Get its current x,y coordinates
-// 3. Move directly to those coordinates
-
-function adi_findNpcByName(name){
-  try{
-    name = String(name || '').toLowerCase();
-    if(!window.g || !g.npc) return null;
-    for(const id in g.npc){
-      const n = g.npc[id];
-      const nick = String(n.nick || n.name || '').toLowerCase();
-      if(nick.includes(name)){
-        return { id: id, npc: n };
-      }
-    }
-  }catch(e){}
-  return null;
-}
-
-function adi_goToNpcByName(name){
-  const found = adi_findNpcByName(name);
-  if(!found) return false;
-  try{
-    const n = found.npc;
-    if(typeof goTo === 'function'){
-      goTo(n.x, n.y);
-      return true;
-    }
-  }catch(e){}
-  return false;
-}
-// ===== /PATCH =====
