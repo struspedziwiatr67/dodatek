@@ -3707,13 +3707,8 @@ box.appendChild(autoHealRow);
       const tabStart = document.createElement('div');
       tabStart.id = 'adi-tab-start';
       tabStart.className = 'adi-tab-content';
-      // Start od wybrania profy
-      tabStart.innerHTML = ''
-        + '<div style="font-size:13px;margin:6px 0 8px;text-align:left;">'
-        + 'Uruchamia pełny samouczek z pliku <b>Wioska startowa Wojownik.txt</b> jako jeden długi task.'
-        + '</div>'
-        + '<button id="adi-start-prof-btn" class="adi-bot_inputs" style="width:100%;font-weight:bold;">Start od wybrania profy</button>'
-        + '<div id="adi-start-prof-status" style="font-size:12px;margin-top:6px;min-height:16px;text-align:left;color:#111;">—</div>' ;
+      // Placeholder content (możesz później uzupełnić ustawieniami startówki)
+      tabStart.innerHTML = '<div style="font-size:13px;margin:6px 0;">Wioska startowa – ustawienia w przygotowaniu.</div>';
 
             // Move all current UI controls into Exp tab (na razie nic nie przenosimy logicznie — tylko opakowanie)
       while(box.firstChild){
@@ -8057,487 +8052,483 @@ window.__adiAuctionStart = startAuction;
 
 // ===== WIOSKA STARTOWA: Start od wybrania profy =====
 (function(){
-  const ADI_START_PROF_KEY = 'adi-bot_start_prof_running';
-  const ADI_START_STEP_MS = 1000;
-  const ADI_START_TUTORIAL = 'idź do NPC "Sergiusz" stań (73,47)\n_g(\'talk&id=327221&c=20.1\'); \n_g(\'talk&id=327221&c=20.1\'); \n_g(\'talk&id=327221&c=21.0\')\n_g(\'talk&id=327221&c=60.1\'); \nzałóż item na siebie: Zakrzywiony miecz rycerza\nzałóż item na siebie: Lekka Ćwiekowana zbroja\nzałóż item na siebie: Pancerny pukierz\nzabij "Świerszcz"\nzabij "Pająk"\nzabij "Królik"\nidź do NPC "Sergiusz" stań (73,47)\n_g(\'talk&id=327221&c=20.4\'); \n_g(\'talk&id=327221&c=20.1\'); \n_g(\'talk&id=327221&c=21.1\');  \n_g(\'talk&id=327221&c=22.1\'); \n_g(\'talk&id=359091&c=24.0\')\nidź do NPC "Skrzcynie" stań (67,49)\n_g(\'talk&id=342955&c=20.1\'); \nteraz otworzył się sklep i musisz kupic itemy te co poniżej a następnie je założyć na siebie\nHełm otwarty\nWzmocnione buty\nRękawice kolcze\nNaszyjnik ochrony\nPierścień zdrowia\nŚwiecznik\nidź do NPC "Sergiusz" stań (69,49)\n_g(\'talk&id=342954&c=20.5\'); \n_g(\'talk&id=342954&c=20.1\'); \n_g(\'talk&id=327222&c=21.1\'); \n_g(\'talk&id=327225&c=22.1\'); \n_g(\'talk&id=342954&c=23.1\'); \nteraz przenieś item "Zamszowa torba" na to miejsce <div class="bag-2-slot" tip="Miejsce na torbę"></div>\nnastępnie kliknij przycisk: <span class="gfont" name="Tak">Tak</span>\nidź do NPC "Sergiusz" stań (69,49)\n_g(\'talk&id=342954&c=20.1\'); \n_g(\'talk&id=342954&c=21.1\'); \n_g(\'talk&id=359088&c=22.1\'); \n_g(\'talk&id=359088&c=23.1\'); \n_g(\'talk&id=342954&c=25.1\'); \nidź do NPC "Alik" stań (78,48)\n_g(\'talk&id=327222&c=20.1\'); \n_g(\'talk&id=327222&c=20.1\'); \n_g(\'talk&id=327222&c=20.1\'); \n_g(\'talk&id=327222&c=20.1\'); \n_g(\'talk&id=327222&c=20.1\'); \n_g(\'talk&id=327222&c=20.1\'); \n_g(\'talk&id=327222&c=20.1\'); \nidź do NPC "Alik" stań (59,31)\n_g(\'talk&id=340989&c=20.1\'); \n_g(\'talk&id=340989&c=20.1\'); \n_g(\'talk&id=340989&c=20.1\'); \nzabij "Jadowity wąż"\nidź do NPC "Alik" stań (59,31)\n_g(\'talk&id=340989&c=20.1\'); \n_g(\'talk&id=340989&c=20.1\'); \nidź do NPC "Alik" stań (39,17)\n_g(\'talk&id=340990&c=20.0\')\n_g(\'talk&id=340985&c=22.1\'); \n_g(\'talk&id=340990&c=23.1\'); \n_g(\'talk&id=340990&c=24.1\'); \n_g(\'talk&id=340990&c=26.1\'); \nidź do NPC "Zielarka Flarenia" stań (41,15)\n_g(\'talk&id=340985&c=20.1\'); \n_g(\'talk&id=340985&c=20.1\'); \n_g(\'talk&id=340985&c=20.1\'); \n_g(\'talk&id=340985&c=23.1\'); \nteraz trzeba zebrać "rumianek" i "nagietek" po 2 sztuki czyli wsytarczy że użyjesz naszej funcki z bota w zakładce "Test" masz rubryke i tam wpisujesz nazwę przędmiotu jaki ma podejść i zebrać z ziemi potem ja klikam przycisk "Podejdź" i on już sam idzie po tem przedmiot na ziemi jak klikne to razi idzie po 1 przedmiot na zemi jak coś czyli musisz to zrobić 4 razy bo potrzebujemy po 2 sztuki tego i tego jak to zrobi to następny krok co ma robić masz niżej\nidź do NPC "Zielarka Flarenia" stań (41,15)\n_g(\'talk&id=340985&c=20.0\')\n_g(\'talk&id=340985&c=21.1\'); \n_g(\'talk&id=340985&c=22.1\'); \nteraz kliknij w przycisk: <div class="one-item-on-divide-list crafting-recipe-in-list enabled offer-id-8634 affectedId-id-0" typeitem="all" reqp="all">\n        <div class="name-wrapper">\n            <div class="name">Mikstura niewiadomego zastosowania (2)</div>\n        </div>\n      </div>\n\nnastępnie kliknij przycisk: <button>Użyj</button>\nnastępnie kliknij przycisk: <div class="label">\n        <span class="gfont" name="Ok">Ok</span>\n      </div>\n\nnastępnie kliknij przycisk: <button>Użyj</button>\nnastępnie kliknij przycisk: <div class="label">\n        <span class="gfont" name="Ok">Ok</span>\n      </div>\n\nnastępnie kliknij przycisk: <div class="close-but"></div>\nidź do NPC "Alik" stań (39,17)\n_g(\'talk&id=340990&c=20.2\'); \n_g(\'talk&id=340990&c=20.1\'); \n_g(\'talk&id=340990&c=20.1\'); \n_g(\'talk&id=340990&c=21.1\'); \n_g(\'talk&id=340990&c=23.1\'); \nidź do NPC "Handlarz Erwin" stań (38,14)\n_g(\'talk&id=340983&c=20.1\'); \n_g(\'talk&id=340983&c=20.1\'); \n_g(\'talk&id=340983&c=23.1\'); \n_g(\'talk&id=340983&c=26.1\'); \nnastępnie kliknij przycisk: <div class="name">Unikatowe rękawice śmiałka (1)</div>\nnastępnie kliknij przycisk: <button>Użyj</button>\nnastępnie kliknij przycisk: <div class="label">\n        <span class="gfont" name="Ok">Ok</span>\n      </div>\nnastępnie kliknij przycisk: <div class="close-but"></div>\nzałóż item na siebie item: Unikatowe rękawice śmiałka\nidź do NPC "Handlarz Erwin" stań (38,14)\n_g(\'talk&id=340983&c=20.4\'); \n_g(\'talk&id=340983&c=25.1\'); \n_g(\'talk&id=340983&c=30.0\')\n_g(\'talk&id=343971&c=32.0\')\n_g(\'talk&id=358704&c=34.0\')\nkrok na kordy (43,11)\n_g(\'talk&id=340984&c=20.0\')\n_g(\'talk&id=357322&c=21.1\'); \nnastępnie kliknij przycisk: <div class="label">\n        <span class="gfont" name="Odejdę">Odejdę</span>\n      </div>\n\n_g(\'talk&id=358704&c=31.1\'); \nidź do NPC "Handlarz Erwin" stań (38,14)\n_g(\'talk&id=340983&c=20.1\'); \n_g(\'talk&id=340983&c=21.1\'); \n_g(\'talk&id=340983&c=23.1\'); \nkrok na kordy (26,29)\n_g(\'talk&id=any&c=20.0\')\nkrok na kordy (26,28)\n_g(\'talk&id=340988&c=20.0\')\nnastępnie trzeba odczekać 23 sekundy\nkrok na kordy (35,20)\n_g(\'talk&id=326883&c=30.1\'); \n_g(\'talk&id=326883&c=31.1\'); \n_g(\'talk&id=326883&c=32.1\'); \n_g(\'talk&id=326883&c=33.1\'); \n_g(\'talk&id=326883&c=35.1\'); \n_g(\'talk&id=326883&c=37.1\'); \nidź do NPC "Ajsza" stań (37,21)\n_g(\'talk&id=326883&c=30.1\'); \n_g(\'talk&id=326883&c=31.1\'); \n_g(\'talk&id=326883&c=32.1\'); \n_g(\'talk&id=326883&c=33.1\'); \n_g(\'talk&id=326883&c=36.1\'); \nKoniec';
+  try{
+    if(window.__adiStartProfInstalled) return;
+    window.__adiStartProfInstalled = true;
 
-  function spSetStatus(msg, ok){
-    try{
-      const el = document.getElementById('adi-start-prof-status');
-      if(el){
-        el.textContent = String(msg || '');
-        el.style.color = ok === false ? '#b22222' : '#111';
-      }
-    }catch(_){}
-  }
+    const START_TEXT = 'idź do NPC "Sergiusz" stań (73,47)\n_g(\'talk&id=327221&c=20.1\'); \n_g(\'talk&id=327221&c=20.1\'); \n_g(\'talk&id=327221&c=21.0\')\n_g(\'talk&id=327221&c=60.1\'); \nzałóż item na siebie: Zakrzywiony miecz rycerza\nzałóż item na siebie: Lekka Ćwiekowana zbroja\nzałóż item na siebie: Pancerny pukierz\nzabij "Świerszcz"\nzabij "Pająk"\nzabij "Królik"\nidź do NPC "Sergiusz" stań (73,47)\n_g(\'talk&id=327221&c=20.4\'); \n_g(\'talk&id=327221&c=20.1\'); \n_g(\'talk&id=327221&c=21.1\');  \n_g(\'talk&id=327221&c=22.1\'); \n_g(\'talk&id=359091&c=24.0\')\nidź do NPC "Skrzcynie" stań (67,49)\n_g(\'talk&id=342955&c=20.1\'); \nteraz otworzył się sklep i musisz kupic itemy te co poniżej a następnie je założyć na siebie\nHełm otwarty\nWzmocnione buty\nRękawice kolcze\nNaszyjnik ochrony\nPierścień zdrowia\nŚwiecznik\nidź do NPC "Sergiusz" stań (69,49)\n_g(\'talk&id=342954&c=20.5\'); \n_g(\'talk&id=342954&c=20.1\'); \n_g(\'talk&id=327222&c=21.1\'); \n_g(\'talk&id=327225&c=22.1\'); \n_g(\'talk&id=342954&c=23.1\'); \nteraz przenieś item "Zamszowa torba" na to miejsce <div class="bag-2-slot" tip="Miejsce na torbę"></div>\nnastępnie kliknij przycisk: <span class="gfont" name="Tak">Tak</span>\nidź do NPC "Sergiusz" stań (69,49)\n_g(\'talk&id=342954&c=20.1\'); \n_g(\'talk&id=342954&c=21.1\'); \n_g(\'talk&id=359088&c=22.1\'); \n_g(\'talk&id=359088&c=23.1\'); \n_g(\'talk&id=342954&c=25.1\'); \nidź do NPC "Alik" stań (78,48)\n_g(\'talk&id=327222&c=20.1\'); \n_g(\'talk&id=327222&c=20.1\'); \n_g(\'talk&id=327222&c=20.1\'); \n_g(\'talk&id=327222&c=20.1\'); \n_g(\'talk&id=327222&c=20.1\'); \n_g(\'talk&id=327222&c=20.1\'); \n_g(\'talk&id=327222&c=20.1\'); \nidź do NPC "Alik" stań (59,31)\n_g(\'talk&id=340989&c=20.1\'); \n_g(\'talk&id=340989&c=20.1\'); \n_g(\'talk&id=340989&c=20.1\'); \nzabij "Jadowity wąż"\nidź do NPC "Alik" stań (59,31)\n_g(\'talk&id=340989&c=20.1\'); \n_g(\'talk&id=340989&c=20.1\'); \nidź do NPC "Alik" stań (39,17)\n_g(\'talk&id=340990&c=20.0\')\n_g(\'talk&id=340985&c=22.1\'); \n_g(\'talk&id=340990&c=23.1\'); \n_g(\'talk&id=340990&c=24.1\'); \n_g(\'talk&id=340990&c=26.1\'); \nidź do NPC "Zielarka Flarenia" stań (41,15)\n_g(\'talk&id=340985&c=20.1\'); \n_g(\'talk&id=340985&c=20.1\'); \n_g(\'talk&id=340985&c=20.1\'); \n_g(\'talk&id=340985&c=23.1\'); \nteraz trzeba zebrać "rumianek" i "nagietek" po 2 sztuki czyli wsytarczy że użyjesz naszej funcki z bota w zakładce "Test" masz rubryke i tam wpisujesz nazwę przędmiotu jaki ma podejść i zebrać z ziemi potem ja klikam przycisk "Podejdź" i on już sam idzie po tem przedmiot na ziemi jak klikne to razi idzie po 1 przedmiot na zemi jak coś czyli musisz to zrobić 4 razy bo potrzebujemy po 2 sztuki tego i tego jak to zrobi to następny krok co ma robić masz niżej\nidź do NPC "Zielarka Flarenia" stań (41,15)\n_g(\'talk&id=340985&c=20.0\')\n_g(\'talk&id=340985&c=21.1\'); \n_g(\'talk&id=340985&c=22.1\'); \nteraz kliknij w przycisk: <div class="one-item-on-divide-list crafting-recipe-in-list enabled offer-id-8634 affectedId-id-0" typeitem="all" reqp="all">\n        <div class="name-wrapper">\n            <div class="name">Mikstura niewiadomego zastosowania (2)</div>\n        </div>\n      </div>\n\nnastępnie kliknij przycisk: <button>Użyj</button>\nnastępnie kliknij przycisk: <div class="label">\n        <span class="gfont" name="Ok">Ok</span>\n      </div>\n\nnastępnie kliknij przycisk: <button>Użyj</button>\nnastępnie kliknij przycisk: <div class="label">\n        <span class="gfont" name="Ok">Ok</span>\n      </div>\n\nnastępnie kliknij przycisk: <div class="close-but"></div>\nidź do NPC "Alik" stań (39,17)\n_g(\'talk&id=340990&c=20.2\'); \n_g(\'talk&id=340990&c=20.1\'); \n_g(\'talk&id=340990&c=20.1\'); \n_g(\'talk&id=340990&c=21.1\'); \n_g(\'talk&id=340990&c=23.1\'); \nidź do NPC "Handlarz Erwin" stań (38,14)\n_g(\'talk&id=340983&c=20.1\'); \n_g(\'talk&id=340983&c=20.1\'); \n_g(\'talk&id=340983&c=23.1\'); \n_g(\'talk&id=340983&c=26.1\'); \nnastępnie kliknij przycisk: <div class="name">Unikatowe rękawice śmiałka (1)</div>\nnastępnie kliknij przycisk: <button>Użyj</button>\nnastępnie kliknij przycisk: <div class="label">\n        <span class="gfont" name="Ok">Ok</span>\n      </div>\nnastępnie kliknij przycisk: <div class="close-but"></div>\nzałóż item na siebie item: Unikatowe rękawice śmiałka\nidź do NPC "Handlarz Erwin" stań (38,14)\n_g(\'talk&id=340983&c=20.4\'); \n_g(\'talk&id=340983&c=25.1\'); \n_g(\'talk&id=340983&c=30.0\')\n_g(\'talk&id=343971&c=32.0\')\n_g(\'talk&id=358704&c=34.0\')\nkrok na kordy (43,11)\n_g(\'talk&id=340984&c=20.0\')\n_g(\'talk&id=357322&c=21.1\'); \nnastępnie kliknij przycisk: <div class="label">\n        <span class="gfont" name="Odejdę">Odejdę</span>\n      </div>\n\n_g(\'talk&id=358704&c=31.1\'); \nidź do NPC "Handlarz Erwin" stań (38,14)\n_g(\'talk&id=340983&c=20.1\'); \n_g(\'talk&id=340983&c=21.1\'); \n_g(\'talk&id=340983&c=23.1\'); \nkrok na kordy (26,29)\n_g(\'talk&id=any&c=20.0\')\nkrok na kordy (26,28)\n_g(\'talk&id=340988&c=20.0\')\nnastępnie trzeba odczekać 23 sekundy\nkrok na kordy (35,20)\n_g(\'talk&id=326883&c=30.1\'); \n_g(\'talk&id=326883&c=31.1\'); \n_g(\'talk&id=326883&c=32.1\'); \n_g(\'talk&id=326883&c=33.1\'); \n_g(\'talk&id=326883&c=35.1\'); \n_g(\'talk&id=326883&c=37.1\'); \nidź do NPC "Ajsza" stań (37,21)\n_g(\'talk&id=326883&c=30.1\'); \n_g(\'talk&id=326883&c=31.1\'); \n_g(\'talk&id=326883&c=32.1\'); \n_g(\'talk&id=326883&c=33.1\'); \n_g(\'talk&id=326883&c=36.1\'); \nKoniec';
+    const STEP_DELAY_MS = 1000;
+    const WALK_POLL_MS = 250;
+    const WALK_TIMEOUT_MS = 90000;
+    const KILL_TIMEOUT_MS = 90000;
+    const UI_POLL_MS = 800;
 
-  function spNorm(s){
-    return String(s || '')
-      .replace(/<[^>]*>/g, ' ')
-      .toLowerCase()
-      .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
-      .replace(/\u00A0/g, ' ')
-      .replace(/[^a-z0-9]+/g, ' ')
-      .replace(/\s+/g, ' ')
-      .trim();
-  }
-
-  function spSleep(ms){ return new Promise(res => setTimeout(res, ms)); }
-
-  async function spSleepStep(mult){
-    const t = Math.max(1, Number(mult || 1));
-    await spSleep(ADI_START_STEP_MS * t);
-  }
-
-  function spFindNpcByName(name){
-    try{
-      if(!window.g || !g.npc) return null;
-      const want = spNorm(name);
-      let best = null;
-      for(const id in g.npc){
-        const n = g.npc[id];
-        if(!n) continue;
-        const nm = spNorm(n.nick || n.name || n.n || '');
-        if(nm === want) return n;
-        if(!best && nm.includes(want)) best = n;
-      }
-      return best;
-    }catch(_){ return null; }
-  }
-
-  function spFindMobByName(name){
-    try{
-      if(!window.g || !g.npc) return null;
-      const want = spNorm(name);
-      let best = null;
-      for(const id in g.npc){
-        const n = g.npc[id];
-        if(!n || (n.type != 2 && n.type != 3)) continue;
-        const nm = spNorm(n.nick || n.name || n.n || '');
-        if(nm === want) return n;
-        if(!best && nm.includes(want)) best = n;
-      }
-      return best;
-    }catch(_){ return null; }
-  }
-
-  function spFindInventoryItemByName(name){
-    try{
-      const needle = spNorm(name);
-      const items = Array.from(document.querySelectorAll('.item[id^="item"]'));
-      const invOnly = items.filter(el => !el.closest('#npcshop, .shop, #shop'));
-      function txt(el){
-        return spNorm((el.getAttribute('tip') || '') + ' ' + (el.getAttribute('ctip') || '') + ' ' + (el.textContent || ''));
-      }
-      return invOnly.find(el => txt(el).includes(needle)) || null;
-    }catch(_){ return null; }
-  }
-
-  function spFindGroundItemByName(name){
-    try{
-      const needle = spNorm(name);
-      const selectors = [
-        '.ground-item', '.item-ground', '.map-ground-item', '.item-on-map',
-        '.loot-item', '.drop-item', '.item:not([id^="item"])'
-      ];
-      const nodes = Array.from(document.querySelectorAll(selectors.join(',')));
-      let best = null;
-      for(const el of nodes){
-        if(el.closest('#npcshop, .shop, #shop, #panel, #eq, #inventory')) continue;
-        const txt = spNorm((el.getAttribute('tip') || '') + ' ' + (el.getAttribute('ctip') || '') + ' ' + (el.textContent || ''));
-        if(!txt) continue;
-        if(txt.includes(needle)) return el;
-        if(!best && txt.indexOf('ziemia') !== -1 && txt.includes(needle)) best = el;
-      }
-      return best;
-    }catch(_){ return null; }
-  }
-
-  function spClick(el){
-    if(!el) return false;
-    try{ el.dispatchEvent(new MouseEvent('mouseover',{bubbles:true,cancelable:true,view:window})); }catch(_){}
-    try{ el.dispatchEvent(new MouseEvent('mousedown',{bubbles:true,cancelable:true,view:window})); }catch(_){}
-    try{ el.click(); }catch(_){}
-    try{ el.dispatchEvent(new MouseEvent('mouseup',{bubbles:true,cancelable:true,view:window})); }catch(_){}
-    return true;
-  }
-
-  function spElementBySnippet(html){
-    try{
-      const raw = String(html || '').trim();
-      if(!raw) return null;
-      if(/close-but/i.test(raw)) return document.querySelector('.close-but');
-      if(/bag-2-slot/i.test(raw)) return document.querySelector('.bag-2-slot');
-
-      const tmp = document.createElement('div');
-      tmp.innerHTML = raw;
-      const txt = spNorm(tmp.textContent || tmp.innerText || '');
-
-      if(/name="tak"/i.test(raw) || txt === 'tak'){
-        return Array.from(document.querySelectorAll('span.gfont, .label, button, .button')).find(el => spNorm(el.textContent) === 'tak') || null;
-      }
-      if(/name="ok"/i.test(raw) || txt === 'ok'){
-        return Array.from(document.querySelectorAll('span.gfont, .label, button, .button')).find(el => spNorm(el.textContent) === 'ok') || null;
-      }
-      if(/odejde|odejd/i.test(raw) || txt === 'odejde'){
-        return Array.from(document.querySelectorAll('span.gfont, .label, button, .button')).find(el => spNorm(el.textContent) === 'odejde') || null;
-      }
-      if(/<button>/i.test(raw) && txt){
-        return Array.from(document.querySelectorAll('button')).find(el => spNorm(el.textContent) === txt) || null;
-      }
-      if(/crafting-recipe-in-list|offer-id-8634/i.test(raw) || txt.includes('mikstura niewiadomego zastosowania')){
-        return Array.from(document.querySelectorAll('.one-item-on-divide-list, .crafting-recipe-in-list, .enabled, .offer-id-8634, .name')).find(el => spNorm(el.textContent).includes('mikstura niewiadomego zastosowania')) || null;
-      }
-      if(txt){
-        const all = Array.from(document.querySelectorAll('div, span, button'));
-        const exact = all.find(el => spNorm(el.textContent) === txt);
-        if(exact) return exact;
-        const partial = all.find(el => spNorm(el.textContent).includes(txt));
-        if(partial) return partial;
-      }
-    }catch(_){}
-    return null;
-  }
-
-  async function spMoveToMapAndCoords(mapName, x, y){
-    const started = Date.now();
-    while(true){
-      if(!window.hero || !window.map) throw new Error('Brak hero/map');
-      if(spNorm(map.name || '') !== spNorm(mapName)){
-        try{ setTempTarget(mapName); }catch(_){}
-        try{
-          const step = (typeof followGraphTo === 'function') ? followGraphTo(mapName) : null;
-          if(step && typeof step.x !== 'undefined') a_goTo(step.x, step.y);
-        }catch(_){}
-      }else{
-        if(Number(hero.x) === Number(x) && Number(hero.y) === Number(y)) return true;
-        try{ a_goTo(Number(x), Number(y)); }catch(_){}
-      }
-      if(Date.now() - started > 180000) throw new Error('Timeout dojścia do ' + mapName + ' (' + x + ',' + y + ')');
-      await spSleep(350);
+    function norm(s){
+      return String(s||'').toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g,'').replace(/\s+/g,' ').trim();
     }
-  }
-
-  async function spMoveToCoords(x, y){
-    const started = Date.now();
-    while(true){
-      if(Number(hero?.x) === Number(x) && Number(hero?.y) === Number(y)) return true;
-      try{ a_goTo(Number(x), Number(y)); }catch(_){}
-      if(Date.now() - started > 60000) throw new Error('Timeout dojścia na kordy (' + x + ',' + y + ')');
-      await spSleep(250);
-    }
-  }
-
-  async function spClickNpcOnce(name){
-    const started = Date.now();
-    while(true){
-      const npc = spFindNpcByName(name);
-      if(npc){
-        try{
-          if(typeof _g === 'function') _g('talk&id=' + npc.id);
-          else spClick(document.querySelector('.npc'));
-        }catch(_){}
-        return true;
-      }
-      if(Date.now() - started > 15000) throw new Error('Nie znaleziono NPC: ' + name);
-      await spSleep(250);
-    }
-  }
-
-  async function spRunTalk(cmd){
-    const code = String(cmd || '').trim().replace(/;+\s*$/, '');
-    if(!code) return;
-    if(typeof window._g !== 'function') throw new Error('Brak _g');
-    try{ (0, eval)(code); }catch(e){ throw new Error('Błąd _g: ' + code + ' :: ' + e.message); }
-  }
-
-  async function spEquipItem(name){
-    const started = Date.now();
-    while(true){
-      const itemEl = spFindInventoryItemByName(name);
-      if(itemEl){
-        try{
-          if(typeof window.__adiEquipByName === 'function'){
-            window.__adiEquipByName(name);
-          }else{
-            spClick(itemEl);
-          }
-        }catch(_){}
-        return true;
-      }
-      if(Date.now() - started > 20000) throw new Error('Nie znaleziono itemu do założenia: ' + name);
-      await spSleep(250);
-    }
-  }
-
-  async function spBuyItems(names){
-    const list = (names || []).map(x => String(x || '').trim()).filter(Boolean);
-    for(const name of list){
-      spSetStatus('Kupuję: ' + name, true);
-      if(typeof apBuyByName !== 'function') throw new Error('Brak apBuyByName');
-      apBuyByName(name, 1);
-      await spSleepStep(1);
-    }
-    const acceptBtn = document.querySelector('#shop_accept');
-    if(acceptBtn){ spClick(acceptBtn); await spSleep(250); }
-    const closeBtn = document.querySelector('#shop_close');
-    if(closeBtn){ spClick(closeBtn); await spSleep(250); }
-  }
-
-  async function spAttackMob(name){
-    const started = Date.now();
-    while(true){
-      const mob = spFindMobByName(name);
-      if(mob){
-        try{
-          window.$m_id = mob.id;
-          if(typeof addToGlobal === 'function') addToGlobal(mob.id);
-        }catch(_){}
-        try{ _g('fight&a=attack&id=' + mob.id); }catch(_){}
-        break;
-      }
-      if(Date.now() - started > 30000) throw new Error('Nie znaleziono potwora: ' + name);
-      await spSleep(250);
-    }
-
-    const waitStart = Date.now();
-    while(true){
-      const mobStill = spFindMobByName(name);
-      const fightVisible = !!(window.g && (g.battle || g.fight));
-      if(!mobStill && !fightVisible) return true;
-      if(Date.now() - waitStart > 90000) return true;
-      await spSleep(400);
-    }
-  }
-
-  async function spMoveItemToBagSlot(itemName){
-    const started = Date.now();
-    while(true){
-      const item = spFindInventoryItemByName(itemName);
-      const slot = document.querySelector('.bag-2-slot');
-      if(item && slot){
-        try{
-          const rect = slot.getBoundingClientRect();
-          if(window.jQuery){
-            const $ = window.jQuery;
-            $(item).trigger($.Event('mousedown', {pageX: rect.left, pageY: rect.top, which:1}));
-            $(document).trigger($.Event('mousemove', {pageX: rect.left + rect.width/2, pageY: rect.top + rect.height/2, which:1}));
-            $(document).trigger($.Event('mouseup', {pageX: rect.left + rect.width/2, pageY: rect.top + rect.height/2, which:1}));
-          }else{
-            spClick(item);
-            await spSleep(100);
-            spClick(slot);
-          }
-        }catch(_){}
-        return true;
-      }
-      if(Date.now() - started > 15000) throw new Error('Nie udało się przenieść itemu do slotu torby: ' + itemName);
-      await spSleep(250);
-    }
-  }
-
-  async function spClickFromSnippet(snippet){
-    const started = Date.now();
-    while(true){
-      const el = spElementBySnippet(snippet);
-      if(el){
-        spClick(el);
-        return true;
-      }
-      if(Date.now() - started > 20000) throw new Error('Nie znaleziono przycisku/elementu dla: ' + snippet);
-      await spSleep(250);
-    }
-  }
-
-  async function spCollectGroundItem(name){
-    const started = Date.now();
-    while(true){
-      const item = spFindGroundItemByName(name);
-      if(item){
-        spClick(item);
-        return true;
-      }
-      if(Date.now() - started > 20000){
-        throw new Error('Nie znaleziono itemu na ziemi: ' + name);
-      }
-      await spSleep(300);
-    }
-  }
-
-  function spParseTutorial(text){
-    const rawLines = String(text || '').replace(/\r/g,'').split('\n');
-    const lines = [];
-    for(let i=0;i<rawLines.length;i++){
-      const s = String(rawLines[i] || '').trim();
-      if(!s) continue;
-      lines.push(s);
-    }
-
-    const steps = [];
-    for(let i=0;i<lines.length;i++){
-      const line = lines[i];
-
-      let m = line.match(/^idź do NPC "([^"]+)" stań \((\d+),(\d+)\)$/i);
-      if(m){ steps.push({type:'goNpc', npc:m[1], x:+m[2], y:+m[3]}); continue; }
-
-      m = line.match(/^krok na kordy \((\d+),(\d+)\)$/i);
-      if(m){ steps.push({type:'coords', x:+m[1], y:+m[2]}); continue; }
-
-      m = line.match(/^_g\((.+)\)\s*;?$/i);
-      if(m){ steps.push({type:'g', code:'_g(' + m[1] + ')'}); continue; }
-
-      m = line.match(/^załóż item na siebie(?: item)?:\s*(.+)$/i);
-      if(m){ steps.push({type:'equip', item:m[1].trim()}); continue; }
-
-      m = line.match(/^zabij "([^"]+)"$/i);
-      if(m){ steps.push({type:'kill', mob:m[1]}); continue; }
-
-      m = line.match(/^teraz przenieś item "([^"]+)" na to miejsce /i);
-      if(m){ steps.push({type:'moveBag', item:m[1]}); continue; }
-
-      m = line.match(/^(?:następnie|teraz) kliknij (?:w )?przycisk:\s*(.+)$/i);
-      if(m){
-        let snippet = m[1];
-        while(i + 1 < lines.length && !/^(?:idź do NPC|krok na kordy|_g\(|załóż item na siebie|zabij "|teraz trzeba zebrać|teraz otworzył się sklep|następnie trzeba odczekać|Koniec)$/i.test(lines[i+1])){
-          if(/^(?:następnie|teraz) kliknij (?:w )?przycisk:/i.test(lines[i+1])) break;
-          if(/^załóż item na siebie/i.test(lines[i+1])) break;
-          snippet += ' ' + lines[++i];
-          if(/<\/(?:div|button|span)>/i.test(lines[i])) break;
-        }
-        steps.push({type:'clickSnippet', snippet});
-        continue;
-      }
-
-      if(/^teraz otworzył się sklep/i.test(line)){
-        const items = [];
-        while(i + 1 < lines.length){
-          const next = lines[i+1];
-          if(/^(?:idź do NPC|krok na kordy|_g\(|załóż item na siebie|zabij "|teraz |następnie |Koniec)$/i.test(next)) break;
-          items.push(next.trim());
-          i++;
-        }
-        steps.push({type:'buyEquip', items});
-        continue;
-      }
-
-      if(/^teraz trzeba zebrać/i.test(line)){
-        steps.push({type:'collectGround', items:['rumianek','rumianek','nagietek','nagietek']});
-        continue;
-      }
-
-      m = line.match(/^następnie trzeba odczekać (\d+) sekundy$/i);
-      if(m){ steps.push({type:'wait', seconds:+m[1]}); continue; }
-
-      if(/^Koniec$/i.test(line)){ steps.push({type:'end'}); continue; }
-
-      steps.push({type:'note', text:line});
-    }
-    return steps;
-  }
-
-  async function spRunStep(step, idx, total){
-    const prefix = '[' + idx + '/' + total + '] ';
-    switch(step.type){
-      case 'goNpc':
-        spSetStatus(prefix + 'Idę do NPC ' + step.npc + ' (' + step.x + ',' + step.y + ')', true);
-        await spMoveToMapAndCoords(String(map?.name || ''), step.x, step.y);
-        await spClickNpcOnce(step.npc);
-        return;
-      case 'coords':
-        spSetStatus(prefix + 'Idę na kordy (' + step.x + ',' + step.y + ')', true);
-        await spMoveToCoords(step.x, step.y);
-        return;
-      case 'g':
-        spSetStatus(prefix + 'Wykonuję dialog _g', true);
-        await spRunTalk(step.code);
-        return;
-      case 'equip':
-        spSetStatus(prefix + 'Zakładam: ' + step.item, true);
-        await spEquipItem(step.item);
-        return;
-      case 'kill':
-        spSetStatus(prefix + 'Atakuję: ' + step.mob + ' (ignoruję level samouczka)', true);
-        await spAttackMob(step.mob);
-        return;
-      case 'buyEquip':
-        spSetStatus(prefix + 'Kupuję i zakładam ekwipunek', true);
-        await spBuyItems(step.items);
-        for(const item of step.items){
-          await spSleepStep(1);
-          await spEquipItem(item);
-        }
-        return;
-      case 'moveBag':
-        spSetStatus(prefix + 'Przenoszę do slotu torby: ' + step.item, true);
-        await spMoveItemToBagSlot(step.item);
-        return;
-      case 'clickSnippet':
-        spSetStatus(prefix + 'Klikam wskazany element', true);
-        await spClickFromSnippet(step.snippet);
-        return;
-      case 'collectGround':
-        for(let i=0;i<step.items.length;i++){
-          const nm = step.items[i];
-          spSetStatus(prefix + 'Zbieram z ziemi: ' + nm + ' [' + (i+1) + '/' + step.items.length + ']', true);
-          await spCollectGroundItem(nm);
-          await spSleepStep(1);
-        }
-        return;
-      case 'wait':
-        spSetStatus(prefix + 'Czekam ' + step.seconds + ' sekund', true);
-        await spSleep(step.seconds * 1000);
-        return;
-      case 'note':
-        spSetStatus(prefix + step.text, true);
-        return;
-      case 'end':
-        spSetStatus('Samouczek zakończony.', true);
-        return;
-    }
-  }
-
-  async function spRunTutorial(){
-    if(window.__adiStartProfRunning) return;
-    window.__adiStartProfRunning = true;
-    try{ localStorage.setItem(ADI_START_PROF_KEY, '1'); }catch(_){}
-    try{
-      const btn = document.getElementById('adi-start-prof-btn');
-      if(btn) btn.disabled = true;
-    }catch(_){}
-
-    try{
-      const steps = spParseTutorial(ADI_START_TUTORIAL);
-      for(let i=0;i<steps.length;i++){
-        const step = steps[i];
-        await spRunStep(step, i+1, steps.length);
-        if(step.type !== 'wait' && step.type !== 'end') await spSleepStep(1);
-      }
-      spSetStatus('Samouczek zakończony.', true);
-      try{ message('Wioska startowa: samouczek zakończony.'); }catch(_){}
-    }catch(e){
-      console.warn('[adi-bot] start-prof error', e);
-      spSetStatus('Błąd: ' + (e && e.message ? e.message : e), false);
-      try{ message('Wioska startowa: błąd — ' + (e && e.message ? e.message : e)); }catch(_){}
-    }finally{
-      window.__adiStartProfRunning = false;
-      try{ localStorage.removeItem(ADI_START_PROF_KEY); }catch(_){}
+    function sleep(ms){ return new Promise(r=>setTimeout(r, Math.max(0, ms|0))); }
+    function status(msg, ok){
       try{
-        const btn = document.getElementById('adi-start-prof-btn');
-        if(btn) btn.disabled = false;
-      }catch(_){}
+        const el = document.getElementById('adi-start-prof-status');
+        if(el){ el.textContent = msg; el.style.color = ok===false ? '#b00020' : '#0a6b2d'; }
+      }catch(_){ }
+      try{ console.log('[adi-start-prof]', msg); }catch(_){ }
     }
-  }
+    function getDocs(){
+      const out = [document];
+      try{
+        const iframes = document.querySelectorAll('iframe');
+        for(const fr of iframes){
+          try{
+            const d = fr.contentDocument || (fr.contentWindow && fr.contentWindow.document);
+            if(d) out.push(d);
+          }catch(_){ }
+        }
+      }catch(_){ }
+      return out;
+    }
+    function safeClick(el){
+      try{
+        if(!el) return false;
+        const ev = (type)=>new MouseEvent(type,{bubbles:true,cancelable:true,view:window});
+        try{ el.dispatchEvent(ev('mouseover')); }catch(_){ }
+        try{ el.dispatchEvent(ev('mousedown')); }catch(_){ }
+        try{ el.dispatchEvent(ev('mouseup')); }catch(_){ }
+        try{ el.dispatchEvent(ev('click')); }catch(_){ }
+        try{ el.click(); }catch(_){ }
+        return true;
+      }catch(_){ return false; }
+    }
+    function waitUntil(fn, timeoutMs, pollMs){
+      return new Promise(resolve=>{
+        const start = Date.now();
+        const t = setInterval(()=>{
+          let ok = false;
+          try{ ok = !!fn(); }catch(_){ ok = false; }
+          if(ok){ clearInterval(t); resolve(true); return; }
+          if(Date.now()-start >= (timeoutMs||10000)){
+            clearInterval(t); resolve(false);
+          }
+        }, pollMs||250);
+      });
+    }
+    function stopMainBotIfNeeded(){
+      try{
+        const enabled = localStorage.getItem('adi-bot_enabled') === '1';
+        const btn = document.querySelector('#adi-bot_toggle');
+        if(enabled && btn) safeClick(btn);
+      }catch(_){ }
+    }
+    function parseTutorial(txt){
+      const lines = String(txt||'').replace(/\r/g,'').split('\n');
+      const actions = [];
+      const isCmdStart = (s)=>/^(idź do NPC|_g\(|załóż item na siebie|zabij\s+"|teraz\s+otworzył|teraz\s+przenieś item|teraz\s+trzeba\s+zebrać|teraz\s+kliknij|następnie\s+kliknij|krok na kordy|następnie\s+trzeba odczekać|Koniec)/i.test(s||'');
+      let i = 0;
+      while(i < lines.length){
+        let line = String(lines[i]||'').trim();
+        if(!line){ i++; continue; }
 
-  function spBind(){
-    const btn = document.getElementById('adi-start-prof-btn');
-    if(!btn || btn.__adiBound) return;
-    btn.__adiBound = true;
-    btn.addEventListener('click', ()=>{
+        let m = line.match(/^idź do NPC\s+"([^"]+)"\s+stań\s*\((\d+)\s*,\s*(\d+)\)/i);
+        if(m){ actions.push({type:'walk', npc:m[1], x:+m[2], y:+m[3]}); i++; continue; }
+
+        m = line.match(/^krok na kordy\s*\((\d+)\s*,\s*(\d+)\)/i);
+        if(m){ actions.push({type:'walk', x:+m[1], y:+m[2]}); i++; continue; }
+
+        if(/^_g\(/i.test(line)){
+          actions.push({type:'gcmd', code: line.replace(/;\s*$/,'')});
+          i++; continue;
+        }
+
+        m = line.match(/^załóż item na siebie(?:\s*item)?\s*:\s*(.+)$/i);
+        if(m){ actions.push({type:'equip', item:m[1].trim()}); i++; continue; }
+
+        m = line.match(/^zabij\s+"([^"]+)"/i);
+        if(m){ actions.push({type:'kill', mob:m[1].trim()}); i++; continue; }
+
+        if(/^teraz\s+otworzył\s+się\s+sklep/i.test(line)){
+          const items = [];
+          i++;
+          while(i < lines.length){
+            const s = String(lines[i]||'').trim();
+            if(!s){ i++; continue; }
+            if(isCmdStart(s)) break;
+            items.push(s);
+            i++;
+          }
+          if(items.length) actions.push({type:'buyAndEquip', items});
+          continue;
+        }
+
+        m = line.match(/^teraz\s+przenieś\s+item\s+"([^"]+)"\s+na\s+to\s+miejsce/i);
+        if(m){ actions.push({type:'dragToSlot', item:m[1].trim(), slot:'.bag-2-slot'}); i++; continue; }
+
+        if(/^teraz\s+trzeba\s+zebrać/i.test(line)){
+          actions.push({type:'collectGround', name:'rumianek', count:2});
+          actions.push({type:'collectGround', name:'nagietek', count:2});
+          i++; continue;
+        }
+
+        m = line.match(/^następnie\s+trzeba\s+odczekać\s+(\d+)\s+sekundy/i);
+        if(m){ actions.push({type:'wait', ms:(+m[1])*1000}); i++; continue; }
+
+        if(/^(teraz\s+kliknij|następnie\s+kliknij)/i.test(line)){
+          const frag = [line];
+          i++;
+          while(i < lines.length){
+            const s = String(lines[i]||'');
+            const t = s.trim();
+            if(!t){
+              frag.push(s);
+              i++;
+              break;
+            }
+            if(isCmdStart(t)) break;
+            frag.push(s);
+            i++;
+          }
+          actions.push({type:'clickFragment', html: frag.join('\n')});
+          continue;
+        }
+
+        if(/^Koniec$/i.test(line)){ actions.push({type:'end'}); i++; continue; }
+        i++;
+      }
+      return actions;
+    }
+
+    function findNpcByName(name){
+      try{
+        const needle = norm(name);
+        for(const id in (window.g && g.npc || {})){
+          const n = g.npc[id];
+          if(!n) continue;
+          const nm = norm(n.nick || n.name || n.n || '');
+          if(nm === needle) return n;
+        }
+      }catch(_){ }
+      return null;
+    }
+    async function walkTo(x, y){
+      x = Number(x)||0; y = Number(y)||0;
+      status('Idę na kordy ('+x+','+y+')...', true);
+      const ok = await new Promise(resolve=>{
+        const started = Date.now();
+        const t = setInterval(()=>{
+          try{
+            if(window.__adiStartProfAbort){ clearInterval(t); resolve(false); return; }
+            if(window.hero && hero.x === x && hero.y === y){ clearInterval(t); resolve(true); return; }
+            if(typeof a_goTo === 'function') a_goTo(x, y);
+            if(Date.now() - started > WALK_TIMEOUT_MS){ clearInterval(t); resolve(false); }
+          }catch(_){ }
+        }, WALK_POLL_MS);
+      });
+      if(!ok) throw new Error('Nie udało się dojść na ('+x+','+y+').');
+      return true;
+    }
+    function tryEvalG(code){
+      try{
+        const fn = new Function(code + ';');
+        fn.call(window);
+        return true;
+      }catch(e){
+        console.warn('[adi-start-prof] gcmd error', code, e);
+        return false;
+      }
+    }
+    function findInvItemByName(name){
+      const needle = norm(name);
+      const docs = getDocs();
+      for(const d of docs){
+        const items = Array.from(d.querySelectorAll('.item[id^="item"]'));
+        for(const el of items){
+          if(el.closest('#npcshop, .shop, #shop')) continue;
+          const txt = norm([el.getAttribute('tip'), el.getAttribute('ctip'), el.textContent].join(' | '));
+          if(txt.includes(needle)) return el;
+        }
+      }
+      return null;
+    }
+    async function equipItem(name){
+      status('Zakładam: ' + name, true);
+      let ok = false;
+      try{
+        if(typeof window.__adiEquipByName === 'function') ok = !!window.__adiEquipByName(name);
+      }catch(_){ }
+      if(!ok){
+        const el = findInvItemByName(name);
+        if(el) safeClick(el);
+      }
+      await sleep(1100);
+      return true;
+    }
+    function invCountByName(name){
+      try{
+        const needle = norm(name);
+        let sum = 0;
+        for(const id in (window.g && g.item || {})){
+          const it = g.item[id];
+          if(!it) continue;
+          const txt = norm([it.name, it.nick, it.tip].join(' | '));
+          if(txt.includes(needle)){
+            const amt = Number(it.amount ?? it.ilosc ?? it.count ?? 1);
+            sum += (Number.isFinite(amt) && amt > 0) ? amt : 1;
+          }
+        }
+        return sum;
+      }catch(_){ return 0; }
+    }
+    function shopIsOpen(){
+      const docs = getDocs();
+      return docs.some(d => d.querySelector('.item[id^="item"], .shop, #shop, #npcshop'));
+    }
+    function findShopItemByName(name){
+      const needle = norm(name);
+      const docs = getDocs();
+      for(const d of docs){
+        const items = Array.from(d.querySelectorAll('.item[id^="item"]'));
+        for(const el of items){
+          if(!el.closest('#npcshop, .shop, #shop')) continue;
+          const txt = norm([el.getAttribute('tip'), el.getAttribute('ctip'), el.textContent].join(' | '));
+          if(txt.includes(needle)) return el;
+        }
+      }
+      return null;
+    }
+    async function buyAndEquip(items){
+      status('Kupuję i zakładam ekwipunek...', true);
+      await waitUntil(()=>shopIsOpen(), 15000, 250);
+      for(const item of items){
+        const el = findShopItemByName(item);
+        if(el) safeClick(el);
+        await sleep(STEP_DELAY_MS);
+      }
+      for(const d of getDocs()){
+        const accept = d.querySelector('#shop_accept');
+        if(accept){ safeClick(accept); break; }
+      }
+      await sleep(STEP_DELAY_MS);
+      for(const d of getDocs()){
+        const close = d.querySelector('#shop_close');
+        if(close){ safeClick(close); break; }
+      }
+      await sleep(STEP_DELAY_MS);
+      for(const item of items){
+        await equipItem(item);
+      }
+      return true;
+    }
+    async function dragItemToSlot(itemName, slotSelector){
+      status('Przenoszę item: ' + itemName, true);
+      const el = findInvItemByName(itemName);
+      if(!el) throw new Error('Nie znalazłem itemu: ' + itemName);
+      const docs = getDocs();
+      let slot = null;
+      for(const d of docs){ slot = d.querySelector(slotSelector); if(slot) break; }
+      if(!slot) throw new Error('Nie znalazłem slotu: ' + slotSelector);
+      try{
+        if(typeof window.__adi_tryDragToEq === 'function'){
+          window.__adi_tryDragToEq(el);
+        }else{
+          const ev = (type, x, y)=>new MouseEvent(type,{bubbles:true,cancelable:true,clientX:x,clientY:y,button:0,buttons:type==='mouseup'?0:1});
+          const re = el.getBoundingClientRect();
+          const rs = slot.getBoundingClientRect();
+          const fx = Math.round(re.left + re.width/2), fy = Math.round(re.top + re.height/2);
+          const tx = Math.round(rs.left + rs.width/2), ty = Math.round(rs.top + rs.height/2);
+          el.dispatchEvent(ev('mousedown', fx, fy));
+          document.dispatchEvent(ev('mousemove', tx, ty));
+          slot.dispatchEvent(ev('mouseup', tx, ty));
+          slot.dispatchEvent(ev('click', tx, ty));
+        }
+      }catch(_){ }
+      await sleep(1200);
+      return true;
+    }
+    function clickByText(text){
+      const want = norm(text);
+      for(const d of getDocs()){
+        const all = Array.from(d.querySelectorAll('button, .button, .label, span.gfont, div.name, .one-item-on-divide-list, li, a, div'));
+        const el = all.find(node => norm(node.textContent || node.innerText || '') === want || norm(node.textContent || node.innerText || '').includes(want));
+        if(el){ safeClick(el); return true; }
+      }
+      return false;
+    }
+    function clickFragment(fragment){
+      const html = String(fragment||'');
+      if(/close-but/i.test(html)){
+        for(const d of getDocs()){
+          const el = d.querySelector('.close-but');
+          if(el){ safeClick(el); return true; }
+        }
+        return false;
+      }
+      if(/Mikstura niewiadomego zastosowania/i.test(html)) return clickByText('Mikstura niewiadomego zastosowania');
+      if(/Unikatowe rękawice śmiałka/i.test(html)) return clickByText('Unikatowe rękawice śmiałka');
+      if(/name="Tak"|>Tak</i.test(html)) return clickByText('Tak');
+      if(/name="Ok"|>Ok</i.test(html)) return clickByText('Ok');
+      if(/name="Odejdę"|Odejdę/i.test(html)) return clickByText('Odejdę');
+      if(/>Użyj</i.test(html)) return clickByText('Użyj');
+      return false;
+    }
+    function isInBattle(){
+      try{
+        const b = document.querySelector('#battle, .battle');
+        if(b && b.offsetParent !== null) return true;
+      }catch(_){ }
+      try{ return !!(window.glock && glock.battle); }catch(_){ }
+      return false;
+    }
+    async function killMob(name){
+      status('Zabijam: ' + name, true);
+      const needle = norm(name);
+      const started = Date.now();
+      while(Date.now() - started < KILL_TIMEOUT_MS){
+        if(window.__adiStartProfAbort) throw new Error('Przerwano task.');
+        let target = null;
+        for(const id in (window.g && g.npc || {})){
+          const n = g.npc[id];
+          if(!n || Number(n.type) !== 2) continue;
+          const nm = norm(n.nick || n.name || n.n || '');
+          if(nm === needle){ target = n; break; }
+        }
+        if(target){
+          const dist = Math.abs((hero?.x||0) - (target.x||0)) + Math.abs((hero?.y||0) - (target.y||0));
+          if(dist > 1){
+            if(typeof a_goTo === 'function') a_goTo(target.x, target.y);
+          }else if(!isInBattle()){
+            try{ _g('fight&a=attack&id=' + target.id); }catch(_){ }
+          }
+        }
+        if(!target && !isInBattle()) return true;
+        await sleep(500);
+      }
+      throw new Error('Nie udało się zabić: ' + name);
+    }
+    function findTestPickupControls(){
+      try{
+        const root = document.getElementById('adi-tab-test') || document;
+        const btns = Array.from(root.querySelectorAll('button, .button, span.gfont'));
+        const btn = btns.find(el => /podejdz|podejdź/i.test(String(el.textContent || el.innerText || '')));
+        if(!btn) return null;
+        let input = null;
+        const inputs = Array.from(root.querySelectorAll('input[type="text"], input:not([type])'));
+        for(const inp of inputs){
+          const ph = norm(inp.getAttribute('placeholder') || '');
+          const tip = norm(inp.getAttribute('tip') || '');
+          const id  = norm(inp.id || '');
+          if(ph.includes('przedmiot') || tip.includes('przedmiot') || id.includes('item')){ input = inp; break; }
+        }
+        if(!input) input = inputs[inputs.length-1] || null;
+        return input && btn ? {input, btn} : null;
+      }catch(_){ return null; }
+    }
+    async function collectGround(name, count){
+      status('Zbieram z ziemi: ' + name + ' x' + count, true);
+      for(let i=0;i<count;i++){
+        const before = invCountByName(name);
+        const ctrl = findTestPickupControls();
+        if(!ctrl) throw new Error('Nie znalazłem kontrolki Test -> Podejdź.');
+        ctrl.input.value = name;
+        try{ ctrl.input.dispatchEvent(new Event('input',{bubbles:true})); }catch(_){ }
+        safeClick(ctrl.btn);
+        const ok = await waitUntil(()=>invCountByName(name) > before, 30000, 400);
+        if(!ok) throw new Error('Nie udało się zebrać z ziemi: ' + name);
+        await sleep(STEP_DELAY_MS);
+      }
+      return true;
+    }
+
+    async function runTutorial(){
       if(window.__adiStartProfRunning) return;
-      spRunTutorial();
-    });
-  }
+      window.__adiStartProfRunning = true;
+      window.__adiStartProfAbort = false;
+      stopMainBotIfNeeded();
+      const actions = parseTutorial(START_TEXT);
+      try{
+        status('Startuję tutorial Wioska startowa...', true);
+        for(let idx=0; idx<actions.length; idx++){
+          if(window.__adiStartProfAbort) throw new Error('Przerwano task.');
+          const a = actions[idx];
+          if(!a) continue;
+          try{
+            if(a.type==='walk') await walkTo(a.x, a.y);
+            else if(a.type==='gcmd') { status('Dialog: ' + a.code, true); tryEvalG(a.code); }
+            else if(a.type==='equip') await equipItem(a.item);
+            else if(a.type==='kill') await killMob(a.mob);
+            else if(a.type==='buyAndEquip') await buyAndEquip(a.items);
+            else if(a.type==='dragToSlot') await dragItemToSlot(a.item, a.slot);
+            else if(a.type==='clickFragment') {
+              status('Klikam wymagany przycisk...', true);
+              const ok = clickFragment(a.html);
+              if(!ok) throw new Error('Nie znalazłem przycisku z fragmentu: ' + a.html.slice(0,120));
+            }
+            else if(a.type==='collectGround') await collectGround(a.name, a.count);
+            else if(a.type==='wait') { status('Czekam ' + Math.round(a.ms/1000) + ' sekund...', true); await sleep(a.ms); }
+            else if(a.type==='end') break;
+            if(a.type !== 'wait') await sleep(STEP_DELAY_MS);
+            else await sleep(STEP_DELAY_MS);
+          }catch(stepErr){
+            status('Błąd na kroku ' + (idx+1) + ': ' + (stepErr && stepErr.message ? stepErr.message : stepErr), false);
+            throw stepErr;
+          }
+        }
+        status('Tutorial Wioska startowa zakończony.', true);
+      }catch(e){
+        console.warn('[adi-start-prof] tutorial error', e);
+      }finally{
+        window.__adiStartProfRunning = false;
+      }
+    }
 
-  setTimeout(spBind, 500);
-  setInterval(spBind, 1500);
+    function installUi(){
+      try{
+        const tab = document.getElementById('adi-tab-start');
+        if(!tab) return false;
+        if(document.getElementById('adi-start-prof-btn')) return true;
+        tab.innerHTML = '';
+
+        const info = document.createElement('div');
+        info.style.fontSize = '13px';
+        info.style.margin = '6px 0';
+        info.textContent = 'Start tutorialu z pliku „Wioska startowa Wojownik.txt”.';
+
+        const btn = document.createElement('button');
+        btn.id = 'adi-start-prof-btn';
+        btn.className = 'adi-bot_inputs';
+        btn.textContent = 'Start od wybrania profy';
+        btn.style.fontWeight = 'bold';
+
+        const stopBtn = document.createElement('button');
+        stopBtn.id = 'adi-start-prof-stop';
+        stopBtn.className = 'adi-bot_inputs';
+        stopBtn.textContent = 'Przerwij task';
+
+        const st = document.createElement('div');
+        st.id = 'adi-start-prof-status';
+        st.style.fontSize = '12px';
+        st.style.margin = '6px 0 2px';
+        st.style.textAlign = 'left';
+        st.style.maxWidth = '280px';
+        st.textContent = 'Gotowe.';
+
+        btn.addEventListener('click', ()=>{ if(!window.__adiStartProfRunning) runTutorial(); });
+        stopBtn.addEventListener('click', ()=>{ window.__adiStartProfAbort = true; status('Przerywam task...', false); });
+
+        tab.appendChild(info);
+        tab.appendChild(btn);
+        tab.appendChild(stopBtn);
+        tab.appendChild(st);
+        return true;
+      }catch(e){
+        console.warn('[adi-start-prof] ui error', e);
+        return false;
+      }
+    }
+
+    const uiTimer = setInterval(()=>{
+      if(installUi()) clearInterval(uiTimer);
+    }, UI_POLL_MS);
+    setTimeout(()=>installUi(), 500);
+  }catch(e){
+    console.warn('[adi-start-prof] install failed', e);
+  }
 })();
