@@ -3553,30 +3553,28 @@ function __adiAutoHealTick(){
             task.actionState = task.actionState || {};
             const st = task.actionState;
             const inBattle = !!(window.g && g.battle);
+
+            // Jak już weszliśmy do walki w tym kroku, to po jej zakończeniu
+            // od razu przechodzimy dalej. Nie szukamy kolejnego moba o tej samej nazwie,
+            // bo w samouczku ma zabić dokładnie 1 sztukę i iść do następnego kroku.
             if(inBattle){
               st.inBattleSeen = true;
               __adi_sv_saveTask(task);
               return;
             }
+            if(st.inBattleSeen){
+              __adi_sv_advance(task);
+              return;
+            }
+
             const mob = __adi_sv_getNearestMobByName(step.mob);
-            if(!st.inBattleSeen){
-              if(!mob){ __adi_sv_status('Nie widzę moba: ' + step.mob + '. Czekam…', false); return; }
-              if(Math.abs((hero?.x||0)-mob.x) < 2 && Math.abs((hero?.y||0)-mob.y) < 2){
-                try{ safeAttack(mob.id); }catch(_){ try{ _g('fight&a=attack&id=' + mob.id); }catch(__){} }
-                __adi_sv_saveTask(task);
-                return;
-              }
-              a_goTo(mob.x, mob.y);
+            if(!mob){ __adi_sv_status('Nie widzę moba: ' + step.mob + '. Czekam…', false); return; }
+            if(Math.abs((hero?.x||0)-mob.x) < 2 && Math.abs((hero?.y||0)-mob.y) < 2){
+              try{ safeAttack(mob.id); }catch(_){ try{ _g('fight&a=attack&id=' + mob.id); }catch(__){} }
               __adi_sv_saveTask(task);
               return;
             }
-            // battle was seen already; when it ends and mob is gone -> next step
-            if(!mob){ __adi_sv_advance(task); return; }
-            if(Math.abs((hero?.x||0)-mob.x) < 2 && Math.abs((hero?.y||0)-mob.y) < 2){
-              try{ safeAttack(mob.id); }catch(_){ try{ _g('fight&a=attack&id=' + mob.id); }catch(__){} }
-            }else{
-              a_goTo(mob.x, mob.y);
-            }
+            a_goTo(mob.x, mob.y);
             __adi_sv_saveTask(task);
             return;
           }
