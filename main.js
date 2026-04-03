@@ -3207,7 +3207,10 @@ function __adiAutoHealTick(){
       const nodes = Array.from(document.querySelectorAll(selectors || 'button, .button, .label, span, div, li, a'));
       for(const el of nodes){
         const txt = __adi_sv_norm(el.innerText || el.textContent || '');
-        if(txt === needle || txt.includes(needle)) return el;
+        if(!(txt === needle || txt.includes(needle))) continue;
+        const clickable = el.closest('button, .btn, .button, .label, [id^="a_"], .close-but, a, li, div');
+        if(clickable) return clickable;
+        return el;
       }
     }catch(_){ }
     return null;
@@ -3250,6 +3253,9 @@ function __adiAutoHealTick(){
   }
   function __adi_sv_clickShopClose(){
     try{
+      if(typeof shop_close === 'function'){
+        try{ shop_close(); return true; }catch(_){ }
+      }
       const btn = document.querySelector('#shop_close, .shop-close, .close-but');
       if(btn){
         try{ btn.click(); }catch(_){ }
@@ -3327,11 +3333,10 @@ function __adiAutoHealTick(){
       for(const id in g.item){
         const it = g.item[id];
         if(!it) continue;
-        if(String(it.loc||'') === 'g') continue;
-        const nm = __adi_sv_norm(it.name || it.nick || it.tip || '');
-        if(!nm.includes(needle)) continue;
         const x = Number(it.x), y = Number(it.y);
         if(!Number.isFinite(x) || !Number.isFinite(y)) continue;
+        const hay = [it.name, it.nick, it.tip, it.ctip, it.stat, it.desc].map(__adi_sv_norm).join(' | ');
+        if(!hay.includes(needle)) continue;
         const dist = Math.abs((hero?.x||0) - x) + Math.abs((hero?.y||0) - y);
         if(!best || dist < best.dist) best = { id:Number(it.id)||Number(id)||0, x, y, dist, raw:it };
       }
@@ -3622,18 +3627,21 @@ function __adiAutoHealTick(){
             }
 
             if(isLastBuyInChain && st.acceptClicked && !st.closeClicked){
-              if(now - Number(st.acceptClickedAt || 0) < 500){
+              if(now - Number(st.acceptClickedAt || 0) < ADI_START_VILLAGE_STEP_DELAY){
                 __adi_sv_saveTask(task);
                 return;
               }
-              __adi_sv_clickShopClose();
+              if(!__adi_sv_clickShopClose()){
+                __adi_sv_status('Nie udało się zamknąć sklepu. Czekam…', false);
+                return;
+              }
               st.closeClicked = true;
               st.closeClickedAt = now;
               __adi_sv_saveTask(task);
               return;
             }
 
-            if(isLastBuyInChain && st.closeClicked && now - Number(st.closeClickedAt || 0) < 500){
+            if(isLastBuyInChain && st.closeClicked && now - Number(st.closeClickedAt || 0) < ADI_START_VILLAGE_STEP_DELAY){
               __adi_sv_saveTask(task);
               return;
             }
@@ -3663,7 +3671,11 @@ function __adiAutoHealTick(){
             return;
           }
           case 'clickText': {
-            const el = __adi_sv_findClickableByText(step.text);
+            let el = null;
+            if(__adi_sv_norm(step.text) === 'tak'){
+              el = document.querySelector('#a_ok, #a_ok .label, #a_ok .gfont[name="Tak"], .btn.btn-wood#a_ok');
+            }
+            if(!el) el = __adi_sv_findClickableByText(step.text);
             if(!el){ __adi_sv_status('Nie widzę przycisku: ' + step.text + '. Czekam…', false); return; }
             __adi_sv_safeClick(el);
             __adi_sv_advance(task);
