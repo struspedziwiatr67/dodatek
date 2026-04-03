@@ -1728,6 +1728,177 @@ function setTempTarget(val){
   function a_getWay(x,y){ return new AStar(map.col,map.x,map.y,{x:hero.x,y:hero.y},{x:x,y:y},g.npccol).anotherFindPath(); }
   function a_goTo(x,y){ let r=a_getWay(x,y); if(Array.isArray(r)) window.road=r; }
 
+  const __adiNpcTestTask = { active:false, needle:'', npcId:null, targetX:null, targetY:null, clickAt:0, clickTries:0, lastMoveAt:0, pickedOnce:false };
+
+  function __adiNpcNeedleNorm(s){
+    try{
+      return String(s||'').toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g,'').trim();
+    }catch(_){ return String(s||'').toLowerCase().trim(); }
+  }
+
+  function __adiSetNpcTestStatus(txt, isErr){
+    try{
+      const el = document.querySelector('#adi-bot_test_npc_status');
+      if(!el) return;
+      el.textContent = String(txt || '');
+      el.style.color = isErr ? '#8b0000' : '#111';
+    }catch(_){ }
+  }
+
+  function __adiFindNpcForTest(needle){
+    try{
+      const want = __adiNpcNeedleNorm(needle);
+      if(!want || !window.g || !g.npc) return null;
+      let best = null;
+      let bestDist = Infinity;
+      for(const id in g.npc){
+        const n = g.npc[id];
+        if(!n) continue;
+        const icon = __adiNpcNeedleNorm(n.icon || '');
+        const nick = __adiNpcNeedleNorm(n.nick || '');
+        const name = __adiNpcNeedleNorm(n.name || '');
+        if(!(icon.includes(want) || nick.includes(want) || name.includes(want))) continue;
+        const dist = Math.abs((hero?.x|0) - (n.x|0)) + Math.abs((hero?.y|0) - (n.y|0));
+        if(dist < bestDist){ bestDist = dist; best = n; }
+      }
+      return best;
+    }catch(_){ return null; }
+  }
+
+  function __adiPickNpcApproachTile(npc){
+    try{
+      // W zakładce Test te "NPC" mogą być w praktyce przedmiotami/obiektami leżącymi na ziemi.
+      // Dlatego idziemy na DOKŁADNIE te same kordy, bez wybierania pola obok.
+      if(!npc) return null;
+      return {x:(npc.x|0), y:(npc.y|0)};
+    }catch(_){ return null; }
+  }
+
+  function __adiNpcTestInteract(npcId){
+    try{
+      if(!npcId) return false;
+      try{ _g('talk&id=' + npcId, r => console.log('talk:', r)); }catch(_){ }
+      try{ _g('takeitem&id=' + npcId, r => console.log('takeitem:', r)); }catch(_){ }
+      try{
+        const el = document.querySelector('#npc' + npcId);
+        if(el){
+          try{ el.dispatchEvent(new MouseEvent('mousedown', { bubbles:true, cancelable:true, view:window })); }catch(_){ }
+          try{ el.dispatchEvent(new MouseEvent('mouseup',   { bubbles:true, cancelable:true, view:window })); }catch(_){ }
+          try{ el.dispatchEvent(new MouseEvent('click',     { bubbles:true, cancelable:true, view:window })); }catch(_){ }
+          try{ el.click(); }catch(_){ }
+        }
+      }catch(_){ }
+      return true;
+    }catch(_){ return false; }
+  }
+
+  function __adiStartNpcTestTask(needle){
+    try{
+      const raw = String(needle || '').trim();
+      if(!raw){
+        __adiNpcTestTask.active = false;
+        __adiSetNpcTestStatus('Wpisz nazwę NPC.', true);
+        return false;
+      }
+      const npc = __adiFindNpcForTest(raw);
+      if(!npc){
+        __adiNpcTestTask.active = false;
+        __adiSetNpcTestStatus('Nie znaleziono NPC na tej mapie: ' + raw, true);
+        return false;
+      }
+      const stand = __adiPickNpcApproachTile(npc);
+      if(!stand){
+        __adiNpcTestTask.active = false;
+        __adiSetNpcTestStatus('Nie udało się wyznaczyć kordów celu.', true);
+        return false;
+      }
+      __adiNpcTestTask.active = true;
+      __adiNpcTestTask.needle = raw;
+      __adiNpcTestTask.npcId = npc.id || parseInt(String(npc.id || '').replace(/\D+/g,''),10) || Number(Object.keys(g.npc).find(k => g.npc[k] === npc) || 0);
+      __adiNpcTestTask.targetX = stand.x|0;
+      __adiNpcTestTask.targetY = stand.y|0;
+      __adiNpcTestTask.clickAt = 0;
+      __adiNpcTestTask.clickTries = 0;
+      __adiNpcTestTask.lastMoveAt = Date.now();
+      a_goTo(__adiNpcTestTask.targetX, __adiNpcTestTask.targetY);
+      __adiSetNpcTestStatus('Idę dokładnie na kordy obiektu: ' + (npc.nick || npc.name || raw) + ' -> [' + (__adiNpcTestTask.targetX) + ',' + (__adiNpcTestTask.targetY) + ']');
+      return true;
+    }catch(e){
+      __adiNpcTestTask.active = false;
+      __adiSetNpcTestStatus('Błąd testu NPC.', true);
+      return false;
+    }
+  }
+
+  function __adiTickNpcTestTask(){
+    try{
+      if(!__adiNpcTestTask.active) return;
+
+      const lockedId = Number(__adiNpcTestTask.npcId || 0);
+      let npc = null;
+
+      try{
+        if(lockedId && window.g && g.npc && g.npc[lockedId]) npc = g.npc[lockedId];
+      }catch(_){ }
+
+      if(!npc){
+        if(__adiNpcTestTask.pickedOnce){
+          __adiNpcTestTask.active = false;
+          __adiSetNpcTestStatus('Podniosłem jeden item i kończę task.');
+          return;
+        }
+        npc = __adiFindNpcForTest(__adiNpcTestTask.needle);
+        if(!npc){
+          __adiNpcTestTask.active = false;
+          __adiSetNpcTestStatus('Obiekt zniknął z mapy.', true);
+          return;
+        }
+        const foundId = npc.id || parseInt(String(npc.id || '').replace(/\D+/g,''),10) || Number(Object.keys(g.npc).find(k => g.npc[k] === npc) || 0);
+        __adiNpcTestTask.npcId = foundId;
+      }
+
+      const npcId = Number(__adiNpcTestTask.npcId || 0);
+      __adiNpcTestTask.targetX = (npc.x|0);
+      __adiNpcTestTask.targetY = (npc.y|0);
+
+      if((hero.x|0) === (__adiNpcTestTask.targetX|0) && (hero.y|0) === (__adiNpcTestTask.targetY|0)){
+        if(Date.now() - (__adiNpcTestTask.clickAt || 0) < 350) return;
+        __adiNpcTestTask.clickAt = Date.now();
+        __adiNpcTestTask.clickTries = (__adiNpcTestTask.clickTries|0) + 1;
+
+        try{ _g('takeitem&id=' + npcId, r => console.log('takeitem:', r)); }catch(_){ }
+        try{ __adiNpcTestInteract(npcId); }catch(_){ }
+
+        __adiNpcTestTask.pickedOnce = true;
+
+        const stillSameItem = !!(window.g && g.npc && g.npc[npcId]);
+        if(!stillSameItem){
+          __adiNpcTestTask.active = false;
+          __adiSetNpcTestStatus('Podniosłem jeden item i kończę task.');
+          return;
+        }
+
+        if((__adiNpcTestTask.clickTries|0) >= 10){
+          __adiNpcTestTask.active = false;
+          __adiSetNpcTestStatus('Doszedłem na kordy obiektu, ale nie udało się go podnieść po 10 próbach.', true);
+          return;
+        }
+
+        __adiSetNpcTestStatus('Stoję na kordach obiektu [' + (__adiNpcTestTask.targetX|0) + ',' + (__adiNpcTestTask.targetY|0) + '] i próbuję podnieść TEN jeden item (próba ' + __adiNpcTestTask.clickTries + ').');
+        return;
+      }
+
+      if(Date.now() - (__adiNpcTestTask.lastMoveAt || 0) >= 350){
+        __adiNpcTestTask.lastMoveAt = Date.now();
+        a_goTo(__adiNpcTestTask.targetX, __adiNpcTestTask.targetY);
+        __adiSetNpcTestStatus('Idę dokładnie na kordy obiektu [' + (__adiNpcTestTask.targetX|0) + ',' + (__adiNpcTestTask.targetY|0) + '].');
+      }
+    }catch(e){
+      __adiNpcTestTask.active = false;
+      __adiSetNpcTestStatus('Przerwano test obiektu.', true);
+    }
+  }
+
   // ===== STAN NIEAKTYWNOŚCI: wykryj overlay i wykonaj 1 krok =====
   let __adiLastStasisBreakAt = 0;
   const ADI_STASIS_BREAK_COOLDOWN = 2500;
@@ -3756,6 +3927,60 @@ try{
 }catch(e){ console.warn('[adi-bot] skill test ui failed', e); }
 
 
+// 4b) Test NPC: podejście do NPC po nazwie / fragmencie ikony
+try{
+  const npcRow = document.createElement('div');
+  npcRow.style.display = 'flex';
+  npcRow.style.alignItems = 'center';
+  npcRow.style.justifyContent = 'flex-start';
+  npcRow.style.gap = '6px';
+  npcRow.style.margin = '8px 0 0';
+  npcRow.style.flexWrap = 'wrap';
+
+  const npcInput = document.createElement('input');
+  npcInput.type = 'text';
+  npcInput.id = 'adi-bot_test_npc_name';
+  npcInput.classList.add('adi-bot_inputs');
+  npcInput.placeholder = 'np. rumianek';
+  npcInput.style.width = '150px';
+  npcInput.style.margin = '0';
+  npcInput.setAttribute('tip','Wpisz nazwę NPC lub fragment ikony, np. rumianek');
+
+  const npcBtn = document.createElement('button');
+  npcBtn.id = 'adi-bot_test_npc_go';
+  npcBtn.classList.add('adi-bot_inputs');
+  npcBtn.textContent = 'Podejdź';
+  npcBtn.style.margin = '0';
+  npcBtn.setAttribute('tip','Znajduje NPC na aktualnej mapie, podchodzi i używa takeitem/talk/click');
+
+  const npcStatus = document.createElement('div');
+  npcStatus.id = 'adi-bot_test_npc_status';
+  npcStatus.style.fontSize = '12px';
+  npcStatus.style.margin = '2px 0 6px';
+  npcStatus.style.color = '#111';
+  npcStatus.style.width = '100%';
+  npcStatus.textContent = '';
+
+  try{
+    const savedNpcNeedle = (localStorage.getItem('adi-bot_test_npc_name') || '').trim();
+    if(savedNpcNeedle) npcInput.value = savedNpcNeedle;
+  }catch(_){ }
+
+  npcInput.addEventListener('input', ()=>{
+    try{
+      const raw = String(npcInput.value || '').trim();
+      if(raw) localStorage.setItem('adi-bot_test_npc_name', raw);
+      else localStorage.removeItem('adi-bot_test_npc_name');
+    }catch(_){ }
+  });
+
+  npcRow.appendChild(npcInput);
+  npcRow.appendChild(npcBtn);
+  tabTest.appendChild(npcRow);
+  tabTest.appendChild(npcStatus);
+}catch(e){ console.warn('[adi-bot] npc test ui failed', e); }
+
+
 // 5) Logaj przy 0 wyczerpania i zaloguj o 5:30
 try{
   const exh530Row = document.createElement('div');
@@ -4476,6 +4701,19 @@ try{
     exhSel.addEventListener("keyup", ()=>{ localStorage.setItem("adi-bot_exh_selector", exhSel.value.trim()); });
 
     exhTest.addEventListener("click", ()=>{ const v=getExhaustionMinutes(false); message(`[BOT] Wykryte wyczerpanie: ${v===null?"brak":v+" min"}`); });
+
+    try{
+      const npcInputEl = document.getElementById('adi-bot_test_npc_name');
+      const npcBtnEl = document.getElementById('adi-bot_test_npc_go');
+      if(npcBtnEl){
+        npcBtnEl.addEventListener('click', ()=>{
+          const needle = npcInputEl ? String(npcInputEl.value || '').trim() : '';
+          __adiStartNpcTestTask(needle);
+        });
+      }
+    }catch(e){ console.warn('[adi-bot] npc test bind failed', e); }
+
+    setInterval(__adiTickNpcTestTask, 350);
 
     // ===== Relog przy 0 wyczerpania -> logowanie o 5:30 =====
     (function(){
@@ -8029,3 +8267,39 @@ async function startAuction(npcId){
 window.__adiAuctionStart = startAuction;
 
 })();
+
+
+// ===== PATCH: NPC exact coords targeting (Test tab) =====
+// When user types NPC name (e.g. "rumianek"), bot will:
+// 1. Find NPC in g.npc by exact/partial match
+// 2. Get its current x,y coordinates
+// 3. Move directly to those coordinates
+
+function adi_findNpcByName(name){
+  try{
+    name = String(name || '').toLowerCase();
+    if(!window.g || !g.npc) return null;
+    for(const id in g.npc){
+      const n = g.npc[id];
+      const nick = String(n.nick || n.name || '').toLowerCase();
+      if(nick.includes(name)){
+        return { id: id, npc: n };
+      }
+    }
+  }catch(e){}
+  return null;
+}
+
+function adi_goToNpcByName(name){
+  const found = adi_findNpcByName(name);
+  if(!found) return false;
+  try{
+    const n = found.npc;
+    if(typeof goTo === 'function'){
+      goTo(n.x, n.y);
+      return true;
+    }
+  }catch(e){}
+  return false;
+}
+// ===== /PATCH =====
