@@ -8510,8 +8510,15 @@ window.__adiAuctionStart = startAuction;
         st.style.maxWidth = '280px';
         st.textContent = 'Gotowe.';
 
-        btn.addEventListener('click', ()=>{ if(!window.__adiStartProfRunning) runTutorial(); });
-        stopBtn.addEventListener('click', ()=>{ window.__adiStartProfAbort = true; status('Przerywam task...', false); });
+        btn.addEventListener('click', (ev)=>{
+          try{ ev.preventDefault(); ev.stopPropagation(); }catch(_){ }
+          status('Kliknięto Start od wybrania profy...', true);
+          if(!window.__adiStartProfRunning) runTutorial();
+        });
+        stopBtn.addEventListener('click', (ev)=>{
+          try{ ev.preventDefault(); ev.stopPropagation(); }catch(_){ }
+          window.__adiStartProfAbort = true; status('Przerywam task...', false);
+        });
 
         tab.appendChild(info);
         tab.appendChild(btn);
@@ -8524,8 +8531,31 @@ window.__adiAuctionStart = startAuction;
       }
     }
 
+    // Delegowane handlery — działają nawet jeśli UI zostanie przebudowane przez inne fragmenty skryptu.
+    document.addEventListener('click', (ev)=>{
+      try{
+        const startBtn = ev.target && ev.target.closest ? ev.target.closest('#adi-start-prof-btn') : null;
+        if(startBtn){
+          ev.preventDefault();
+          ev.stopPropagation();
+          status('Kliknięto Start od wybrania profy...', true);
+          if(!window.__adiStartProfRunning) runTutorial();
+          return;
+        }
+        const stopBtn = ev.target && ev.target.closest ? ev.target.closest('#adi-start-prof-stop') : null;
+        if(stopBtn){
+          ev.preventDefault();
+          ev.stopPropagation();
+          window.__adiStartProfAbort = true;
+          status('Przerywam task...', false);
+          return;
+        }
+      }catch(_){ }
+    }, true);
+
+    // Utrzymuj UI stale obecne, bo zakładki bywają przebudowywane po starcie.
     const uiTimer = setInterval(()=>{
-      if(installUi()) clearInterval(uiTimer);
+      installUi();
     }, UI_POLL_MS);
     setTimeout(()=>installUi(), 500);
   }catch(e){
