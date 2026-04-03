@@ -3909,6 +3909,16 @@ box.appendChild(autoHealRow);
       }catch(_ ){ return cmd; }
     }
 
+    function __adiStartVillageIsDialogReady(){
+      try{
+        if(window.g && g.talk && Number(g.talk.id || 0)) return true;
+      }catch(_ ){}
+      try{
+        if(document.querySelector('#dialog, .dialog, .npcDialog, #npcDialog, .dsc, .dialogue, .window, .conversation')) return true;
+      }catch(_ ){}
+      return false;
+    }
+
     function __adiStartVillageTryGroundPickup(found){
       try{
         if(!found) return false;
@@ -3991,13 +4001,14 @@ box.appendChild(autoHealRow);
         if((hero.x|0) !== (x|0) || (hero.y|0) !== (y|0)){
           step.__npcClickedAt = 0;
           step.__npcClickTried = false;
+          step.__dialogSeenAt = 0;
           __adiStartVillageSetStatus(label, true);
           a_goTo(x, y);
           return false;
         }
         if(step.npc){
           if(!step.__npcClickedAt){
-            __adiStartVillageSetStatus('Klikam NPC ' + step.npc + ' i czekam 1s na otwarcie dialogu…', true);
+            __adiStartVillageSetStatus('Klikam NPC ' + step.npc + ' i czekam aż dialog naprawdę się otworzy…', true);
             if(!step.__npcClickTried){
               step.__npcClickTried = true;
               try{
@@ -4010,11 +4021,33 @@ box.appendChild(autoHealRow);
               }catch(e){ console.warn('[adi-bot][start] npc pre-click failed', e); }
             }
             step.__npcClickedAt = now;
+            step.__dialogSeenAt = 0;
             return false;
           }
-          const left = 1000 - (now - Number(step.__npcClickedAt || 0));
-          if(left > 0){
-            __adiStartVillageSetStatus('Czekam po kliknięciu NPC ' + step.npc + ': ' + Math.ceil(left/1000) + 's', true);
+          const sinceClick = now - Number(step.__npcClickedAt || 0);
+          if(sinceClick < 1000){
+            __adiStartVillageSetStatus('Po kliknięciu NPC ' + step.npc + ' czekam 1s zanim sprawdzę dialog…', true);
+            return false;
+          }
+          if(!__adiStartVillageIsDialogReady()){
+            if(sinceClick > 5000){
+              __adiStartVillageSetStatus('Dialog NPC ' + step.npc + ' nadal się nie otworzył — klikam ponownie…', false);
+              step.__npcClickedAt = 0;
+              step.__npcClickTried = false;
+              step.__dialogSeenAt = 0;
+            }else{
+              __adiStartVillageSetStatus('Czekam aż dialog NPC ' + step.npc + ' się załaduje…', true);
+            }
+            return false;
+          }
+          if(!step.__dialogSeenAt){
+            step.__dialogSeenAt = now;
+            __adiStartVillageSetStatus('Dialog NPC ' + step.npc + ' już jest — czekam jeszcze 1s zanim wybiorę opcję…', true);
+            return false;
+          }
+          const afterReadyLeft = 1000 - (now - Number(step.__dialogSeenAt || 0));
+          if(afterReadyLeft > 0){
+            __adiStartVillageSetStatus('Dialog NPC ' + step.npc + ' wykryty — dodatkowy odstęp: ' + Math.ceil(afterReadyLeft/1000) + 's', true);
             return false;
           }
         }
