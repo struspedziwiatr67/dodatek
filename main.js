@@ -3507,7 +3507,9 @@ function __adiAutoHealTick(){
           case 'move': {
             try{ setTempTarget(null); }catch(_){ }
             if((hero?.x|0) === (step.x|0) && (hero?.y|0) === (step.y|0)){
-              task.actionState = Object.assign({}, task.actionState || {}, { needNpcClick: true, npcClickDone: false, npcClickId: null });
+              task.pendingNpcClick = true;
+              task.pendingNpcClickDone = false;
+              task.pendingNpcClickId = null;
               __adi_sv_advance(task);
               return;
             }
@@ -3534,19 +3536,23 @@ function __adiAutoHealTick(){
             }
             const idMatch = cmd.match(/(?:^|&)id=([^&]+)/);
             const talkNpcId = idMatch ? String(idMatch[1]||'').replace(/[^\d\-]/g,'') : '';
-            const needsNpcClick = !!st.needNpcClick;
-            if(needsNpcClick && !st.npcClickDone && talkNpcId){
+            const needsNpcClick = !!task.pendingNpcClick;
+            if(needsNpcClick && !task.pendingNpcClickDone && talkNpcId){
               const opened = __adi_sv_openNpcDialogByClick(talkNpcId);
               if(!opened){
                 __adi_sv_status('Nie udało się kliknąć NPC id=' + talkNpcId + '. Czekam…', false);
                 return;
               }
-              st.npcClickDone = true;
-              st.needNpcClick = false;
-              st.npcClickId = talkNpcId;
+              task.pendingNpcClickDone = true;
+              task.pendingNpcClick = false;
+              task.pendingNpcClickId = talkNpcId;
               __adi_sv_wait(task, ADI_START_VILLAGE_STEP_DELAY);
               __adi_sv_saveTask(task);
               return;
+            }
+            if(task.pendingNpcClickDone){
+              task.pendingNpcClickDone = false;
+              task.pendingNpcClickId = null;
             }
             if(typeof _g === 'function') _g(cmd);
             __adi_sv_advance(task);
