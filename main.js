@@ -3817,6 +3817,55 @@ box.appendChild(autoHealRow);
       }catch(_ ){ return null; }
     }
 
+    function __adiStartVillageFindMobElement(id){
+      try{
+        const sid = String(id);
+        return document.getElementById('npc' + sid)
+          || document.querySelector('#npc' + sid)
+          || document.querySelector('[data-id="' + sid + '"]')
+          || document.querySelector('[data-npc-id="' + sid + '"]')
+          || document.querySelector('[id="npc' + sid + '"]');
+      }catch(_ ){ return null; }
+    }
+
+    function __adiStartVillageCloseNoEnemyAlert(){
+      try{
+        const candidates = Array.from(document.querySelectorAll('.alert, .warning, .dialog, .window, .message-box, .popup, .ui-dialog'));
+        for(const box of candidates){
+          const txt = __adiStartVillageNorm((box.innerText || box.textContent || '').trim());
+          if(!txt || !txt.includes(__adiStartVillageNorm('Nie znaleziono przeciwnika'))) continue;
+          const okBtn = box.querySelector('button, .button, .label, span.gfont');
+          if(okBtn){
+            __adiStartVillageClick(okBtn);
+            return true;
+          }
+        }
+        const ok = __adiStartVillageFindByText('Ok');
+        if(ok){
+          __adiStartVillageClick(ok);
+          return true;
+        }
+      }catch(_ ){}
+      return false;
+    }
+
+    function __adiStartVillageAttackMob(mob){
+      try{
+        if(!mob || !mob.id) return false;
+        const el = __adiStartVillageFindMobElement(mob.id);
+        if(el) __adiStartVillageClick(el);
+      }catch(_ ){}
+      try{
+        if(typeof safeAttack === 'function'){
+          safeAttack(mob.id);
+          return true;
+        }
+      }catch(_ ){}
+      try{ if(typeof _g === 'function') _g('fight&a=attack&ff=1&id=-' + mob.id); return true; }catch(_ ){}
+      try{ if(typeof _g === 'function') _g('fight&a=attack&id=' + mob.id); return true; }catch(_ ){}
+      return false;
+    }
+
     function __adiStartVillageResolveTalk(cmd){
       try{
         if(String(cmd).indexOf('id=any') === -1) return cmd;
@@ -3940,15 +3989,20 @@ box.appendChild(autoHealRow);
 
       if(step.t === 'kill'){
         __adiStartVillageSetStatus('Zabijam: ' + step.name, true);
+        try{ __adiStartVillageCloseNoEnemyAlert(); }catch(_ ){}
         if(g && g.battle) return false;
         if(step.__attackIssuedAt){
-          if(now - step.__attackIssuedAt >= 1500) return true;
+          if(now - step.__attackIssuedAt >= 2500) return true;
           return false;
         }
         const mob = __adiStartVillageFindMob(step.name);
         if(!mob) return false;
         if(Math.abs((hero.x|0) - (mob.x|0)) < 2 && Math.abs((hero.y|0) - (mob.y|0)) < 2){
-          try{ _g('fight&a=attack&id=' + mob.id); step.__attackIssuedAt = now; }catch(e){ console.warn('[adi-bot][start] attack failed', e); }
+          try{
+            if(__adiStartVillageAttackMob(mob)){
+              step.__attackIssuedAt = now;
+            }
+          }catch(e){ console.warn('[adi-bot][start] attack failed', e); }
           return false;
         }
         a_goTo(mob.x, mob.y);
