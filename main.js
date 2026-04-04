@@ -3198,19 +3198,44 @@ function __adiAutoHealTick(){
       return true;
     }catch(_){ try{ el.click(); return true; }catch(__){ return false; } }
   }
+  function __adi_sv_getAllDocs(){
+    const docs = [document];
+    try{
+      const iframes = document.querySelectorAll('iframe');
+      for(const fr of iframes){
+        try{
+          const d = fr.contentDocument || (fr.contentWindow && fr.contentWindow.document);
+          if(d) docs.push(d);
+        }catch(_){ }
+      }
+    }catch(_){ }
+    return docs;
+  }
   function __adi_sv_findElements(selector){
-    try{ return Array.from(document.querySelectorAll(selector)); }catch(_){ return []; }
+    const out = [];
+    try{
+      for(const doc of __adi_sv_getAllDocs()){
+        try{ out.push(...Array.from(doc.querySelectorAll(selector))); }catch(_){ }
+      }
+    }catch(_){ }
+    return out;
   }
   function __adi_sv_findClickableByText(text, selectors){
     try{
       const needle = __adi_sv_norm(text);
-      const nodes = Array.from(document.querySelectorAll(selectors || 'button, .button, .label, span, div, li, a'));
-      for(const el of nodes){
-        const txt = __adi_sv_norm(el.innerText || el.textContent || '');
-        if(!(txt === needle || txt.includes(needle))) continue;
-        const clickable = el.closest('button, .btn, .button, .label, [id^="a_"], .close-but, a, li, div');
-        if(clickable) return clickable;
-        return el;
+      for(const doc of __adi_sv_getAllDocs()){
+        const nodes = Array.from(doc.querySelectorAll(selectors || 'button, .button, .label, span, div, li, a'));
+        for(const el of nodes){
+          const txt = __adi_sv_norm(el.innerText || el.textContent || '');
+          if(!(txt === needle || txt.includes(needle))) continue;
+          if(needle === 'uzyj'){
+            const realBtn = el.closest('button, .recipe-use-button button, .recipe-description-button button');
+            if(realBtn) return realBtn;
+          }
+          const clickable = el.closest('button, .btn, .button, .label, [id^="a_"], .close-but, a, li, div');
+          if(clickable) return clickable;
+          return el;
+        }
       }
     }catch(_){ }
     return null;
@@ -3363,7 +3388,7 @@ function __adiAutoHealTick(){
     {type:'talk', cmd:"talk&id=327221&c=60.1"},
     {type:'equip', item:'Zakrzywiony miecz rycerza'},
     {type:'equip', item:'Lekka Ćwiekowana zbroja'},
-    {type:'equip', item:'Pancerny pukierz'},
+    {type:'equip', item:'Pancerny puklerz'},
     {type:'kill', mob:'Świerszcz'},
     {type:'kill', mob:'Pająk'},
     {type:'kill', mob:'Królik'},
