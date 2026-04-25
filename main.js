@@ -1205,6 +1205,8 @@ if (typeof g == "undefined" && document.location.href.indexOf("jaruna.margonem.p
     "Mroczny las": { map: "Złudny Trakt, Bór Zagubionych, Martwy Las, Ziemia Szepczących Cierni, Zbocze Starych Bogów, Bezgwiezdna Gęstwina, Bór Zagubionych" },
 	"Furbole": { map: "Zapomniany Las, Rozległa Równina, Dolina Gniewu, Terytorium Furii, Zapadlisko Zniewolonych" },
 	"Furbole+Pająki": { map: "Zapomniany Las, Rozległa Równina, Wzgórza Obłędu, Dolina Gniewu, Terytorium Furii, Zapadlisko Zniewolonych, Pajęczy Las, Otchłań Pajęczych Sieci, Dolina Pajęczych Korytarzy, Arachnitopia p.1, Arachnitopia p.2, Arachnitopia p.3, Arachnitopia p.4, Arachnitopia p.5" },
+	"Drowy": { map: "Zakazana Grota, Porzucone Noiridum p.2, Porzucone Noiridum p.3 - sala 1, Porzucone Noiridum p.3 - sala 2, Porzucone Noiridum p.3 - sala 3" },
+	"Drowy+Dridery": { map: "Zakazana Grota, Porzucone Noiridum p.2, Porzucone Noiridum p.3 - sala 1, Porzucone Noiridum p.3 - sala 2, Porzucone Noiridum p.3 - sala 3, Porzucone Noiridum p.3 - sala 2, Dawny Przełaz, Zamierzchłe Arterie p.3, Zamierzchłe Arterie p.2 - sala 1, Zamierzchłe Arterie p.2 - sala 2, Zamierzchłe Arterie p.2 - sala 1, Zapomniane Sztolnie" },
   };
 
   // ===== E2 (Elity II) lista =====

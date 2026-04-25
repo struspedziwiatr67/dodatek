@@ -583,6 +583,16 @@
         "x": 33,
         "y": 0
       }
+    },
+    {
+      "to": "błota sham al",
+      "via": {
+        "x": 95,
+        "y": 38
+      }
+    },
+    {
+      "to": "błota sham al"
     }
   ],
   "grobowiec nieznajacych spokoju": [
@@ -4693,6 +4703,204 @@
   "arachnitopia p.5": [
     {
       "to": "arachnitopia p.4"
+    }
+  ],
+  "błota sham al": [
+    {
+      "to": "gran gawronich pior"
+    },
+    {
+      "to": "gran gawronich pior",
+      "via": {
+        "x": 0,
+        "y": 38
+      }
+    },
+    {
+      "to": "ruiny tass zhil",
+      "via": {
+        "x": 29,
+        "y": 0
+      }
+    }
+  ],
+  "ruiny tass zhil": [
+    {
+      "to": "błota sham al"
+    },
+    {
+      "to": "kwieciste kresy",
+      "via": {
+        "x": 79,
+        "y": 0
+      }
+    }
+  ],
+  "kwieciste kresy": [
+    {
+      "to": "ruiny tass zhil"
+    },
+    {
+      "to": "szczerba samobojcow",
+      "via": {
+        "x": 0,
+        "y": 39
+      }
+    }
+  ],
+  "szczerba samobojcow": [
+    {
+      "to": "kwieciste kresy"
+    },
+    {
+      "to": "zakazana grota",
+      "via": {
+        "x": 55,
+        "y": 11
+      }
+    }
+  ],
+  "zakazana grota": [
+    {
+      "to": "szczerba samobojcow"
+    },
+    {
+      "to": "porzucone noiridum p.2",
+      "via": {
+        "x": 9,
+        "y": 23
+      }
+    }
+  ],
+  "porzucone noiridum p.2": [
+    {
+      "to": "zakazana grota"
+    },
+    {
+      "to": "porzucone noiridum p.3 - sala 1",
+      "via": {
+        "x": 20,
+        "y": 16
+      }
+    }
+  ],
+  "porzucone noiridum p.3 - sala 1": [
+    {
+      "to": "porzucone noiridum p.2"
+    },
+    {
+      "to": "porzucone noiridum p.3 - sala 2",
+      "via": {
+        "x": 19,
+        "y": 4
+      }
+    }
+  ],
+  "porzucone noiridum p.3 - sala 2": [
+    {
+      "to": "porzucone noiridum p.3 - sala 1"
+    },
+    {
+      "to": "porzucone noiridum p.3 - sala 3",
+      "via": {
+        "x": 4,
+        "y": 7
+      }
+    },
+    {
+      "to": "porzucone noiridum p.3 - sala 3"
+    },
+    {
+      "to": "dawny przełaz",
+      "via": {
+        "x": 7,
+        "y": 33
+      }
+    }
+  ],
+  "porzucone noiridum p.3 - sala 3": [
+    {
+      "to": "porzucone noiridum p.3 - sala 2"
+    },
+    {
+      "to": "porzucone noiridum p.3 - sala 2",
+      "via": {
+        "x": 17,
+        "y": 59
+      }
+    }
+  ],
+  "dawny przełaz": [
+    {
+      "to": "porzucone noiridum p.3 - sala 2"
+    },
+    {
+      "to": "zamierzchłe arterie p.3",
+      "via": {
+        "x": 9,
+        "y": 30
+      }
+    }
+  ],
+  "zamierzchłe arterie p.3": [
+    {
+      "to": "dawny przełaz"
+    },
+    {
+      "to": "zamierzchłe arterie p.2 - sala 1",
+      "via": {
+        "x": 55,
+        "y": 47
+      }
+    }
+  ],
+  "zamierzchłe arterie p.2 - sala 1": [
+    {
+      "to": "zamierzchłe arterie p.3"
+    },
+    {
+      "to": "zamierzchłe arterie p.2 - sala 2",
+      "via": {
+        "x": 54,
+        "y": 11
+      }
+    },
+    {
+      "to": "zamierzchłe arterie p.2 - sala 2"
+    },
+    {
+      "to": "zapomniane sztolnie",
+      "via": {
+        "x": 5,
+        "y": 29
+      }
+    },
+    {
+      "to": "zapomniane sztolnie"
+    }
+  ],
+  "zamierzchłe arterie p.2 - sala 2": [
+    {
+      "to": "zamierzchłe arterie p.2 - sala 1"
+    },
+    {
+      "to": "zamierzchłe arterie p.2 - sala 1",
+      "via": {
+        "x": 49,
+        "y": 59
+      }
+    }
+  ],
+  "zapomniane sztolnie": [
+    {
+      "to": "zamierzchłe arterie p.2 - sala 1"
+    },
+    {
+      "to": "zamierzchłe arterie p.2 - sala 1",
+      "via": {
+        "x": 41,
+        "y": 18
+      }
     }
   ]
 }
