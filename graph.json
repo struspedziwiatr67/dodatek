@@ -3505,6 +3505,16 @@
         "x": 0,
         "y": 70
       }
+    },
+    {
+      "to": "mglisty las",
+      "via": {
+        "x": 52,
+        "y": 95
+      }
+    },
+    {
+      "to": "mglisty las"
     }
   ],
   "zapomniany grobowiec p.1": [
@@ -4900,6 +4910,226 @@
       "via": {
         "x": 41,
         "y": 18
+      }
+    }
+  ],
+  "mglisty las": [
+    {
+      "to": "zapomniana sciezyna"
+    },
+    {
+      "to": "zapomniana sciezyna",
+      "via": {
+        "x": 52,
+        "y": 0
+      }
+    },
+    {
+      "to": "grzaska ziemia",
+      "via": {
+        "x": 36,
+        "y": 63
+      }
+    },
+    {
+      "to": "grzaska ziemia"
+    }
+  ],
+  "grzaska ziemia": [
+    {
+      "to": "mglisty las"
+    },
+    {
+      "to": "mglisty las",
+      "via": {
+        "x": 36,
+        "y": 0
+      }
+    },
+    {
+      "to": "zatrute torfowiska",
+      "via": {
+        "x": 0,
+        "y": 58
+      }
+    },
+    {
+      "to": "gnijace topielisko"
+    },
+    {
+      "to": "gnijace topielisko",
+      "via": {
+        "x": 30,
+        "y": 63
+      }
+    }
+  ],
+  "zatrute torfowiska": [
+    {
+      "to": "grzaska ziemia"
+    },
+    {
+      "to": "gnijace topielisko",
+      "via": {
+        "x": 63,
+        "y": 47
+      }
+    },
+    {
+      "to": "gnijace topielisko"
+    },
+    {
+      "to": "dolina pełznacego krzyku",
+      "via": {
+        "x": 30,
+        "y": 63
+      }
+    },
+    {
+      "to": "dolina pełznacego krzyku"
+    },
+    {
+      "to": "pustkowia pogrzebanych",
+      "via": {
+        "x": 0,
+        "y": 39
+      }
+    },
+    {
+      "to": "pustkowia pogrzebanych"
+    }
+  ],
+  "gnijace topielisko": [
+    {
+      "to": "zatrute torfowiska"
+    },
+    {
+      "to": "zatrute torfowiska",
+      "via": {
+        "x": 0,
+        "y": 15
+      }
+    },
+    {
+      "to": "dolina pełznacego krzyku"
+    },
+    {
+      "to": "grzaska ziemia",
+      "via": {
+        "x": 31,
+        "y": 0
+      }
+    },
+    {
+      "to": "grzaska ziemia"
+    },
+    {
+      "to": "bagna umarłych",
+      "via": {
+        "x": 63,
+        "y": 67
+      }
+    }
+  ],
+  "dolina pełznacego krzyku": [
+    {
+      "to": "zatrute torfowiska"
+    },
+    {
+      "to": "zatrute torfowiska",
+      "via": {
+        "x": 30,
+        "y": 0
+      }
+    },
+    {
+      "to": "gnijace topielisko",
+      "via": {
+        "x": 63,
+        "y": 27
+      }
+    }
+  ],
+  "pustkowia pogrzebanych": [
+    {
+      "to": "zatrute torfowiska"
+    },
+    {
+      "to": "zatrute torfowiska",
+      "via": {
+        "x": 63,
+        "y": 7
+      }
+    }
+  ],
+  "bagna umarłych": [
+    {
+      "to": "gnijace topielisko"
+    },
+    {
+      "to": "urwisko vapora",
+      "via": {
+        "x": 37,
+        "y": 95
+      }
+    },
+    {
+      "to": "urwisko vapora"
+    },
+    {
+      "to": "skryty azyl",
+      "via": {
+        "x": 63,
+        "y": 40
+      }
+    },
+    {
+      "to": "skryty azyl"
+    }
+  ],
+  "urwisko vapora": [
+    {
+      "to": "bagna umarłych"
+    },
+    {
+      "to": "smocze skalisko",
+      "via": {
+        "x": 0,
+        "y": 56
+      }
+    },
+    {
+      "to": "smocze skalisko"
+    },
+    {
+      "to": "bagna umarłych",
+      "via": {
+        "x": 37,
+        "y": 0
+      }
+    }
+  ],
+  "smocze skalisko": [
+    {
+      "to": "urwisko vapora"
+    },
+    {
+      "to": "urwisko vapora",
+      "via": {
+        "x": 95,
+        "y": 56
+      }
+    }
+  ],
+  "skryty azyl": [
+    {
+      "to": "bagna umarłych"
+    },
+    {
+      "to": "bagna umarłych",
+      "via": {
+        "x": 0,
+        "y": 40
       }
     }
   ]

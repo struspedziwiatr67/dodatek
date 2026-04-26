@@ -1207,7 +1207,7 @@ if (typeof g == "undefined" && document.location.href.indexOf("jaruna.margonem.p
 	"Furbole+Pająki": { map: "Zapomniany Las, Rozległa Równina, Wzgórza Obłędu, Dolina Gniewu, Terytorium Furii, Zapadlisko Zniewolonych, Pajęczy Las, Otchłań Pajęczych Sieci, Dolina Pajęczych Korytarzy, Arachnitopia p.1, Arachnitopia p.2, Arachnitopia p.3, Arachnitopia p.4, Arachnitopia p.5" },
 	"Drowy": { map: "Zakazana Grota, Porzucone Noiridum p.2, Porzucone Noiridum p.3 - sala 1, Porzucone Noiridum p.3 - sala 2, Porzucone Noiridum p.3 - sala 3" },
 	"Drowy+Dridery": { map: "Zakazana Grota, Porzucone Noiridum p.2, Porzucone Noiridum p.3 - sala 1, Porzucone Noiridum p.3 - sala 2, Porzucone Noiridum p.3 - sala 3, Porzucone Noiridum p.3 - sala 2, Dawny Przełaz, Zamierzchłe Arterie p.3, Zamierzchłe Arterie p.2 - sala 1, Zamierzchłe Arterie p.2 - sala 2, Zamierzchłe Arterie p.2 - sala 1, Zapomniane Sztolnie" },
-  };
+  };"Anuraki": { map: "Mglisty Las, Grząska Ziemia, Zatrute Torfowiska, Pustkowia Pogrzebanych, Zatrute Torfowiska, Dolina Pełznącego Krzyku, Gnijące Topielisko, Bagna Umarłych, Urwisko Vapora, Smocze Skalisko" },
 
   // ===== E2 (Elity II) lista =====
   const E2_TARGETS = [
