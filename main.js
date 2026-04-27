@@ -4870,6 +4870,247 @@ try{
       tabUlepszanie.id = 'adi-tab-ulepszanie';
       tabUlepszanie.className = 'adi-tab-content';
 
+      try{
+        const ulWrap = document.createElement('div');
+        ulWrap.style.padding = '8px';
+        ulWrap.style.textAlign = 'left';
+
+        // Pole na nazwę przedmiotu
+        const ulItemLabel = document.createElement('label');
+        ulItemLabel.style.display = 'block';
+        ulItemLabel.style.marginBottom = '4px';
+        ulItemLabel.textContent = 'Nazwa przedmiotu do ulepszenia:';
+        ulWrap.appendChild(ulItemLabel);
+
+        const ulItemInput = document.createElement('input');
+        ulItemInput.type = 'text';
+        ulItemInput.id = 'adi-bot_ulepszanie_item';
+        ulItemInput.className = 'adi-bot_inputs';
+        ulItemInput.placeholder = 'np. Stalowy miecz';
+        ulItemInput.style.marginBottom = '8px';
+        ulItemInput.setAttribute('tip', 'Fragment nazwy przedmiotu z ekwipunku do ulepszenia');
+        try{ ulItemInput.value = localStorage.getItem('adi-bot_ulepszanie_item') || ''; }catch(_){}
+        ulItemInput.addEventListener('keyup', ()=>{ try{ localStorage.setItem('adi-bot_ulepszanie_item', ulItemInput.value); }catch(_){} });
+        ulWrap.appendChild(ulItemInput);
+
+        // Status
+        const ulStatus = document.createElement('div');
+        ulStatus.id = 'adi-bot_ulepszanie_status';
+        ulStatus.style.fontSize = '12px';
+        ulStatus.style.marginBottom = '6px';
+        ulStatus.style.minHeight = '16px';
+        ulStatus.style.color = '#555';
+        ulWrap.appendChild(ulStatus);
+
+        function ulSetStatus(msg, ok){
+          ulStatus.textContent = msg;
+          ulStatus.style.color = ok ? '#3cb371' : '#e57373';
+        }
+
+        // Przycisk Ulepsz teraz
+        const ulBtn = document.createElement('button');
+        ulBtn.id = 'adi-bot_ulepszanie_btn';
+        ulBtn.textContent = 'Ulepsz teraz';
+        ulBtn.className = 'adi-bot_inputs';
+        ulWrap.appendChild(ulBtn);
+
+        // Helpers
+        function ulClick(el){
+          if(!el) return false;
+          try{
+            el.dispatchEvent(new MouseEvent('mouseover',{bubbles:true,cancelable:true}));
+            el.dispatchEvent(new MouseEvent('mousedown',{bubbles:true,cancelable:true}));
+            el.dispatchEvent(new MouseEvent('mouseup',{bubbles:true,cancelable:true}));
+            el.dispatchEvent(new MouseEvent('click',{bubbles:true,cancelable:true}));
+          }catch(_){ try{ el.click(); }catch(__){} }
+          return true;
+        }
+
+        function ulSleep(ms){ return new Promise(r=>setTimeout(r,ms)); }
+
+        function ulNorm(s){
+          return String(s||'').toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g,'').replace(/\s+/g,' ').trim();
+        }
+
+        // Znajdź przedmiot w ekwipunku po nazwie (element DOM)
+        function ulFindItemEl(name){
+          const needle = ulNorm(name);
+          if(!needle) return null;
+          const docs = [document];
+          try{
+            document.querySelectorAll('iframe').forEach(fr=>{
+              try{ const d=fr.contentDocument||(fr.contentWindow&&fr.contentWindow.document); if(d) docs.push(d); }catch(_){}
+            });
+          }catch(_){}
+          for(const doc of docs){
+            const items = Array.from(doc.querySelectorAll('.item[id^="item"], .item'));
+            for(const el of items){
+              if(el.closest('#npcshop,#shop,.shop')) continue;
+              const tip = ulNorm(el.getAttribute('tip')||'');
+              const ctip = ulNorm(el.getAttribute('ctip')||'');
+              const txt = ulNorm(el.textContent||'');
+              if(tip.includes(needle)||ctip.includes(needle)||txt.includes(needle)) return el;
+            }
+            // też sprawdź g.item
+            if(window.g && g.item){
+              for(const slot in g.item){
+                const it=g.item[slot]; if(!it) continue;
+                const nm=ulNorm(it.name||it.nick||'');
+                if(nm.includes(needle)){
+                  const el2=doc.querySelector('#item'+slot)||doc.querySelector('[id="item'+slot+'"]');
+                  if(el2) return el2;
+                }
+              }
+            }
+          }
+          return null;
+        }
+
+        // Główna sekwencja ulepszania
+        ulBtn.addEventListener('click', async ()=>{
+          const itemName = ulItemInput.value.trim();
+          if(!itemName){
+            ulSetStatus('Wpisz nazwę przedmiotu!', false);
+            return;
+          }
+
+          ulBtn.disabled = true;
+          ulSetStatus('Otwieram okno rzemiosła...', true);
+
+          try{
+            // 1) Kliknij przycisk recepty (#b_recipes)
+            const btnRecipes = document.querySelector('#b_recipes');
+            if(!btnRecipes){ ulSetStatus('Nie znaleziono przycisku recepty (#b_recipes).', false); ulBtn.disabled=false; return; }
+            ulClick(btnRecipes);
+            await ulSleep(800);
+
+            // 2) Znajdź i kliknij zakładkę ulepszania (enhancement)
+            // Okno rzemiosła ma zakładki - szukamy zakładki "Ulepszanie"
+            const docs = [document];
+            try{
+              document.querySelectorAll('iframe').forEach(fr=>{
+                try{ const d=fr.contentDocument||(fr.contentWindow&&fr.contentWindow.document); if(d) docs.push(d); }catch(_){}
+              });
+            }catch(_){}
+
+            // Sprawdź czy okno rzemiosła jest otwarte
+            let craftingEl = null;
+            for(const doc of docs){
+              craftingEl = doc.querySelector('#crafting, .crafting');
+              if(craftingEl) break;
+            }
+
+            // Zakładka enhancement w oknie rzemiosła
+            let enhTab = null;
+            for(const doc of docs){
+              enhTab = doc.querySelector('.enhancement-content.tabs-content-option, [class*="enhancement-content"]');
+              if(enhTab) break;
+            }
+
+            // Kliknij zakładkę enhancement jeśli nie jest aktywna
+            for(const doc of docs){
+              const tabs = Array.from(doc.querySelectorAll('.crafting_tabs .item-craft-tab, .crafting_tabs [class*="tab"]'));
+              for(const tab of tabs){
+                const txt = ulNorm(tab.textContent||'');
+                if(txt.includes('ulepszanie')||txt.includes('enchant')||txt.includes('enhancement')||txt.includes('ulepsz')){
+                  ulClick(tab); await ulSleep(400); break;
+                }
+              }
+            }
+            await ulSleep(400);
+
+            // 3) Znajdź przedmiot w ekwipunku i kliknij
+            ulSetStatus('Szukam przedmiotu: ' + itemName + '...', true);
+            const itemEl = ulFindItemEl(itemName);
+            if(!itemEl){ ulSetStatus('Nie znaleziono przedmiotu: ' + itemName, false); ulBtn.disabled=false; return; }
+            ulClick(itemEl);
+            await ulSleep(600);
+
+            // Helper: znajdź przycisk Ulepsz
+            function ulFindUlepsz(){
+              for(const doc of docs){
+                const el = doc.querySelector('.enhance_submit .btn.SI-button, .enhance_submit .btn');
+                if(el) return el;
+              }
+              return null;
+            }
+
+            // Helper: znajdź i kliknij OK
+            async function ulClickOk(){
+              await ulSleep(700);
+              let okBtn = document.querySelector('#a_ok');
+              if(!okBtn){ for(const doc of docs){ okBtn=doc.querySelector('#a_ok'); if(okBtn) break; } }
+              if(okBtn){ ulClick(okBtn); await ulSleep(600); }
+            }
+
+            // Helper: znajdź n-ty przycisk autofillera (1-indexed)
+            function ulFindAutoBtn(n){
+              for(const doc of docs){
+                const btns = Array.from(doc.querySelectorAll('.enhance_autofiller .btn.SI-button.small.green, .autofiller .btn.SI-button.small.green'));
+                if(btns.length >= n) return btns[n-1];
+                const allGreen = Array.from(doc.querySelectorAll('.enhance .btn.SI-button.small.green, [class*="enhance"] .btn.SI-button.small.green'));
+                if(allGreen.length >= n) return allGreen[n-1];
+              }
+              return null;
+            }
+
+            // 4) Przycisk 1 → Ulepsz → OK
+            ulSetStatus('Klikam przycisk 1...', true);
+            const btn1 = ulFindAutoBtn(1);
+            if(!btn1){ ulSetStatus('Nie znaleziono przycisku 1.', false); ulBtn.disabled=false; return; }
+            ulClick(btn1);
+            await ulSleep(600);
+
+            ulSetStatus('Klikam Ulepsz (po 1)...', true);
+            const ulepsz1 = ulFindUlepsz();
+            if(ulepsz1){ ulClick(ulepsz1); }
+            await ulClickOk();
+
+            // 5) Przycisk 2 → Ulepsz → OK
+            ulSetStatus('Klikam przycisk 2...', true);
+            const btn2 = ulFindAutoBtn(2);
+            if(!btn2){ ulSetStatus('Nie znaleziono przycisku 2.', false); ulBtn.disabled=false; return; }
+            ulClick(btn2);
+            await ulSleep(600);
+
+            ulSetStatus('Klikam Ulepsz (po 2)...', true);
+            const ulepsz2 = ulFindUlepsz();
+            if(ulepsz2){ ulClick(ulepsz2); }
+            await ulClickOk();
+
+            // 6) Przycisk 3 → Ulepsz → OK
+            ulSetStatus('Klikam przycisk 3...', true);
+            const btn3 = ulFindAutoBtn(3);
+            if(!btn3){ ulSetStatus('Nie znaleziono przycisku 3.', false); ulBtn.disabled=false; return; }
+            ulClick(btn3);
+            await ulSleep(600);
+
+            ulSetStatus('Klikam Ulepsz (po 3)...', true);
+            const ulepsz3 = ulFindUlepsz();
+            if(ulepsz3){ ulClick(ulepsz3); }
+            await ulClickOk();
+
+            // 12) Kliknij X (zamknij okno)
+            ulSetStatus('Zamykam okno...', true);
+            let closeBtn = null;
+            for(const doc of docs){
+              closeBtn = doc.querySelector('#crafting .close-but, .crafting .close-but, .close-but');
+              if(closeBtn) break;
+            }
+            if(closeBtn){ ulClick(closeBtn); await ulSleep(300); }
+
+            ulSetStatus('Ulepszanie zakończone!', true);
+          }catch(e){
+            ulSetStatus('Błąd: ' + (e && e.message || String(e)), false);
+            console.warn('[adi-bot][ulepszanie] error', e);
+          }
+
+          ulBtn.disabled = false;
+        });
+
+        tabUlepszanie.appendChild(ulWrap);
+      }catch(e){ console.warn('[adi-bot] tab Ulepszanie ui failed', e); }
+
       contentWrap.appendChild(tabUlepszanie);
 
       box.appendChild(tabs);
