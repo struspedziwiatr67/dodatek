@@ -4914,6 +4914,62 @@ try{
         ulBtn.className = 'adi-bot_inputs';
         ulWrap.appendChild(ulBtn);
 
+        // Przełącznik: automatyczne ulepszanie przy pełnych torbach
+        try{
+          if(!document.getElementById('adi-ulepszanie-auto-style')){
+            const st = document.createElement('style');
+            st.id = 'adi-ulepszanie-auto-style';
+            st.textContent = `
+              #adi-tab-ulepszanie .adi-settings-line{display:flex;align-items:center;gap:8px;margin:8px 0 4px;flex-wrap:wrap}
+              #adi-tab-ulepszanie .adi-settings-label{font-size:13px;line-height:1.2;color:#000}
+              #adi-tab-ulepszanie .adi-switch{position:relative;display:inline-block;width:42px;height:22px;flex:0 0 auto}
+              #adi-tab-ulepszanie .adi-switch input{opacity:0;width:0;height:0}
+              #adi-tab-ulepszanie .adi-slider{position:absolute;cursor:pointer;inset:0;background:#888;border-radius:999px;transition:.2s}
+              #adi-tab-ulepszanie .adi-slider:before{content:'';position:absolute;height:16px;width:16px;left:3px;top:3px;background:#fff;border-radius:50%;transition:.2s}
+              #adi-tab-ulepszanie .adi-switch input:checked + .adi-slider{background:#28a745}
+              #adi-tab-ulepszanie .adi-switch input:checked + .adi-slider:before{transform:translateX(20px)}
+              #adi-tab-ulepszanie .adi-ulepszanie-bag-space{font-size:12px;margin-top:3px;color:#333}
+            `;
+            document.head.appendChild(st);
+          }
+        }catch(_){ }
+
+        const ulAutoRow = document.createElement('label');
+        ulAutoRow.className = 'adi-settings-line';
+        ulAutoRow.setAttribute('for', 'adi-bot_ulepszanie_auto_full');
+
+        const ulAutoSwitch = document.createElement('span');
+        ulAutoSwitch.className = 'adi-switch';
+
+        const ulAutoChk = document.createElement('input');
+        ulAutoChk.type = 'checkbox';
+        ulAutoChk.id = 'adi-bot_ulepszanie_auto_full';
+        try{ ulAutoChk.checked = localStorage.getItem('adi-bot_ulepszanie_auto_full') === '1'; }catch(_){ }
+
+        const ulAutoSlider = document.createElement('span');
+        ulAutoSlider.className = 'adi-slider';
+        ulAutoSwitch.appendChild(ulAutoChk);
+        ulAutoSwitch.appendChild(ulAutoSlider);
+
+        const ulAutoLabel = document.createElement('span');
+        ulAutoLabel.className = 'adi-settings-label';
+        ulAutoLabel.textContent = 'Automatyczne ulepszanie jak full torby';
+
+        ulAutoRow.appendChild(ulAutoSwitch);
+        ulAutoRow.appendChild(ulAutoLabel);
+        ulWrap.appendChild(ulAutoRow);
+
+        const ulBagInfo = document.createElement('div');
+        ulBagInfo.id = 'adi-bot_ulepszanie_bag_space';
+        ulBagInfo.className = 'adi-ulepszanie-bag-space';
+        ulBagInfo.textContent = 'Wolne miejsca w torbach: —';
+        ulWrap.appendChild(ulBagInfo);
+
+        ulAutoChk.addEventListener('change', ()=>{
+          try{ localStorage.setItem('adi-bot_ulepszanie_auto_full', ulAutoChk.checked ? '1' : '0'); }catch(_){ }
+          ulSetStatus(ulAutoChk.checked ? 'Auto ulepszanie przy pełnych torbach: WŁ' : 'Auto ulepszanie przy pełnych torbach: WYŁ', true);
+        });
+
         // Helpers
         function ulClick(el){
           if(!el) return false;
@@ -4974,6 +5030,84 @@ try{
           }
           return null;
         }
+
+        function ulIsBotEnabledNow(){
+          try{ if(localStorage.getItem('adi-bot_enabled') === '1') return true; }catch(_){ }
+          try{ return !!(window.adiwilkTestBot && window.parseInput === window.adiwilkTestBot.botPI); }catch(_){ }
+          return false;
+        }
+
+        function ulGetDocs(){
+          const docs = [document];
+          try{
+            document.querySelectorAll('iframe').forEach(fr=>{
+              try{ const d = fr.contentDocument || (fr.contentWindow && fr.contentWindow.document); if(d) docs.push(d); }catch(_){ }
+            });
+          }catch(_){ }
+          return docs;
+        }
+
+        // Takie samo wykrywanie wolnych miejsc jak w zakładce Aukcja: sumuje liczniki bs0/bs1/bs2.
+        function ulGetTotalBagSpace(){
+          try{
+            if(typeof adiGetTotalBagSpace === 'function'){
+              const b = adiGetTotalBagSpace();
+              if(b && Number.isFinite(Number(b.free))) return b;
+            }
+          }catch(_){ }
+          try{
+            let free = 0, total = 0;
+            for(const doc of ulGetDocs()){
+              for(const id of ['bs0','bs1','bs2']){
+                const el = doc.querySelector('small#' + id) || doc.getElementById(id);
+                if(!el) continue;
+                const t = String(el.textContent || el.innerText || '').trim();
+                if(!t) continue;
+                const m = t.match(/(\d+)\s*\/\s*(\d+)/);
+                if(m){ free += Number(m[1] || 0); total += Number(m[2] || 0); }
+                else{
+                  const n = parseInt(t, 10);
+                  if(!isNaN(n)){ free += n; total += 30; }
+                }
+              }
+            }
+            if(total <= 0) return null;
+            return { free: Math.max(0, free), total, used: Math.max(0, total - free), text: Math.max(0, free) + ' / ' + total };
+          }catch(_){ return null; }
+        }
+
+        function ulUpdateBagInfo(){
+          try{
+            const b = ulGetTotalBagSpace();
+            ulBagInfo.textContent = b ? ('Wolne miejsca w torbach: ' + b.free) : 'Wolne miejsca w torbach: —';
+            return b;
+          }catch(_){ return null; }
+        }
+
+        let ulLastAutoFullRun = 0;
+        function ulCheckAutoFullBags(){
+          try{
+            const b = ulUpdateBagInfo();
+            if(!ulAutoChk.checked) return;
+            if(!ulIsBotEnabledNow()) return;
+            if(!window.hero || !window.g) return;
+            if(g.dead || g.resp || g.reload || g.battle) return;
+            if(ulBtn.disabled) return;
+            if(!b || !Number.isFinite(Number(b.free))) return;
+            if(Number(b.free) !== 0) return;
+            const now = Date.now();
+            if(now - ulLastAutoFullRun < 30000) return;
+            ulLastAutoFullRun = now;
+            ulSetStatus('Pełne torby (0 wolnych miejsc) — uruchamiam ulepszanie...', true);
+            ulBtn.click();
+          }catch(e){ console.warn('[adi-bot][ulepszanie-auto] error', e); }
+        }
+
+        try{
+          ulUpdateBagInfo();
+          if(ulWrap.__adiUlepszanieAutoTimer) clearInterval(ulWrap.__adiUlepszanieAutoTimer);
+          ulWrap.__adiUlepszanieAutoTimer = setInterval(ulCheckAutoFullBags, 2000);
+        }catch(_){ }
 
         // Główna sekwencja ulepszania
         ulBtn.addEventListener('click', async ()=>{
@@ -7997,12 +8131,12 @@ if (typeof window.window.__adi_equipByNameSequence !== 'function') {
         #adi-tab-settings .adi-settings-line, #adi-tab-aukcja .adi-settings-line{display:flex;align-items:center;gap:8px;margin:6px 0;flex-wrap:wrap}
         #adi-tab-settings .adi-settings-label, #adi-tab-aukcja .adi-settings-label{font-size:13px;line-height:1.2}
         #adi-tab-settings .adi-settings-sub, #adi-tab-aukcja .adi-settings-sub{font-size:12px;opacity:.85;margin:2px 0 8px}
-        #adi-tab-settings .adi-switch, #adi-tab-aukcja .adi-switch{position:relative;display:inline-block;width:42px;height:22px;flex:0 0 auto}
-        #adi-tab-settings .adi-switch input, #adi-tab-aukcja .adi-switch input{opacity:0;width:0;height:0}
-        #adi-tab-settings .adi-slider, #adi-tab-aukcja .adi-slider{position:absolute;cursor:pointer;inset:0;background:#888;border-radius:999px;transition:.2s}
-        #adi-tab-settings .adi-slider:before, #adi-tab-aukcja .adi-slider:before{content:'';position:absolute;height:16px;width:16px;left:3px;top:3px;background:#fff;border-radius:50%;transition:.2s}
-        #adi-tab-settings .adi-switch input:checked + .adi-slider, #adi-tab-aukcja .adi-switch input:checked + .adi-slider{background:#28a745}
-        #adi-tab-settings .adi-switch input:checked + .adi-slider:before, #adi-tab-aukcja .adi-switch input:checked + .adi-slider:before{transform:translateX(20px)}
+        #adi-tab-settings .adi-switch, #adi-tab-aukcja .adi-switch, #adi-tab-ulepszanie .adi-switch{position:relative;display:inline-block;width:42px;height:22px;flex:0 0 auto}
+        #adi-tab-settings .adi-switch input, #adi-tab-aukcja .adi-switch input, #adi-tab-ulepszanie .adi-switch input{opacity:0;width:0;height:0}
+        #adi-tab-settings .adi-slider, #adi-tab-aukcja .adi-slider, #adi-tab-ulepszanie .adi-slider{position:absolute;cursor:pointer;inset:0;background:#888;border-radius:999px;transition:.2s}
+        #adi-tab-settings .adi-slider:before, #adi-tab-aukcja .adi-slider:before, #adi-tab-ulepszanie .adi-slider:before{content:'';position:absolute;height:16px;width:16px;left:3px;top:3px;background:#fff;border-radius:50%;transition:.2s}
+        #adi-tab-settings .adi-switch input:checked + .adi-slider, #adi-tab-aukcja .adi-switch input:checked + .adi-slider, #adi-tab-ulepszanie .adi-switch input:checked + .adi-slider{background:#28a745}
+        #adi-tab-settings .adi-switch input:checked + .adi-slider:before, #adi-tab-aukcja .adi-switch input:checked + .adi-slider:before, #adi-tab-ulepszanie .adi-switch input:checked + .adi-slider:before{transform:translateX(20px)}
         #adi-tab-settings input[type="text"], #adi-tab-settings input[type="number"], #adi-tab-aukcja input[type="text"], #adi-tab-aukcja input[type="number"]{box-sizing:border-box;width:100%;max-width:100%;margin:0}
         #adi-tab-settings .adi-webhook-input{font-size:13px}
         #adi-tab-settings .adi-inline-input, #adi-tab-aukcja .adi-inline-input{width:120px !important;display:inline-block}
