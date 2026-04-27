@@ -4918,12 +4918,31 @@ try{
         function ulClick(el){
           if(!el) return false;
           try{
-            el.dispatchEvent(new MouseEvent('mouseover',{bubbles:true,cancelable:true}));
-            el.dispatchEvent(new MouseEvent('mousedown',{bubbles:true,cancelable:true}));
-            el.dispatchEvent(new MouseEvent('mouseup',{bubbles:true,cancelable:true}));
-            el.dispatchEvent(new MouseEvent('click',{bubbles:true,cancelable:true}));
-          }catch(_){ try{ el.click(); }catch(__){} }
-          return true;
+            if(el.closest && el.closest('.disabled,[disabled]')) return false;
+          }catch(_){}
+          try{ el.scrollIntoView({block:'center', inline:'center'}); }catch(_){}
+          try{
+            const r = (el.getBoundingClientRect && el.getBoundingClientRect()) || {left:0,top:0,width:0,height:0};
+            const x = Math.round(r.left + (r.width || 1) / 2);
+            const y = Math.round(r.top + (r.height || 1) / 2);
+            const opts = {bubbles:true,cancelable:true,view:window,clientX:x,clientY:y,button:0,buttons:1};
+            if(window.PointerEvent){
+              el.dispatchEvent(new PointerEvent('pointerover', Object.assign({pointerId:1,pointerType:'mouse',isPrimary:true}, opts)));
+              el.dispatchEvent(new PointerEvent('pointerdown', Object.assign({pointerId:1,pointerType:'mouse',isPrimary:true}, opts)));
+              el.dispatchEvent(new PointerEvent('pointerup', Object.assign({pointerId:1,pointerType:'mouse',isPrimary:true,buttons:0}, opts)));
+            }
+            el.dispatchEvent(new MouseEvent('mouseover', opts));
+            el.dispatchEvent(new MouseEvent('mousemove', opts));
+            el.dispatchEvent(new MouseEvent('mousedown', opts));
+            el.dispatchEvent(new MouseEvent('mouseup', Object.assign({}, opts, {buttons:0})));
+            el.dispatchEvent(new MouseEvent('click', Object.assign({}, opts, {buttons:0})));
+            try{ if(window.jQuery) window.jQuery(el).trigger('click'); }catch(_){}
+            try{ if(typeof el.onclick === 'function') el.onclick.call(el, new MouseEvent('click', opts)); }catch(_){}
+            try{ el.click(); }catch(_){}
+            return true;
+          }catch(_){
+            try{ el.click(); return true; }catch(__){ return false; }
+          }
         }
 
         function ulSleep(ms){ return new Promise(r=>setTimeout(r,ms)); }
@@ -4975,128 +4994,163 @@ try{
           }
 
           ulBtn.disabled = true;
-          ulSetStatus('Otwieram okno rzemiosła...', true);
+
+          function ulDocs(){
+            const docs = [document];
+            try{
+              document.querySelectorAll('iframe').forEach(fr=>{
+                try{
+                  const d = fr.contentDocument || (fr.contentWindow && fr.contentWindow.document);
+                  if(d && !docs.includes(d)) docs.push(d);
+                }catch(_){}
+              });
+            }catch(_){}
+            return docs;
+          }
+
+          function ulIsVisible(el){
+            try{
+              if(!el || !(el instanceof Element)) return false;
+              if(el.closest('.hidden,.disabled,[disabled]')) return false;
+              const st = getComputedStyle(el);
+              if(st.display === 'none' || st.visibility === 'hidden' || st.opacity === '0') return false;
+              const r = el.getBoundingClientRect();
+              return (r.width > 0 && r.height > 0);
+            }catch(_){ return !!el; }
+          }
+
+          function ulFindInDocs(selectors, filter){
+            const sels = Array.isArray(selectors) ? selectors : [selectors];
+            for(const doc of ulDocs()){
+              for(const sel of sels){
+                try{
+                  const arr = Array.from(doc.querySelectorAll(sel));
+                  for(const el of arr){
+                    const target = (el.closest && el.closest('.btn,.button,[id^="b_"],[id^="a_"],.close-but')) || el;
+                    if(!ulIsVisible(target)) continue;
+                    if(filter && !filter(target, el, doc)) continue;
+                    return target;
+                  }
+                }catch(_){}
+              }
+            }
+            return null;
+          }
+
+          async function ulWaitFor(fn, timeoutMs, stepMs){
+            const end = Date.now() + (timeoutMs || 4000);
+            let last = null;
+            while(Date.now() < end){
+              try{ last = fn(); if(last) return last; }catch(_){}
+              await ulSleep(stepMs || 120);
+            }
+            return last;
+          }
+
+          function ulButtonText(el){
+            try{ return ulNorm([el.textContent, el.getAttribute('tip'), el.getAttribute('title')].join(' ')); }catch(_){ return ''; }
+          }
+
+          function ulFindRecipesBtn(){
+            return ulFindInDocs(['#b_recipes', '.b-buttons#b_recipes', '[id="b_recipes"]']);
+          }
+
+          function ulFindAutoBtn(n){
+            return ulFindInDocs([
+              `.enhance_autofiller .btn.SI-button.small.green[tip*="torby numer ${n}"]`,
+              `.enhance_autofiller .btn.SI-button.small.green`,
+              `.autofiller .btn.SI-button.small.green`,
+              `.enhance .btn.SI-button.small.green`
+            ], (btn)=>{
+              const txt = ulButtonText(btn);
+              const tip = ulNorm(btn.getAttribute('tip') || '');
+              if(tip.includes('konfiguracja')) return false;
+              if(tip.includes('torby numer ' + n)) return true;
+              const lab = btn.querySelector && btn.querySelector('.gfont[name="' + n + '"], .label');
+              if(lab && ulNorm(lab.getAttribute('name') || lab.textContent || '') === String(n)) return true;
+              // gdy selector zwrócił całą listę zielonych przycisków, wybierz realny n-ty autofiller
+              const parent = btn.closest && btn.closest('.enhance_autofiller,.autofiller');
+              if(parent){
+                const all = Array.from(parent.querySelectorAll('.btn.SI-button.small.green')).filter(b=>!ulNorm(b.getAttribute('tip')||'').includes('konfiguracja') && ulIsVisible(b));
+                return all[n-1] === btn;
+              }
+              return txt === String(n);
+            });
+          }
+
+          function ulFindUlepszBtn(){
+            return ulFindInDocs([
+              '.enhance_submit > .btn.SI-button',
+              '.enhance_submit .btn.SI-button',
+              '.enhance_submit .btn',
+              '.enhance_enhance:not(.disabled):not(.hidden) .enhance_submit .btn',
+              '[class*="enhance"] .enhance_submit .btn'
+            ], (btn)=>{
+              const txt = ulButtonText(btn);
+              return txt.includes('ulepsz') && !txt.includes('konfiguracja');
+            });
+          }
+
+          function ulFindOkBtn(){
+            return ulFindInDocs(['#a_ok', '.btn.btn-wood#a_ok', '#alert #a_ok'], (btn)=>{
+              const txt = ulButtonText(btn);
+              return !txt || txt.includes('ok') || txt.includes('tak');
+            });
+          }
+
+          async function ulClickOk(){
+            const okBtn = await ulWaitFor(ulFindOkBtn, 3500, 150);
+            if(okBtn){
+              ulSetStatus('Klikam OK...', true);
+              ulClick(okBtn);
+              await ulSleep(650);
+              return true;
+            }
+            return false;
+          }
+
+          async function ulClickUlepsz(label){
+            const btn = await ulWaitFor(ulFindUlepszBtn, 4000, 150);
+            if(!btn){
+              ulSetStatus('Nie znaleziono aktywnego przycisku Ulepsz ' + label + '.', false);
+              return false;
+            }
+            ulSetStatus('Klikam Ulepsz ' + label + '...', true);
+            ulClick(btn);
+            await ulClickOk();
+            return true;
+          }
 
           try{
-            // 1) Kliknij przycisk recepty (#b_recipes)
-            const btnRecipes = document.querySelector('#b_recipes');
+            // 1) Kliknij przycisk Recepty / Rzemiosło (#b_recipes)
+            ulSetStatus('Otwieram recepty/rzemiosło...', true);
+            const btnRecipes = await ulWaitFor(ulFindRecipesBtn, 3000, 150);
             if(!btnRecipes){ ulSetStatus('Nie znaleziono przycisku recepty (#b_recipes).', false); ulBtn.disabled=false; return; }
             ulClick(btnRecipes);
             await ulSleep(800);
 
-            // 2) Znajdź i kliknij zakładkę ulepszania (enhancement)
-            // Okno rzemiosła ma zakładki - szukamy zakładki "Ulepszanie"
-            const docs = [document];
-            try{
-              document.querySelectorAll('iframe').forEach(fr=>{
-                try{ const d=fr.contentDocument||(fr.contentWindow&&fr.contentWindow.document); if(d) docs.push(d); }catch(_){}
-              });
-            }catch(_){}
-
-            // Sprawdź czy okno rzemiosła jest otwarte
-            let craftingEl = null;
-            for(const doc of docs){
-              craftingEl = doc.querySelector('#crafting, .crafting');
-              if(craftingEl) break;
-            }
-
-            // Zakładka enhancement w oknie rzemiosła
-            let enhTab = null;
-            for(const doc of docs){
-              enhTab = doc.querySelector('.enhancement-content.tabs-content-option, [class*="enhancement-content"]');
-              if(enhTab) break;
-            }
-
-            // Kliknij zakładkę enhancement jeśli nie jest aktywna
-            for(const doc of docs){
-              const tabs = Array.from(doc.querySelectorAll('.crafting_tabs .item-craft-tab, .crafting_tabs [class*="tab"]'));
-              for(const tab of tabs){
-                const txt = ulNorm(tab.textContent||'');
-                if(txt.includes('ulepszanie')||txt.includes('enchant')||txt.includes('enhancement')||txt.includes('ulepsz')){
-                  ulClick(tab); await ulSleep(400); break;
-                }
-              }
-            }
-            await ulSleep(400);
-
-            // 3) Znajdź przedmiot w ekwipunku i kliknij
-            ulSetStatus('Szukam przedmiotu: ' + itemName + '...', true);
-            const itemEl = ulFindItemEl(itemName);
+            // 2) Kliknij przedmiot z ekwipunku po nazwie wpisanej w rubryce
+            ulSetStatus('Szukam przedmiotu w ekwipunku: ' + itemName + '...', true);
+            const itemEl = await ulWaitFor(()=>ulFindItemEl(itemName), 4000, 150);
             if(!itemEl){ ulSetStatus('Nie znaleziono przedmiotu: ' + itemName, false); ulBtn.disabled=false; return; }
             ulClick(itemEl);
-            await ulSleep(600);
+            await ulSleep(900);
 
-            // Helper: znajdź przycisk Ulepsz
-            function ulFindUlepsz(){
-              for(const doc of docs){
-                const el = doc.querySelector('.enhance_submit .btn.SI-button, .enhance_submit .btn');
-                if(el) return el;
-              }
-              return null;
-            }
-
-            // Helper: znajdź i kliknij OK
-            async function ulClickOk(){
+            // 3) Przycisk 1 -> Ulepsz -> OK, potem 2 i 3
+            for(const nr of [1,2,3]){
+              ulSetStatus('Klikam przycisk ' + nr + '...', true);
+              const autoBtn = await ulWaitFor(()=>ulFindAutoBtn(nr), 4000, 150);
+              if(!autoBtn){ ulSetStatus('Nie znaleziono przycisku ' + nr + '.', false); ulBtn.disabled=false; return; }
+              ulClick(autoBtn);
               await ulSleep(700);
-              let okBtn = document.querySelector('#a_ok');
-              if(!okBtn){ for(const doc of docs){ okBtn=doc.querySelector('#a_ok'); if(okBtn) break; } }
-              if(okBtn){ ulClick(okBtn); await ulSleep(600); }
+              const ok = await ulClickUlepsz('(po ' + nr + ')');
+              if(!ok){ ulBtn.disabled=false; return; }
+              await ulSleep(350);
             }
 
-            // Helper: znajdź n-ty przycisk autofillera (1-indexed)
-            function ulFindAutoBtn(n){
-              for(const doc of docs){
-                const btns = Array.from(doc.querySelectorAll('.enhance_autofiller .btn.SI-button.small.green, .autofiller .btn.SI-button.small.green'));
-                if(btns.length >= n) return btns[n-1];
-                const allGreen = Array.from(doc.querySelectorAll('.enhance .btn.SI-button.small.green, [class*="enhance"] .btn.SI-button.small.green'));
-                if(allGreen.length >= n) return allGreen[n-1];
-              }
-              return null;
-            }
-
-            // 4) Przycisk 1 → Ulepsz → OK
-            ulSetStatus('Klikam przycisk 1...', true);
-            const btn1 = ulFindAutoBtn(1);
-            if(!btn1){ ulSetStatus('Nie znaleziono przycisku 1.', false); ulBtn.disabled=false; return; }
-            ulClick(btn1);
-            await ulSleep(600);
-
-            ulSetStatus('Klikam Ulepsz (po 1)...', true);
-            const ulepsz1 = ulFindUlepsz();
-            if(ulepsz1){ ulClick(ulepsz1); }
-            await ulClickOk();
-
-            // 5) Przycisk 2 → Ulepsz → OK
-            ulSetStatus('Klikam przycisk 2...', true);
-            const btn2 = ulFindAutoBtn(2);
-            if(!btn2){ ulSetStatus('Nie znaleziono przycisku 2.', false); ulBtn.disabled=false; return; }
-            ulClick(btn2);
-            await ulSleep(600);
-
-            ulSetStatus('Klikam Ulepsz (po 2)...', true);
-            const ulepsz2 = ulFindUlepsz();
-            if(ulepsz2){ ulClick(ulepsz2); }
-            await ulClickOk();
-
-            // 6) Przycisk 3 → Ulepsz → OK
-            ulSetStatus('Klikam przycisk 3...', true);
-            const btn3 = ulFindAutoBtn(3);
-            if(!btn3){ ulSetStatus('Nie znaleziono przycisku 3.', false); ulBtn.disabled=false; return; }
-            ulClick(btn3);
-            await ulSleep(600);
-
-            ulSetStatus('Klikam Ulepsz (po 3)...', true);
-            const ulepsz3 = ulFindUlepsz();
-            if(ulepsz3){ ulClick(ulepsz3); }
-            await ulClickOk();
-
-            // 12) Kliknij X (zamknij okno)
-            ulSetStatus('Zamykam okno...', true);
-            let closeBtn = null;
-            for(const doc of docs){
-              closeBtn = doc.querySelector('#crafting .close-but, .crafting .close-but, .close-but');
-              if(closeBtn) break;
-            }
+            // 4) Na końcu kliknij X w oknie rzemiosła
+            ulSetStatus('Zamykam okno X...', true);
+            const closeBtn = ulFindInDocs(['#crafting .close-but', '.crafting .close-but', '.crafting-window .close-but'], (btn)=>ulIsVisible(btn));
             if(closeBtn){ ulClick(closeBtn); await ulSleep(300); }
 
             ulSetStatus('Ulepszanie zakończone!', true);
