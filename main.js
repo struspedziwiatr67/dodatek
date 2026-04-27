@@ -5265,14 +5265,44 @@ try{
             if(ulepsz3){ ulClick(ulepsz3); }
             await ulClickOk();
 
-            // 12) Kliknij X (zamknij okno)
+            // 12) Kliknij X (zamknij okno) - kliknięcie po koordynatach, wersja sprawdzona w F12
             ulSetStatus('Zamykam okno...', true);
-            let closeBtn = null;
-            for(const doc of docs){
-              closeBtn = doc.querySelector('#crafting .close-but, .crafting .close-but, .close-but');
-              if(closeBtn) break;
+            function ulClickCloseX(){
+              try{
+                const btn = document.querySelector('#crafting.crafting .close-but') || document.querySelector('#crafting .close-but') || document.querySelector('.close-but');
+                if(!btn){ console.warn('[adi-bot][ulepszanie] Nie znaleziono .close-but'); return false; }
+
+                try{ btn.scrollIntoView({ block: 'center', inline: 'center' }); }catch(_){ }
+
+                const r = btn.getBoundingClientRect();
+                const x = Math.floor(r.left + r.width / 2);
+                const y = Math.floor(r.top + r.height / 2);
+                const target = document.elementFromPoint(x, y) || btn;
+
+                ['pointerover', 'pointerenter', 'mouseover', 'mouseenter', 'pointermove', 'mousemove', 'pointerdown', 'mousedown', 'pointerup', 'mouseup', 'click'].forEach(type => {
+                  target.dispatchEvent(new MouseEvent(type, {
+                    bubbles: true,
+                    cancelable: true,
+                    view: window,
+                    clientX: x,
+                    clientY: y,
+                    screenX: x,
+                    screenY: y,
+                    button: 0,
+                    buttons: type.includes('down') ? 1 : 0
+                  }));
+                });
+
+                try{ btn.click(); }catch(_){ }
+                console.log('[adi-bot][ulepszanie] Wysłano kliknięcie X', btn);
+                return true;
+              }catch(e){
+                console.warn('[adi-bot][ulepszanie] Błąd kliknięcia X', e);
+                return false;
+              }
             }
-            if(closeBtn){ ulClick(closeBtn); await ulSleep(300); }
+            ulClickCloseX();
+            await ulSleep(300);
 
             ulSetStatus('Ulepszanie zakończone!', true);
           }catch(e){
