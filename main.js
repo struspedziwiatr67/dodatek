@@ -1208,7 +1208,10 @@ if (typeof g == "undefined" && document.location.href.indexOf("jaruna.margonem.p
 	"Drowy": { map: "Zakazana Grota, Porzucone Noiridum p.2, Porzucone Noiridum p.3 - sala 1, Porzucone Noiridum p.3 - sala 2, Porzucone Noiridum p.3 - sala 3" },
 	"Drowy+Dridery": { map: "Zakazana Grota, Porzucone Noiridum p.2, Porzucone Noiridum p.3 - sala 1, Porzucone Noiridum p.3 - sala 2, Porzucone Noiridum p.3 - sala 3, Porzucone Noiridum p.3 - sala 2, Dawny Przełaz, Zamierzchłe Arterie p.3, Zamierzchłe Arterie p.2 - sala 1, Zamierzchłe Arterie p.2 - sala 2, Zamierzchłe Arterie p.2 - sala 1, Zapomniane Sztolnie" },
     "Anuraki": { map: "Mglisty Las, Grząska Ziemia, Zatrute Torfowiska, Pustkowia Pogrzebanych, Zatrute Torfowiska, Dolina Pełznącego Krzyku, Gnijące Topielisko, Bagna Umarłych, Urwisko Vapora" },
-  };
+	"Zagrzybiony las": { map: "Zalesiony Step, Garb Połamanych Konarów, Zmurszały Łęg, Zarosłe Szczeliny p.1 - sala 1, Zarosłe Szczeliny p.1 - sala 3, Zarosłe Szczeliny p.1 - sala 2, Zmurszały Łęg, Gęste Sploty, Zmurszały Łęg" },
+	"Elgary": { map: "Knieja Lunarnych Głazów, Głusza Srebrnego Rogu, Knieja Lunarnych Głazów, Szepty Menhirów, Zacienione Wnęki p.1 - sala 2, Zacienione Wnęki p.2 - sala 2, Zacienione Wnęki p.2 - sala 1, Zacienione Wnęki p.1 - sala 1, Szepty Menhirów, Gaj Księżycowego Blasku, Zakątek Nocnych Szelestów" },
+	"Elgary+Zagrzybiony las": { map: "Knieja Lunarnych Głazów, Głusza Srebrnego Rogu, Knieja Lunarnych Głazów, Szepty Menhirów, Zacienione Wnęki p.1 - sala 2, Zacienione Wnęki p.2 - sala 2, Zacienione Wnęki p.2 - sala 1, Zacienione Wnęki p.1 - sala 1, Szepty Menhirów, Gaj Księżycowego Blasku, Zakątek Nocnych Szelestów, Zmurszały Łęg, Garb Połamanych Konarów, Zalesiony Step" },
+	};
 
   // ===== E2 (Elity II) lista =====
   const E2_TARGETS = [
