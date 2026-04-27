@@ -1027,6 +1027,13 @@
         "x": 60,
         "y": 63
       }
+    },
+    {
+      "to": "prastara puszcza",
+      "via": {
+        "x": 27,
+        "y": 4
+      }
     }
   ],
   "kopalnia kapiacego miodu p.1 - sala 1": [
@@ -5130,6 +5137,385 @@
       "via": {
         "x": 0,
         "y": 40
+      }
+    }
+  ],
+  "prastara puszcza": [
+    {
+      "to": "karka-han"
+    },
+    {
+      "to": "zalesiony step",
+      "via": {
+        "x": 22,
+        "y": 0
+      }
+    }
+  ],
+  "zalesiony step": [
+    {
+      "to": "prastara puszcza"
+    },
+    {
+      "to": "garb połamanych konarow",
+      "via": {
+        "x": 0,
+        "y": 38
+      }
+    },
+    {
+      "to": "garb połamanych konarow"
+    },
+    {
+      "to": "knieja lunarnych głazow",
+      "via": {
+        "x": 28,
+        "y": 0
+      }
+    },
+    {
+      "to": "knieja lunarnych głazow"
+    }
+  ],
+  "garb połamanych konarow": [
+    {
+      "to": "zalesiony step"
+    },
+    {
+      "to": "zalesiony step",
+      "via": {
+        "x": 95,
+        "y": 38
+      }
+    },
+    {
+      "to": "szepty menhirow",
+      "via": {
+        "x": 83,
+        "y": 0
+      }
+    },
+    {
+      "to": "szepty menhirow"
+    },
+    {
+      "to": "gaj ksiezycowego blasku",
+      "via": {
+        "x": 28,
+        "y": 0
+      }
+    },
+    {
+      "to": "gaj ksiezycowego blasku"
+    },
+    {
+      "to": "zmurszały łeg",
+      "via": {
+        "x": 0,
+        "y": 20
+      }
+    },
+    {
+      "to": "zmurszały łeg"
+    }
+  ],
+  "knieja lunarnych głazow": [
+    {
+      "to": "zalesiony step"
+    },
+    {
+      "to": "zalesiony step",
+      "via": {
+        "x": 28,
+        "y": 95
+      }
+    },
+    {
+      "to": "głusza srebrnego rogu",
+      "via": {
+        "x": 63,
+        "y": 59
+      }
+    },
+    {
+      "to": "głusza srebrnego rogu"
+    },
+    {
+      "to": "szepty menhirow",
+      "via": {
+        "x": 0,
+        "y": 39
+      }
+    }
+  ],
+  "szepty menhirow": [
+    {
+      "to": "garb połamanych konarow"
+    },
+    {
+      "to": "garb połamanych konarow",
+      "via": {
+        "x": 51,
+        "y": 95
+      }
+    },
+    {
+      "to": "knieja lunarnych głazow"
+    },
+    {
+      "to": "zacienione wneki p.1 - sala 2",
+      "via": {
+        "x": 49,
+        "y": 33
+      }
+    },
+    {
+      "to": "zacienione wneki p.1 - sala 2"
+    },
+    {
+      "to": "zacienione wneki p.1 - sala 1"
+    },
+    {
+      "to": "gaj ksiezycowego blasku",
+      "via": {
+        "x": 0,
+        "y": 68
+      }
+    }
+  ],
+  "gaj ksiezycowego blasku": [
+    {
+      "to": "garb połamanych konarow"
+    },
+    {
+      "to": "garb połamanych konarow",
+      "via": {
+        "x": 60,
+        "y": 95
+      }
+    },
+    {
+      "to": "zmurszały łeg"
+    },
+    {
+      "to": "zmurszały łeg",
+      "via": {
+        "x": 10,
+        "y": 95
+      }
+    },
+    {
+      "to": "szepty menhirow"
+    },
+    {
+      "to": "zakatek nocnych szelestow",
+      "via": {
+        "x": 0,
+        "y": 40
+      }
+    }
+  ],
+  "zmurszały łeg": [
+    {
+      "to": "garb połamanych konarow"
+    },
+    {
+      "to": "gaj ksiezycowego blasku",
+      "via": {
+        "x": 74,
+        "y": 0
+      }
+    },
+    {
+      "to": "gaj ksiezycowego blasku"
+    },
+    {
+      "to": "zakatek nocnych szelestow",
+      "via": {
+        "x": 30,
+        "y": 0
+      }
+    },
+    {
+      "to": "zakatek nocnych szelestow"
+    },
+    {
+      "to": "geste sploty",
+      "via": {
+        "x": 41,
+        "y": 63
+      }
+    },
+    {
+      "to": "geste sploty"
+    },
+    {
+      "to": "garb połamanych konarow",
+      "via": {
+        "x": 95,
+        "y": 20
+      }
+    },
+    {
+      "to": "zarosłe szczeliny p.1 - sala 1",
+      "via": {
+        "x": 59,
+        "y": 52
+      }
+    },
+    {
+      "to": "zarosłe szczeliny p.1 - sala 2"
+    }
+  ],
+  "zakatek nocnych szelestow": [
+    {
+      "to": "zmurszały łeg"
+    },
+    {
+      "to": "zmurszały łeg",
+      "via": {
+        "x": 30,
+        "y": 95
+      }
+    },
+    {
+      "to": "gaj ksiezycowego blasku"
+    }
+  ],
+  "geste sploty": [
+    {
+      "to": "zmurszały łeg"
+    },
+    {
+      "to": "przepasc aguti",
+      "via": {
+        "x": 0,
+        "y": 52
+      }
+    },
+    {
+      "to": "przepasc aguti"
+    },
+    {
+      "to": "zmurszały łeg",
+      "via": {
+        "x": 41,
+        "y": 0
+      }
+    }
+  ],
+  "przepasc aguti": [
+    {
+      "to": "geste sploty"
+    },
+    {
+      "to": "geste sploty",
+      "via": {
+        "x": 95,
+        "y": 52
+      }
+    }
+  ],
+  "zarosłe szczeliny p.1 - sala 1": [
+    {
+      "to": "zmurszały łeg"
+    },
+    {
+      "to": "zarosłe szczeliny p.1 - sala 3",
+      "via": {
+        "x": 24,
+        "y": 8
+      }
+    }
+  ],
+  "zarosłe szczeliny p.1 - sala 3": [
+    {
+      "to": "zarosłe szczeliny p.1 - sala 1"
+    },
+    {
+      "to": "zarosłe szczeliny p.1 - sala 2",
+      "via": {
+        "x": 11,
+        "y": 43
+      }
+    }
+  ],
+  "zarosłe szczeliny p.1 - sala 2": [
+    {
+      "to": "zarosłe szczeliny p.1 - sala 3"
+    },
+    {
+      "to": "zmurszały łeg",
+      "via": {
+        "x": 28,
+        "y": 42
+      }
+    }
+  ],
+  "głusza srebrnego rogu": [
+    {
+      "to": "knieja lunarnych głazow"
+    },
+    {
+      "to": "knieja lunarnych głazow",
+      "via": {
+        "x": 0,
+        "y": 59
+      }
+    }
+  ],
+  "zacienione wneki p.1 - sala 2": [
+    {
+      "to": "szepty menhirow"
+    },
+    {
+      "to": "szepty menhirow",
+      "via": {
+        "x": 28,
+        "y": 45
+      }
+    },
+    {
+      "to": "zacienione wneki p.2 - sala 2",
+      "via": {
+        "x": 10,
+        "y": 12
+      }
+    }
+  ],
+  "zacienione wneki p.2 - sala 2": [
+    {
+      "to": "zacienione wneki p.1 - sala 2"
+    },
+    {
+      "to": "zacienione wneki p.2 - sala 1",
+      "via": {
+        "x": 7,
+        "y": 19
+      }
+    }
+  ],
+  "zacienione wneki p.2 - sala 1": [
+    {
+      "to": "zacienione wneki p.2 - sala 2"
+    },
+    {
+      "to": "zacienione wneki p.1 - sala 1",
+      "via": {
+        "x": 18,
+        "y": 37
+      }
+    }
+  ],
+  "zacienione wneki p.1 - sala 1": [
+    {
+      "to": "zacienione wneki p.2 - sala 1"
+    },
+    {
+      "to": "szepty menhirow",
+      "via": {
+        "x": 8,
+        "y": 38
       }
     }
   ]
