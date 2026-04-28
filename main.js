@@ -5484,6 +5484,25 @@ try{
         try{ return Number(window.map && map.pvp) === 2; }catch(_){ return false; }
       }
 
+      // Na tej mapie TP ma nie reagować na innych graczy.
+      // Zapobiega ponownemu użyciu zwoju po teleportacji na Kwieciste Przejście.
+      const TP_IGNORE_PLAYER_MAPS = ['Kwieciste Przejście'];
+
+      function isTpIgnoredMap(){
+        try{
+          if(!window.map || !map.name) return false;
+          const cur = (typeof normMapName === 'function')
+            ? normMapName(map.name)
+            : String(map.name || '').replace(/ /g,' ').replace(/\s+/g,' ').trim().toLowerCase();
+          return TP_IGNORE_PLAYER_MAPS.some(function(name){
+            const nm = (typeof normMapName === 'function')
+              ? normMapName(name)
+              : String(name || '').replace(/ /g,' ').replace(/\s+/g,' ').trim().toLowerCase();
+            return cur === nm;
+          });
+        }catch(_){ return false; }
+      }
+
       function findTeleportItemIdByName(name){
         try{
           if(!window.g || !g.item) return 0;
@@ -5520,6 +5539,10 @@ try{
 
       function triggerTeleport(reason){
         try{
+          if(isTpIgnoredMap()){
+            pendingTeleport = false;
+            return false;
+          }
           const now = Date.now();
           if(now - lastTeleportAt < 5000) return false;
           if(window.g && g.battle){
@@ -5541,6 +5564,7 @@ try{
       function getThreat(){
         try{
           if(!isBotRunning() || !isEscapeEnabled() || !isRedMap()) return null;
+          if(isTpIgnoredMap()) return null;
           if(!window.g || !g.other) return null;
           const allowClan = shouldEscapeClanFriends();
           for(const id in g.other){
@@ -5576,7 +5600,7 @@ try{
               let ret = orig.apply(this, arguments);
               try{
                 const msg = String(arguments[0] || '');
-                if(msg.indexOf('winner=') !== -1 && pendingTeleport && isBotRunning() && isEscapeEnabled()){
+                if(msg.indexOf('winner=') !== -1 && pendingTeleport && isBotRunning() && isEscapeEnabled() && !isTpIgnoredMap()){
                   setTimeout(function(){
                     try{
                       if(pendingTeleport && !(window.g && g.battle)) {
@@ -5603,7 +5627,7 @@ try{
                 let ret = orig.apply(this, arguments);
                 try{
                   const msg = String(arguments[0] || '');
-                  if(msg.indexOf('winner=') !== -1 && pendingTeleport && isBotRunning() && isEscapeEnabled()){
+                  if(msg.indexOf('winner=') !== -1 && pendingTeleport && isBotRunning() && isEscapeEnabled() && !isTpIgnoredMap()){
                     setTimeout(function(){
                       try{
                         if(pendingTeleport && !(window.g && g.battle)) {
