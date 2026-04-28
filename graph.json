@@ -1674,6 +1674,13 @@
         "x": 33,
         "y": 0
       }
+    },
+    {
+      "to": "urwisko zdrewniałych",
+      "via": {
+        "x": 88,
+        "y": 63
+      }
     }
   ],
   "nawiedzony jar": [
@@ -5516,6 +5523,311 @@
       "via": {
         "x": 8,
         "y": 38
+      }
+    }
+  ],
+  "urwisko zdrewniałych": [
+    {
+      "to": "mythar"
+    },
+    {
+      "to": "wawoz zakorzenionych dusz",
+      "via": {
+        "x": 0,
+        "y": 38
+      }
+    }
+  ],
+  "wawoz zakorzenionych dusz": [
+    {
+      "to": "urwisko zdrewniałych"
+    },
+    {
+      "to": "krzaczasta grota p.2 - sala 2",
+      "via": {
+        "x": 63,
+        "y": 16
+      }
+    },
+    {
+      "to": "krzaczasta grota p.1 - sala 1"
+    },
+    {
+      "to": "regiel zabłakanych",
+      "via": {
+        "x": 70,
+        "y": 63
+      }
+    }
+  ],
+  "krzaczasta grota p.2 - sala 2": [
+    {
+      "to": "wawoz zakorzenionych dusz"
+    },
+    {
+      "to": "krzaczasta grota p.2 - sala 3",
+      "via": {
+        "x": 9,
+        "y": 6
+      }
+    }
+  ],
+  "krzaczasta grota p.2 - sala 3": [
+    {
+      "to": "krzaczasta grota p.2 - sala 2"
+    },
+    {
+      "to": "krzaczasta grota p.2 - sala 1",
+      "via": {
+        "x": 6,
+        "y": 11
+      }
+    },
+    {
+      "to": "krzaczasta grota p.2 - sala 1"
+    },
+    {
+      "to": "krzaczasta grota p.1 - sala 3",
+      "via": {
+        "x": 11,
+        "y": 30
+      }
+    }
+  ],
+  "krzaczasta grota p.2 - sala 1": [
+    {
+      "to": "krzaczasta grota p.2 - sala 3"
+    },
+    {
+      "to": "krzaczasta grota p.2 - sala 3",
+      "via": {
+        "x": 17,
+        "y": 4
+      }
+    }
+  ],
+  "krzaczasta grota p.1 - sala 3": [
+    {
+      "to": "krzaczasta grota p.2 - sala 3"
+    },
+    {
+      "to": "krzaczasta grota p.1 - sala 2",
+      "via": {
+        "x": 7,
+        "y": 24
+      }
+    }
+  ],
+  "krzaczasta grota p.1 - sala 2": [
+    {
+      "to": "krzaczasta grota p.1 - sala 3"
+    },
+    {
+      "to": "krzaczasta grota p.1 - sala 1",
+      "via": {
+        "x": 13,
+        "y": 27
+      }
+    }
+  ],
+  "krzaczasta grota p.1 - sala 1": [
+    {
+      "to": "krzaczasta grota p.1 - sala 2"
+    },
+    {
+      "to": "wawoz zakorzenionych dusz",
+      "via": {
+        "x": 15,
+        "y": 17
+      }
+    }
+  ],
+  "regiel zabłakanych": [
+    {
+      "to": "wawoz zakorzenionych dusz"
+    },
+    {
+      "to": "zrodło zakorzenionego ludu",
+      "via": {
+        "x": 36,
+        "y": 63
+      }
+    }
+  ],
+  "zrodło zakorzenionego ludu": [
+    {
+      "to": "regiel zabłakanych"
+    },
+    {
+      "to": "jaskinia korzennego czaru p.2 - sala 1",
+      "via": {
+        "x": 67,
+        "y": 46
+      }
+    },
+    {
+      "to": "jaskinia korzennego czaru p.2 - sala 1"
+    },
+    {
+      "to": "jaskinia korzennego czaru p.1 - sala 1"
+    },
+    {
+      "to": "jaskinia korzennego czaru p.1 - sala 1",
+      "via": {
+        "x": 39,
+        "y": 40
+      }
+    }
+  ],
+  "jaskinia korzennego czaru p.2 - sala 1": [
+    {
+      "to": "zrodło zakorzenionego ludu"
+    },
+    {
+      "to": "zrodło zakorzenionego ludu",
+      "via": {
+        "x": 25,
+        "y": 21
+      }
+    },
+    {
+      "to": "jaskinia korzennego czaru p.1 - sala 1",
+      "via": {
+        "x": 19,
+        "y": 18
+      }
+    }
+  ],
+  "jaskinia korzennego czaru p.1 - sala 1": [
+    {
+      "to": "jaskinia korzennego czaru p.2 - sala 1"
+    },
+    {
+      "to": "jaskinia korzennego czaru p.1 - sala 3",
+      "via": {
+        "x": 58,
+        "y": 24
+      }
+    },
+    {
+      "to": "jaskinia korzennego czaru p.1 - sala 3"
+    },
+    {
+      "to": "jaskinia korzennego czaru p.1 - sala 2",
+      "via": {
+        "x": 22,
+        "y": 13
+      }
+    },
+    {
+      "to": "jaskinia korzennego czaru p.2 - sala 2"
+    },
+    {
+      "to": "zrodło zakorzenionego ludu",
+      "via": {
+        "x": 12,
+        "y": 59
+      }
+    },
+    {
+      "to": "zrodło zakorzenionego ludu"
+    },
+    {
+      "to": "jaskinia korzennego czaru p.2 - sala 2",
+      "via": {
+        "x": 20,
+        "y": 42
+      }
+    }
+  ],
+  "jaskinia korzennego czaru p.1 - sala 3": [
+    {
+      "to": "jaskinia korzennego czaru p.1 - sala 1"
+    },
+    {
+      "to": "jaskinia korzennego czaru p.1 - sala 4",
+      "via": {
+        "x": 30,
+        "y": 17
+      }
+    },
+    {
+      "to": "jaskinia korzennego czaru p.1 - sala 4"
+    },
+    {
+      "to": "jaskinia korzennego czaru p.1 - sala 1",
+      "via": {
+        "x": 12,
+        "y": 9
+      }
+    }
+  ],
+  "jaskinia korzennego czaru p.1 - sala 4": [
+    {
+      "to": "jaskinia korzennego czaru p.1 - sala 3"
+    },
+    {
+      "to": "jaskinia korzennego czaru p.1 - sala 3",
+      "via": {
+        "x": 17,
+        "y": 35
+      }
+    },
+    {
+      "to": "jaskinia korzennego czaru p.1 - sala 2"
+    },
+    {
+      "to": "jaskinia korzennego czaru p.2 - sala 2",
+      "via": {
+        "x": 25,
+        "y": 5
+      }
+    },
+    {
+      "to": "jaskinia korzennego czaru p.2 - sala 2"
+    },
+    {
+      "to": "jaskinia korzennego czaru p.1 - sala 2",
+      "via": {
+        "x": 3,
+        "y": 14
+      }
+    }
+  ],
+  "jaskinia korzennego czaru p.1 - sala 2": [
+    {
+      "to": "jaskinia korzennego czaru p.1 - sala 1"
+    },
+    {
+      "to": "jaskinia korzennego czaru p.1 - sala 4",
+      "via": {
+        "x": 46,
+        "y": 9
+      }
+    },
+    {
+      "to": "jaskinia korzennego czaru p.1 - sala 4"
+    }
+  ],
+  "jaskinia korzennego czaru p.2 - sala 2": [
+    {
+      "to": "jaskinia korzennego czaru p.1 - sala 4"
+    },
+    {
+      "to": "jaskinia korzennego czaru p.1 - sala 1",
+      "via": {
+        "x": 12,
+        "y": 27
+      }
+    },
+    {
+      "to": "jaskinia korzennego czaru p.1 - sala 1"
+    },
+    {
+      "to": "jaskinia korzennego czaru p.1 - sala 4",
+      "via": {
+        "x": 27,
+        "y": 17
       }
     }
   ]
