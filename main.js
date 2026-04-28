@@ -1313,6 +1313,12 @@ if (typeof g == "undefined" && document.location.href.indexOf("jaruna.margonem.p
     "y": 7
   },
   {
+    "name": "Arytodam olbrzymi",
+    "map": "Gnijące Topielisko",
+    "x": 28,
+    "y": 48
+  },
+  {
     "name": "Wójt Fistuła",
     "map": "Chata wójta Fistuły p.1",
     "x": 13,
