@@ -4292,6 +4292,10 @@ function getPotionCountByName(name){
   try{
     if(!window.g || !g.item) return 0;
 
+    // POPRAWKA: jeśli g.item jest pusty obiekt to gra jeszcze nie załadowała ekwipunku
+    // zwracamy -1 zamiast 0 żeby interval wiedział że dane są jeszcze niedostępne
+    if(Object.keys(g.item).length === 0) return -1;
+
     const needle = __adi_normTxt(name);
     if(!needle || needle.length < 3) return 0;
 
@@ -4362,6 +4366,12 @@ try{ window.__adi_normTxt = __adi_normTxt; window.getPotionCountByName = getPoti
   let __autoBuyGuard = false;
   let __lastPotionDetectAt = 0;
 
+  // POPRAWKA: zapamiętaj czas załadowania strony
+  // przez pierwsze 10 sekund po F5 nie sprawdzamy mikstur
+  // bo g.item może być jeszcze pusty mimo że UI już wygląda na gotowe
+  const __adiPageLoadedAt = Date.now();
+  const __ADI_POST_LOAD_GUARD_MS = 10000;
+
   function getPotionDetectMs(){
     try{
       const mode = (localStorage.getItem('adi-bot_exp_mode') || 'exp').trim().toLowerCase();
@@ -4400,8 +4410,14 @@ try{ window.__adi_normTxt = __adi_normTxt; window.getPotionCountByName = getPoti
       // Dzięki temu auto-zakup nie odpali w momentach, gdy UI nie pokazuje poprawnie złota.
       if(!__adi_canReadGoldAmount()) return;
 
+      // POPRAWKA 1: nie sprawdzaj przez pierwsze 10 sekund po załadowaniu strony
+      // w tym okienku g.item może być jeszcze pustym {} mimo że UI wygląda na gotowe
+      if(Date.now() - __adiPageLoadedAt < __ADI_POST_LOAD_GUARD_MS) return;
+
       const have = getPotionCountByName(name);
-      if(have > 0) return; // mamy chociaż 1 -> nic nie rób
+      // POPRAWKA 2: have === -1 oznacza że g.item jest pusty (gra jeszcze ładuje ekwipunek)
+      // traktujemy to jako "nie wiadomo" i nie odpalamy zakupu
+      if(have > 0 || have < 0) return; // have = 0 → naprawdę brak mikstur → kup
 
       __autoBuyGuard = true;
 
