@@ -2711,7 +2711,7 @@ window.__adiE2HoldSpot = (!__e2Present && !__manualOverride && hero.x === tx && 
           if(checkGrp(mob.id) && (!__adiIsBlacklisted||!__adiIsBlacklisted(mob.id))){
             const __attackE2Mode = (localStorage.getItem('adi-bot_exp_mode') || 'exp') === 'e2';
             if(__attackE2Mode){
-              // E2: lewy klik myszy -> odczekaj 2s -> prawy klik myszy
+              // E2: lewy klik -> czekaj 2s -> prawy klik -> dopiero wtedy czyść cel
               (function(mobId){
                 try{
                   const npcEl = document.querySelector(`[npc="${mobId}"], [data-id="${mobId}"], #npc${mobId}`);
@@ -2728,8 +2728,12 @@ window.__adiE2HoldSpot = (!__e2Present && !__manualOverride && hero.x === tx && 
                     clickTarget2.dispatchEvent(new MouseEvent('mouseup',      {bubbles:true, cancelable:true, button:2, buttons:0}));
                     clickTarget2.dispatchEvent(new MouseEvent('contextmenu',  {bubbles:true, cancelable:true, button:2, buttons:0}));
                   }catch(_){}
+                  // czekaj 8s po prawym kliku, dopiero wtedy czyść cel
+                  setTimeout(function(){ $m_id=undefined; clearTargetLock(); blokada=false; }, 8000);
                 }, 2000);
               })(mob.id);
+              // NIE czyść celu tutaj - czyszczenie jest w setTimeout powyżej po 2s
+              return ret;
             } else {
               safeAttack(mob.id,function(res){
                 if(res && res.alert && /Przeciwnik walczy już z kimś/i.test(res.alert)){ addToGlobal(mob.id); $m_id=undefined;  clearTargetLock();}
