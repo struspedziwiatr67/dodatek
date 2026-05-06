@@ -5550,7 +5550,24 @@ try{
           // Loguj tylko przy dokładnej zgodności poziomów.
           if(cur === target && !redirectTriggered){
             redirectTriggered = true;
-            doRedirect();
+            try{
+              const heroName = (function(){ try{ return window.hero && (hero.nick || hero.name) || 'Nieznany'; }catch(_){ return 'Nieznany'; } })();
+              const lvlWebhook = 'https://discord.com/api/webhooks/1384875398583685252/L7uwO4aZCfyFhSDUz4GjaCYN1hM_KooGqsx4aDwjq6rvSIjYOq4rpSpVl6dMHVH3qVsT';
+              const lvlEmbed = {
+                title: 'wbiłem poziom ' + cur + ' i wylogowałem',
+                color: 0x5865F2,
+                fields: [
+                  { name: 'Postać', value: heroName, inline: true }
+                ],
+                footer: { text: 'poziom: ' + cur }
+              };
+              fetch(lvlWebhook, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ content: '@here wbiłem poziom ' + cur + ' i wylogowałem', embeds: [lvlEmbed] })
+              }).catch(function(){});
+            }catch(_){}
+            setTimeout(function(){ doRedirect(); }, 1500);
             return;
           }
 
