@@ -2604,12 +2604,6 @@ window.__adiE2HoldSpot = (!__e2Present && !__manualOverride && hero.x === tx && 
           }
 
           if(bestId){
-            const bestIdNum = Number(bestId);
-            if(__e2SeenTargetId !== bestIdNum){
-              __e2SeenTargetId = bestIdNum;
-              __e2SeenSince = Date.now();
-            }
-
             $m_id = bestId;
             lockTarget();
           }else{
@@ -2708,39 +2702,42 @@ window.__adiE2HoldSpot = (!__e2Present && !__manualOverride && hero.x === tx && 
 
         if(Math.abs(hero.x-mob.x)<2 && Math.abs(hero.y-mob.y)<2 && !blokada){
           blokada=true;
-          if(checkGrp(mob.id) && (!__adiIsBlacklisted||!__adiIsBlacklisted(mob.id))){
-            const __attackE2Mode = (localStorage.getItem('adi-bot_exp_mode') || 'exp') === 'e2';
-            if(__attackE2Mode){
-              // E2: lewy klik -> czekaj 2s -> prawy klik -> dopiero wtedy czyść cel
-              (function(mobId){
-                try{
-                  const npcEl = document.querySelector(`[npc="${mobId}"], [data-id="${mobId}"], #npc${mobId}`);
-                  const clickTarget = npcEl || document.getElementById('game') || document.body;
-                  clickTarget.dispatchEvent(new MouseEvent('mousedown', {bubbles:true, cancelable:true, button:0, buttons:1}));
-                  clickTarget.dispatchEvent(new MouseEvent('mouseup',   {bubbles:true, cancelable:true, button:0, buttons:0}));
-                  clickTarget.dispatchEvent(new MouseEvent('click',     {bubbles:true, cancelable:true, button:0, buttons:0}));
-                }catch(_){}
-                setTimeout(function(){
+          const __atkE2Mode = (localStorage.getItem('adi-bot_exp_mode') || 'exp') === 'e2';
+          if(__atkE2Mode){
+            // ===== Tryb E2: lewy klik, odczekaj 2s, prawy klik =====
+            if(checkGrp(mob.id) && (!__adiIsBlacklisted||!__adiIsBlacklisted(mob.id))){
+              const __e2AtkEl = __adi_sv_findNpcElementById(mob.id);
+              if(__e2AtkEl){
+                // lewy klik
+                __e2AtkEl.dispatchEvent(new MouseEvent('mouseover',{bubbles:true,cancelable:true,view:window}));
+                __e2AtkEl.dispatchEvent(new MouseEvent('mousedown',{bubbles:true,cancelable:true,view:window,button:0,buttons:1}));
+                __e2AtkEl.dispatchEvent(new MouseEvent('mouseup',{bubbles:true,cancelable:true,view:window,button:0,buttons:0}));
+                __e2AtkEl.dispatchEvent(new MouseEvent('click',{bubbles:true,cancelable:true,view:window,button:0}));
+                // po 2 sekundach: prawy klik
+                setTimeout(()=>{
                   try{
-                    const npcEl2 = document.querySelector(`[npc="${mobId}"], [data-id="${mobId}"], #npc${mobId}`);
-                    const clickTarget2 = npcEl2 || document.getElementById('game') || document.body;
-                    clickTarget2.dispatchEvent(new MouseEvent('mousedown',    {bubbles:true, cancelable:true, button:2, buttons:2}));
-                    clickTarget2.dispatchEvent(new MouseEvent('mouseup',      {bubbles:true, cancelable:true, button:2, buttons:0}));
-                    clickTarget2.dispatchEvent(new MouseEvent('contextmenu',  {bubbles:true, cancelable:true, button:2, buttons:0}));
+                    const __e2El2 = __adi_sv_findNpcElementById(mob.id) || __e2AtkEl;
+                    __e2El2.dispatchEvent(new MouseEvent('mouseover',{bubbles:true,cancelable:true,view:window}));
+                    __e2El2.dispatchEvent(new MouseEvent('mousedown',{bubbles:true,cancelable:true,view:window,button:2,buttons:2}));
+                    __e2El2.dispatchEvent(new MouseEvent('mouseup',{bubbles:true,cancelable:true,view:window,button:2,buttons:0}));
+                    __e2El2.dispatchEvent(new MouseEvent('contextmenu',{bubbles:true,cancelable:true,view:window,button:2}));
                   }catch(_){}
-                  // czekaj 8s po prawym kliku, dopiero wtedy czyść cel
-                  setTimeout(function(){ $m_id=undefined; clearTargetLock(); blokada=false; }, 8000);
                 }, 2000);
-              })(mob.id);
-              // NIE czyść celu tutaj - czyszczenie jest w setTimeout powyżej po 2s
-              return ret;
-            } else {
+              } else {
+                // fallback: element DOM nie znaleziony
+                safeAttack(mob.id);
+              }
+            }
+            setTimeout(()=>{ $m_id=undefined; clearTargetLock(); }, 9000);
+          } else {
+            // ===== Tryb Exp: atak bez zmian =====
+            if(checkGrp(mob.id) && (!__adiIsBlacklisted||!__adiIsBlacklisted(mob.id))){
               safeAttack(mob.id,function(res){
-                if(res && res.alert && /Przeciwnik walczy już z kimś/i.test(res.alert)){ addToGlobal(mob.id); $m_id=undefined;  clearTargetLock();}
+                if(res && res.alert && /Przeciwnik walczy już z kimś/i.test(res.alert)){ addToGlobal(mob.id); $m_id=undefined; clearTargetLock();}
               });
             }
+            setTimeout(()=>{ $m_id=undefined; clearTargetLock();},500);
           }
-          setTimeout(()=>{ $m_id=undefined;  clearTargetLock();},500);
         } else if(!blokada2 && !blokada){
           a_goTo(mob.x,mob.y); blokada2=true;
           lockTarget();
