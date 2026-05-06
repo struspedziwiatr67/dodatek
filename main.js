@@ -2605,16 +2605,9 @@ window.__adiE2HoldSpot = (!__e2Present && !__manualOverride && hero.x === tx && 
 
           if(bestId){
             const bestIdNum = Number(bestId);
-            const now = Date.now();
             if(__e2SeenTargetId !== bestIdNum){
               __e2SeenTargetId = bestIdNum;
-              __e2SeenSince = now;
-            }
-
-            if(now - __e2SeenSince < E2_SPAWN_ATTACK_DELAY_MS){
-              $m_id = undefined;
-              clearTargetLock();
-              return ret;
+              __e2SeenSince = Date.now();
             }
 
             $m_id = bestId;
@@ -2716,9 +2709,32 @@ window.__adiE2HoldSpot = (!__e2Present && !__manualOverride && hero.x === tx && 
         if(Math.abs(hero.x-mob.x)<2 && Math.abs(hero.y-mob.y)<2 && !blokada){
           blokada=true;
           if(checkGrp(mob.id) && (!__adiIsBlacklisted||!__adiIsBlacklisted(mob.id))){
-            safeAttack(mob.id,function(res){
-              if(res && res.alert && /Przeciwnik walczy już z kimś/i.test(res.alert)){ addToGlobal(mob.id); $m_id=undefined;  clearTargetLock();}
-            });
+            const __attackE2Mode = (localStorage.getItem('adi-bot_exp_mode') || 'exp') === 'e2';
+            if(__attackE2Mode){
+              // E2: lewy klik myszy -> odczekaj 2s -> prawy klik myszy
+              (function(mobId){
+                try{
+                  const npcEl = document.querySelector(`[npc="${mobId}"], [data-id="${mobId}"], #npc${mobId}`);
+                  const clickTarget = npcEl || document.getElementById('game') || document.body;
+                  clickTarget.dispatchEvent(new MouseEvent('mousedown', {bubbles:true, cancelable:true, button:0, buttons:1}));
+                  clickTarget.dispatchEvent(new MouseEvent('mouseup',   {bubbles:true, cancelable:true, button:0, buttons:0}));
+                  clickTarget.dispatchEvent(new MouseEvent('click',     {bubbles:true, cancelable:true, button:0, buttons:0}));
+                }catch(_){}
+                setTimeout(function(){
+                  try{
+                    const npcEl2 = document.querySelector(`[npc="${mobId}"], [data-id="${mobId}"], #npc${mobId}`);
+                    const clickTarget2 = npcEl2 || document.getElementById('game') || document.body;
+                    clickTarget2.dispatchEvent(new MouseEvent('mousedown',    {bubbles:true, cancelable:true, button:2, buttons:2}));
+                    clickTarget2.dispatchEvent(new MouseEvent('mouseup',      {bubbles:true, cancelable:true, button:2, buttons:0}));
+                    clickTarget2.dispatchEvent(new MouseEvent('contextmenu',  {bubbles:true, cancelable:true, button:2, buttons:0}));
+                  }catch(_){}
+                }, 2000);
+              })(mob.id);
+            } else {
+              safeAttack(mob.id,function(res){
+                if(res && res.alert && /Przeciwnik walczy już z kimś/i.test(res.alert)){ addToGlobal(mob.id); $m_id=undefined;  clearTargetLock();}
+              });
+            }
           }
           setTimeout(()=>{ $m_id=undefined;  clearTargetLock();},500);
         } else if(!blokada2 && !blokada){
