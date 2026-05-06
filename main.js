@@ -4769,6 +4769,88 @@ try{
         lRow.appendChild(lInput);
         lRow.appendChild(lLabel);
         tabL.appendChild(lRow);
+
+        // --- Checkbox: logaj gdy 99% expa ---
+        try{
+          const expRow = document.createElement('div');
+          expRow.style.display = 'flex';
+          expRow.style.alignItems = 'center';
+          expRow.style.gap = '8px';
+          expRow.style.padding = '8px';
+
+          const expChk = document.createElement('input');
+          expChk.type = 'checkbox';
+          expChk.id = 'adi-bot_logout_99exp';
+          try{
+            expChk.checked = localStorage.getItem('adi-bot_logout_99exp') === '1';
+          }catch(_){}
+          expChk.addEventListener('change', ()=>{
+            try{ localStorage.setItem('adi-bot_logout_99exp', expChk.checked ? '1' : '0'); }catch(_){}
+          });
+
+          const expLbl = document.createElement('label');
+          expLbl.htmlFor = 'adi-bot_logout_99exp';
+          expLbl.textContent = 'logaj gdy 99% expa';
+          expLbl.style.whiteSpace = 'nowrap';
+
+          expRow.appendChild(expChk);
+          expRow.appendChild(expLbl);
+          tabL.appendChild(expRow);
+
+          // --- Logika: co 30 sekund sprawdzaj exp%, jeśli >= 99 to redirect ---
+          setInterval(function(){
+            try{
+              const chkEl = document.getElementById('adi-bot_logout_99exp');
+              const isEnabled = chkEl ? chkEl.checked : (localStorage.getItem('adi-bot_logout_99exp') === '1');
+              if(!isEnabled) return;
+
+              let expPct = null;
+
+              // Szukaj w głównym dokumencie i iframach
+              const docs = [document];
+              try{
+                const iframes = document.querySelectorAll('iframe');
+                for(const fr of iframes){
+                  try{
+                    const d = fr.contentDocument || (fr.contentWindow && fr.contentWindow.document);
+                    if(d) docs.push(d);
+                  }catch(_){}
+                }
+              }catch(_){}
+
+              for(const d of docs){
+                try{
+                  const el = d.getElementById('expProcent');
+                  if(el){
+                    const txt = String(el.textContent || '').replace('%','').trim();
+                    const val = parseFloat(txt);
+                    if(!isNaN(val)){ expPct = val; break; }
+                  }
+                }catch(_){}
+              }
+
+              // Fallback: oblicz z hero jeśli span nie znaleziony
+              if(expPct === null){
+                try{
+                  if(window.hero){
+                    const lvl = Number(hero.lvl) || 1;
+                    const expv = Number(hero.exp) || 0;
+                    const exp1 = Math.pow(lvl-1,4);
+                    const exp2 = Math.pow(lvl,4);
+                    const denom = exp2-exp1;
+                    if(denom > 0) expPct = (expv-exp1)/denom*100;
+                  }
+                }catch(_){}
+              }
+
+              if(expPct !== null && expPct >= 99){
+                console.warn('[adi-bot] exp >= 99% (' + expPct.toFixed(1) + '%) -> przekierowanie');
+                window.location.href = 'https://www.google.com/';
+              }
+            }catch(e){ console.warn('[adi-bot] exp99 check error', e); }
+          }, 30000);
+        }catch(e){ console.warn('[adi-bot] tab L exp99 ui failed', e); }
+        // --- /Checkbox 99% expa ---
       }catch(e){ console.warn('[adi-bot] tab L ui failed', e); }
 
       try{
