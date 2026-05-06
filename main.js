@@ -2016,8 +2016,9 @@ function setTempTarget(val){
   let __lastTargetSwitchAt = 0;
   let __rememberedChase = null; // {id,startAt,lastProgressAt,bestDist,lastX,lastY}
 
-  // ===== E2: opóźnienie ataku po pojawieniu się celu =====
-  const E2_SPAWN_ATTACK_DELAY_MS = 2000;
+  // ===== E2: cooldown ataku myszką (timestamp-based, niezależny od blokada) =====
+  const E2_MOUSE_ATTACK_COOLDOWN_MS = 9000;
+  let __e2MouseAttackAt = 0;
   let __e2SeenTargetId = null;
   let __e2SeenSince = 0;
 
@@ -2705,30 +2706,30 @@ window.__adiE2HoldSpot = (!__e2Present && !__manualOverride && hero.x === tx && 
           const __atkE2Mode = (localStorage.getItem('adi-bot_exp_mode') || 'exp') === 'e2';
           if(__atkE2Mode){
             // ===== Tryb E2: lewy klik, odczekaj 2s, prawy klik =====
-            if(checkGrp(mob.id) && (!__adiIsBlacklisted||!__adiIsBlacklisted(mob.id))){
-              const __e2AtkEl = __adi_sv_findNpcElementById(mob.id);
-              if(__e2AtkEl){
-                // lewy klik
-                __e2AtkEl.dispatchEvent(new MouseEvent('mouseover',{bubbles:true,cancelable:true,view:window}));
-                __e2AtkEl.dispatchEvent(new MouseEvent('mousedown',{bubbles:true,cancelable:true,view:window,button:0,buttons:1}));
-                __e2AtkEl.dispatchEvent(new MouseEvent('mouseup',{bubbles:true,cancelable:true,view:window,button:0,buttons:0}));
-                __e2AtkEl.dispatchEvent(new MouseEvent('click',{bubbles:true,cancelable:true,view:window,button:0}));
-                // po 2 sekundach: prawy klik
-                setTimeout(()=>{
-                  try{
-                    const __e2El2 = __adi_sv_findNpcElementById(mob.id) || __e2AtkEl;
-                    __e2El2.dispatchEvent(new MouseEvent('mouseover',{bubbles:true,cancelable:true,view:window}));
-                    __e2El2.dispatchEvent(new MouseEvent('mousedown',{bubbles:true,cancelable:true,view:window,button:2,buttons:2}));
-                    __e2El2.dispatchEvent(new MouseEvent('mouseup',{bubbles:true,cancelable:true,view:window,button:2,buttons:0}));
-                    __e2El2.dispatchEvent(new MouseEvent('contextmenu',{bubbles:true,cancelable:true,view:window,button:2}));
-                  }catch(_){}
-                }, 2000);
-              } else {
-                // fallback: element DOM nie znaleziony
-                safeAttack(mob.id);
+            // Cooldown oparty na timestamp - blokuje spam niezależnie od blokada
+            const __now = Date.now();
+            if(__now - __e2MouseAttackAt >= E2_MOUSE_ATTACK_COOLDOWN_MS){
+              __e2MouseAttackAt = __now;
+              if(checkGrp(mob.id) && (!__adiIsBlacklisted||!__adiIsBlacklisted(mob.id))){
+                const __e2AtkEl = __adi_sv_findNpcElementById(mob.id);
+                if(__e2AtkEl){
+                  // lewy klik
+                  __e2AtkEl.dispatchEvent(new MouseEvent('click',{bubbles:true,cancelable:true,view:window,button:0}));
+                  // po 2 sekundach: prawy klik
+                  setTimeout(()=>{
+                    try{
+                      const __e2El2 = __adi_sv_findNpcElementById(mob.id) || __e2AtkEl;
+                      __e2El2.dispatchEvent(new MouseEvent('contextmenu',{bubbles:true,cancelable:true,view:window,button:2}));
+                    }catch(_){}
+                  }, 2000);
+                } else {
+                  // fallback: element DOM nie znaleziony
+                  safeAttack(mob.id);
+                }
               }
             }
-            setTimeout(()=>{ $m_id=undefined; clearTargetLock(); }, 9000);
+            // Resetuj blokada po 9s żeby bot mógł znów podejść do E2
+            setTimeout(()=>{ blokada=false; $m_id=undefined; clearTargetLock(); }, E2_MOUSE_ATTACK_COOLDOWN_MS);
           } else {
             // ===== Tryb Exp: atak bez zmian =====
             if(checkGrp(mob.id) && (!__adiIsBlacklisted||!__adiIsBlacklisted(mob.id))){
