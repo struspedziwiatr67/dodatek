@@ -4731,11 +4731,12 @@ try{
       const tL = mkTab('L','l');
       const tTP = mkTab('TP','tp');
       const tUlepszanie = mkTab('Ulepszanie','ulepszanie');
+      const tTunia = mkTab('Tunia','tunia');
       const tLBreak = document.createElement('div');
       tLBreak.className = 'adi-tab-break';
       t1.classList.add('active');
 
-      tabs.appendChild(t1); tabs.appendChild(t2); tabs.appendChild(tA); tabs.appendChild(t3); tabs.appendChild(t4); tabs.appendChild(tLBreak); tabs.appendChild(tL); tabs.appendChild(tTP); tabs.appendChild(tUlepszanie);
+      tabs.appendChild(t1); tabs.appendChild(t2); tabs.appendChild(tA); tabs.appendChild(t3); tabs.appendChild(t4); tabs.appendChild(tLBreak); tabs.appendChild(tL); tabs.appendChild(tTP); tabs.appendChild(tUlepszanie); tabs.appendChild(tTunia);
 
       const tabL = document.createElement('div');
       tabL.className = 'adi-tab-content';
@@ -5457,6 +5458,19 @@ try{
       }catch(e){ console.warn('[adi-bot] tab Ulepszanie ui failed', e); }
 
       contentWrap.appendChild(tabUlepszanie);
+
+      // ===== Zakładka Tunia =====
+      const tabTunia = document.createElement('div');
+      tabTunia.id = 'adi-tab-tunia';
+      tabTunia.className = 'adi-tab-content';
+      try {
+        const tuniaWrap = document.createElement('div');
+        tuniaWrap.style.padding = '10px';
+        tuniaWrap.innerHTML = '<div style="font-size:13px;color:#000;">Zakładka Tunia – w budowie.</div>';
+        tabTunia.appendChild(tuniaWrap);
+      } catch(e){ console.warn('[adi-bot] tab Tunia ui failed', e); }
+      contentWrap.appendChild(tabTunia);
+      // ===== /Zakładka Tunia =====
 
       box.appendChild(tabs);
       box.appendChild(contentWrap);
