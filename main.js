@@ -5630,6 +5630,34 @@ try{
           try{ localStorage.setItem('adi-bot_tunia_potion_only', this.checked ? '1' : '0'); }catch(_){}
         });
 
+        // --- switch: tp do Tunii i aukcja Thuzal ---
+        const tpAukcjaLabel = document.createElement('label');
+        tpAukcjaLabel.className = 'adi-settings-line';
+        tpAukcjaLabel.htmlFor = 'adi-bot_tunia_auction_thuzal';
+
+        const tpAukcjaSwitch = document.createElement('span');
+        tpAukcjaSwitch.className = 'adi-switch';
+        const tpAukcjaChk = document.createElement('input');
+        tpAukcjaChk.type = 'checkbox';
+        tpAukcjaChk.id = 'adi-bot_tunia_auction_thuzal';
+        try{ tpAukcjaChk.checked = localStorage.getItem('adi-bot_tunia_auction_thuzal') === '1'; }catch(_){}
+        const tpAukcjaSlider = document.createElement('span');
+        tpAukcjaSlider.className = 'adi-slider';
+        tpAukcjaSwitch.appendChild(tpAukcjaChk);
+        tpAukcjaSwitch.appendChild(tpAukcjaSlider);
+
+        const tpAukcjaLblSpan = document.createElement('span');
+        tpAukcjaLblSpan.className = 'adi-settings-label';
+        tpAukcjaLblSpan.textContent = 'tp do Tunii i aukcja Thuzal';
+
+        tpAukcjaLabel.appendChild(tpAukcjaSwitch);
+        tpAukcjaLabel.appendChild(tpAukcjaLblSpan);
+        tuniaSec.appendChild(tpAukcjaLabel);
+
+        tpAukcjaChk.addEventListener('change', function(){
+          try{ localStorage.setItem('adi-bot_tunia_auction_thuzal', this.checked ? '1' : '0'); }catch(_){}
+        });
+
         // info o stanie (ilosc zwojow)
         const tpAutoInfo = document.createElement('div');
         tpAutoInfo.id = 'adi-bot_tunia_tp_info';
@@ -7435,6 +7463,49 @@ if(task.stage==='equip'){
     }catch(_){ return false; }
   }
   window.__adiStartAuctionWalk = adiStartAuctionWalk;
+
+  // === TUNIA: override aukcjonera na Thuzal gdy przelacznik wlaczony ===
+  const __AUCTION_THUZAL_VENDOR = AUCTION_VENDORS['thuzal-aukcjoner'];
+
+  const __origAdiStartAuctionWalk = adiStartAuctionWalk;
+  window.__adiStartAuctionWalk = function(reason){
+    try{
+      if(localStorage.getItem('adi-bot_tunia_auction_thuzal') === '1' && __AUCTION_THUZAL_VENDOR){
+        // Override: wymus aukcjonera w Thuzal
+        try{
+          const now = Date.now();
+          const existing = (typeof loadEquipTask === 'function') ? loadEquipTask() : null;
+          if(existing) return false;
+          const v = __AUCTION_THUZAL_VENDOR;
+          const task = {
+            kind: 'auction',
+            stage: 'toCity',
+            map: v.map,
+            npc: v.npc,
+            stand: { x: Number(v.stand.x), y: Number(v.stand.y) },
+            pos: { x: Number(v.pos.x), y: Number(v.pos.y) },
+            createdAt: now,
+            reason: String(reason || 'free-slots'),
+            vendorKey: String(v.key || ''),
+            vendorChosenAt: now
+          };
+          saveEquipTask(task);
+          setTempTarget(v.map);
+          startEquipFlow();
+          eqSetInfo('Ide do Aukcjonera w Thuzal (tryb Tunia).', true);
+          // po 1 sekundzie uzyj zwoju TP
+          setTimeout(function(){
+            try{
+              if(typeof window.__adiUseTpScrollNow === 'function') window.__adiUseTpScrollNow();
+            }catch(_){}
+          }, 1000);
+          return true;
+        }catch(_){ return false; }
+      }
+    }catch(_){}
+    return __origAdiStartAuctionWalk.call(this, reason);
+  };
+  // === /TUNIA override aukcjonera ===
 
   function adiCheckAutoAuction(source){
     try{
