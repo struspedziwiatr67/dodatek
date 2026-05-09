@@ -4454,6 +4454,90 @@ try{ window.__adi_normTxt = __adi_normTxt; window.getPotionCountByName = getPoti
       setTimeout(()=>{ __autoBuyGuard=false; }, 1000);
     }
   }, 1000);
+
+  // ===== AUTO ZAKUP TP DO TUNI (Zwój teleportacji na Kwieciste Przejście) =====
+  (function(){
+    const TP_SCROLL_NAME = 'Zwój teleportacji na Kwieciste Przejście';
+    const TP_SCROLL_QTY  = 8;
+    const TP_VENDOR = { key: 'domtunii', map: 'Dom Tunii', npc: 'Tunia Frupotius', stand: { x: 7, y: 10 } };
+
+    let __tpBuyGuard = false;
+    let __lastTpCheckAt = 0;
+
+    function isTpAutoBuyEnabled(){
+      try{
+        const el = document.querySelector('#adi-bot_tunia_tp_autobuy');
+        if(el) return !!el.checked;
+        return localStorage.getItem('adi-bot_tunia_tp_autobuy') === '1';
+      }catch(_){ return false; }
+    }
+
+    function updateTpInfo(msg){
+      try{
+        const el = document.querySelector('#adi-bot_tunia_tp_info');
+        if(el) el.textContent = msg || '';
+      }catch(_){}
+    }
+
+    setInterval(function(){
+      try{
+        const now = Date.now();
+        if((now - __lastTpCheckAt) < 3000) return;
+        __lastTpCheckAt = now;
+
+        if(__tpBuyGuard) return;
+        if(!isTpAutoBuyEnabled()) return;
+        if(!isMainBotEnabled()) return;
+        if(window.g && (g.battle || g.dead)) return;
+
+        // nie biegaj jezeli jest aktywny inny task (mikstury, ekwipunek)
+        try{
+          const t = (function(){ try{ return JSON.parse(localStorage.getItem('adi-bot_buy_task')||'{}'); }catch(_){ return null; } })();
+          if(t && t.active) return;
+        }catch(_){}
+        try{
+          const eqTask = (function(){ try{ return JSON.parse(localStorage.getItem('adi-bot_equip_task')||'null'); }catch(_){ return null; } })();
+          if(eqTask && eqTask.stage) return;
+        }catch(_){}
+
+        // 10 sekund po odswiezeniu nie sprawdzamy (g.item moze byc jeszcze pusty)
+        if((now - __adiPageLoadedAt) < __ADI_POST_LOAD_GUARD_MS) return;
+
+        // nie sprawdzaj jezeli nie mozna odczytac zlota (UI nie gotowe)
+        if(typeof __adi_canReadGoldAmount === 'function' && !__adi_canReadGoldAmount()) return;
+
+        const have = (typeof getPotionCountByName === 'function') ? getPotionCountByName(TP_SCROLL_NAME) : -1;
+        // have === -1 => g.item jeszcze pusty => czekamy
+        if(have < 0) return;
+
+        updateTpInfo('Zwóje w ekwipunku: ' + have);
+
+        // mamy zwoje -> nic nie rob
+        if(have > 0) return;
+
+        // brak zwojow -> kup
+        __tpBuyGuard = true;
+        try{
+          localStorage.setItem('adi-bot_buy_task', JSON.stringify({
+            active: true,
+            name: TP_SCROLL_NAME,
+            qty: TP_SCROLL_QTY,
+            stage: 'toMap',
+            createdAt: Date.now(),
+            vendor: TP_VENDOR
+          }));
+          if(typeof setTempTarget === 'function') setTempTarget(TP_VENDOR.map);
+          if(typeof startBuyFlow === 'function') startBuyFlow();
+          updateTpInfo('Brak zwojów! Jade do Dom Tunii...');
+        }catch(e){ console.warn('[adi-bot] tunia tp auto-buy failed', e); }
+      }catch(_){
+      }finally{
+        setTimeout(function(){ __tpBuyGuard = false; }, 1500);
+      }
+    }, 1000);
+  })();
+  // ===== /AUTO ZAKUP TP DO TUNI =====
+
 })();
 
 // TRYB ZBIJANIA WYCZERPANIA
@@ -5465,8 +5549,55 @@ try{
       tabTunia.className = 'adi-tab-content';
       try {
         const tuniaWrap = document.createElement('div');
-        tuniaWrap.style.padding = '10px';
-        tuniaWrap.innerHTML = '<div style="font-size:13px;color:#000;">Zakładka Tunia – w budowie.</div>';
+        tuniaWrap.style.padding = '8px';
+
+        // --- sekcja auto zakup tp ---
+        const tuniaSec = document.createElement('div');
+        tuniaSec.className = 'adi-settings-section';
+
+        const tuniaTitle = document.createElement('div');
+        tuniaTitle.className = 'adi-settings-title';
+        tuniaTitle.textContent = 'Zwoj teleportacji na Kwieciste Przejscie';
+        tuniaSec.appendChild(tuniaTitle);
+
+        // switch: auto zakup tp
+        const tpAutoLabel = document.createElement('label');
+        tpAutoLabel.className = 'adi-settings-line';
+        tpAutoLabel.htmlFor = 'adi-bot_tunia_tp_autobuy';
+
+        const tpAutoSwitch = document.createElement('span');
+        tpAutoSwitch.className = 'adi-switch';
+        const tpAutoChk = document.createElement('input');
+        tpAutoChk.type = 'checkbox';
+        tpAutoChk.id = 'adi-bot_tunia_tp_autobuy';
+        try{ tpAutoChk.checked = localStorage.getItem('adi-bot_tunia_tp_autobuy') === '1'; }catch(_){}
+        const tpAutoSlider = document.createElement('span');
+        tpAutoSlider.className = 'adi-slider';
+        tpAutoSwitch.appendChild(tpAutoChk);
+        tpAutoSwitch.appendChild(tpAutoSlider);
+
+        const tpAutoLblSpan = document.createElement('span');
+        tpAutoLblSpan.className = 'adi-settings-label';
+        tpAutoLblSpan.textContent = 'auto zakup tp do Tuni';
+
+        tpAutoLabel.appendChild(tpAutoSwitch);
+        tpAutoLabel.appendChild(tpAutoLblSpan);
+        tuniaSec.appendChild(tpAutoLabel);
+
+        tpAutoChk.addEventListener('change', function(){
+          try{ localStorage.setItem('adi-bot_tunia_tp_autobuy', this.checked ? '1' : '0'); }catch(_){}
+        });
+
+        // info o stanie (ilosc zwojow)
+        const tpAutoInfo = document.createElement('div');
+        tpAutoInfo.id = 'adi-bot_tunia_tp_info';
+        tpAutoInfo.style.fontSize = '12px';
+        tpAutoInfo.style.marginTop = '4px';
+        tpAutoInfo.style.color = '#555';
+        tpAutoInfo.textContent = '';
+        tuniaSec.appendChild(tpAutoInfo);
+
+        tuniaWrap.appendChild(tuniaSec);
         tabTunia.appendChild(tuniaWrap);
       } catch(e){ console.warn('[adi-bot] tab Tunia ui failed', e); }
       contentWrap.appendChild(tabTunia);
@@ -8356,12 +8487,16 @@ if (typeof window.window.__adi_equipByNameSequence !== 'function') {
         #adi-tab-settings .adi-settings-line, #adi-tab-aukcja .adi-settings-line{display:flex;align-items:center;gap:8px;margin:6px 0;flex-wrap:wrap}
         #adi-tab-settings .adi-settings-label, #adi-tab-aukcja .adi-settings-label{font-size:13px;line-height:1.2}
         #adi-tab-settings .adi-settings-sub, #adi-tab-aukcja .adi-settings-sub{font-size:12px;opacity:.85;margin:2px 0 8px}
-        #adi-tab-settings .adi-switch, #adi-tab-aukcja .adi-switch, #adi-tab-ulepszanie .adi-switch{position:relative;display:inline-block;width:42px;height:22px;flex:0 0 auto}
-        #adi-tab-settings .adi-switch input, #adi-tab-aukcja .adi-switch input, #adi-tab-ulepszanie .adi-switch input{opacity:0;width:0;height:0}
-        #adi-tab-settings .adi-slider, #adi-tab-aukcja .adi-slider, #adi-tab-ulepszanie .adi-slider{position:absolute;cursor:pointer;inset:0;background:#888;border-radius:999px;transition:.2s}
-        #adi-tab-settings .adi-slider:before, #adi-tab-aukcja .adi-slider:before, #adi-tab-ulepszanie .adi-slider:before{content:'';position:absolute;height:16px;width:16px;left:3px;top:3px;background:#fff;border-radius:50%;transition:.2s}
-        #adi-tab-settings .adi-switch input:checked + .adi-slider, #adi-tab-aukcja .adi-switch input:checked + .adi-slider, #adi-tab-ulepszanie .adi-switch input:checked + .adi-slider{background:#28a745}
-        #adi-tab-settings .adi-switch input:checked + .adi-slider:before, #adi-tab-aukcja .adi-switch input:checked + .adi-slider:before, #adi-tab-ulepszanie .adi-switch input:checked + .adi-slider:before{transform:translateX(20px)}
+        #adi-tab-settings .adi-switch, #adi-tab-aukcja .adi-switch, #adi-tab-ulepszanie .adi-switch, #adi-tab-tunia .adi-switch{position:relative;display:inline-block;width:42px;height:22px;flex:0 0 auto}
+        #adi-tab-settings .adi-switch input, #adi-tab-aukcja .adi-switch input, #adi-tab-ulepszanie .adi-switch input, #adi-tab-tunia .adi-switch input{opacity:0;width:0;height:0}
+        #adi-tab-settings .adi-slider, #adi-tab-aukcja .adi-slider, #adi-tab-ulepszanie .adi-slider, #adi-tab-tunia .adi-slider{position:absolute;cursor:pointer;inset:0;background:#888;border-radius:999px;transition:.2s}
+        #adi-tab-settings .adi-slider:before, #adi-tab-aukcja .adi-slider:before, #adi-tab-ulepszanie .adi-slider:before, #adi-tab-tunia .adi-slider:before{content:'';position:absolute;height:16px;width:16px;left:3px;top:3px;background:#fff;border-radius:50%;transition:.2s}
+        #adi-tab-settings .adi-switch input:checked + .adi-slider, #adi-tab-aukcja .adi-switch input:checked + .adi-slider, #adi-tab-ulepszanie .adi-switch input:checked + .adi-slider, #adi-tab-tunia .adi-switch input:checked + .adi-slider{background:#28a745}
+        #adi-tab-settings .adi-switch input:checked + .adi-slider:before, #adi-tab-aukcja .adi-switch input:checked + .adi-slider:before, #adi-tab-ulepszanie .adi-switch input:checked + .adi-slider:before, #adi-tab-tunia .adi-switch input:checked + .adi-slider:before{transform:translateX(20px)}
+        #adi-tab-tunia .adi-settings-section{border:1px solid rgba(0,0,0,.45);border-radius:8px;padding:8px;margin:6px 0;background:rgba(234,227,227,.88);color:#000;text-align:left}
+        #adi-tab-tunia .adi-settings-title{font-weight:700;font-size:13px;margin-bottom:8px}
+        #adi-tab-tunia .adi-settings-line{display:flex;align-items:center;gap:8px;margin:6px 0;flex-wrap:wrap}
+        #adi-tab-tunia .adi-settings-label{font-size:13px;line-height:1.2}
         #adi-tab-settings input[type="text"], #adi-tab-settings input[type="number"], #adi-tab-aukcja input[type="text"], #adi-tab-aukcja input[type="number"]{box-sizing:border-box;width:100%;max-width:100%;margin:0}
         #adi-tab-settings .adi-webhook-input{font-size:13px}
         #adi-tab-settings .adi-inline-input, #adi-tab-aukcja .adi-inline-input{width:120px !important;display:inline-block}
