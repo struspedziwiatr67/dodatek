@@ -1323,12 +1323,82 @@ if (typeof g == "undefined" && document.location.href.indexOf("jaruna.margonem.p
     "map": "Chata wójta Fistuły p.1",
     "x": 13,
     "y": 7
+  },
+  {
+    "name": "Ifryt",
+    "map": "Wulkan Politraki p.1 - sala 3",
+    "x": 22,
+    "y": 53,
+    "customNav": "ifryt"
   }
 ];
   function getE2ByName(name){
     name = String(name||'').trim();
     return E2_TARGETS.find(e=>String(e.name).trim()===name) || null;
   }
+
+  // ===== IFRYT: dialog z Kapitanem Fork la Rush (ID 38389) =====
+  const IFRYT_NPC_ID = 38389;
+  const IFRYT_NPC_NAME = 'Kapitan Fork la Rush';
+  const IFRYT_DIALOGS = [
+    "talk&id=38389&c=20.1",
+    "talk&id=38389&c=305.5",
+    "talk&id=38389&c=314.1",
+    "talk&id=38389&c=392.1"
+  ];
+  const IFRYT_DIALOG_DELAY_MS = 2000;
+  const IFRYT_DIALOG_COOLDOWN_MS = 20000; // min. przerwa między sekwencjami
+  let __ifrytDialogRunning = false;
+  let __ifrytDialogLastAt = 0;
+
+  function ifrytFindCaptain(){
+    try{
+      if(!window.g || !g.npc) return null;
+      for(const id in g.npc){
+        const n = g.npc[id];
+        if(!n) continue;
+        // szukaj po ID lub nazwie
+        if(Number(n.id) === IFRYT_NPC_ID || Number(id) === IFRYT_NPC_ID) return n;
+        const nm = String(n.nick || n.name || n.n || '').trim().toLowerCase();
+        if(nm === IFRYT_NPC_NAME.toLowerCase()) return n;
+      }
+    }catch(_){}
+    return null;
+  }
+
+  function ifrytRunDialogSequence(){
+    if(__ifrytDialogRunning) return;
+    const now = Date.now();
+    if(now - __ifrytDialogLastAt < IFRYT_DIALOG_COOLDOWN_MS) return;
+    __ifrytDialogRunning = true;
+    __ifrytDialogLastAt = now;
+    console.log('[adi-bot] Ifryt: startuje sekwencje dialogu z Kapitanem Fork la Rush');
+    let step = 0;
+    function nextStep(){
+      if(step >= IFRYT_DIALOGS.length){
+        __ifrytDialogRunning = false;
+        console.log('[adi-bot] Ifryt: sekwencja dialogu zakonczona, czekam na teleport...');
+        return;
+      }
+      try{
+        const cmd = IFRYT_DIALOGS[step];
+        console.log('[adi-bot] Ifryt dialog step ' + (step+1) + '/' + IFRYT_DIALOGS.length + ': ' + cmd);
+        _g(cmd);
+      }catch(e){ console.warn('[adi-bot] Ifryt dialog step failed', e); }
+      step++;
+      setTimeout(nextStep, IFRYT_DIALOG_DELAY_MS);
+    }
+    // pierwsze kliknięcie w NPC zanim wystartujemy dialogi
+    try{
+      const npcEl = document.querySelector('[npc="' + IFRYT_NPC_ID + '"], [data-npc="' + IFRYT_NPC_ID + '"]');
+      if(npcEl) npcEl.click();
+    }catch(_){}
+    setTimeout(nextStep, 500);
+  }
+
+  window.__adiIfrytRunDialog = ifrytRunDialogSequence;
+  window.__adiIfrytFindCaptain = ifrytFindCaptain;
+  // ===== /IFRYT =====
 
 
   // ===== AUTO EXPOWISKO (po lvl) =====
@@ -2511,6 +2581,20 @@ window.__adiE2AnchorDone = !!__adiE2State.done;
 
         // 1) jeśli nie jesteśmy na mapie E2 -> jedź po grafie/bramkach
         if(cur !== want){
+          // IFRYT: specjalna nawigacja przez Kapitana Fork la Rush
+          try{
+            const __ifrytE2 = getE2ByName(localStorage.getItem('adi-bot_e2_sel') || '');
+            if(__ifrytE2 && __ifrytE2.customNav === 'ifryt'){
+              const captain = (typeof window.__adiIfrytFindCaptain === 'function') ? window.__adiIfrytFindCaptain() : null;
+              if(captain){
+                // Kapitan jest na tej mapie -> odpal sekwencje dialogu (teleportuje nas dalej)
+                if(typeof window.__adiIfrytRunDialog === 'function') window.__adiIfrytRunDialog();
+                return ret;
+              }
+              // Kapitan nie jest na tej mapie -> jedź normalnym grafem (on jest gdzies osiagalny)
+            }
+          }catch(_){}
+
           $map_cords = self.findBestGw();
           if($map_cords && !bolcka){
             if(hero.x == $map_cords.x && hero.y == $map_cords.y){

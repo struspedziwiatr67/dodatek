@@ -5830,5 +5830,55 @@
         "y": 17
       }
     }
+  ],
+  "port tuzmer": [
+    {
+      "to": "wyspa magradit",
+      "via": {
+        "x": 94,
+        "y": 43
+      }
+    }
+  ],
+  "wyspa magradit": [
+    {
+      "to": "port tuzmer"
+    },
+    {
+      "to": "wulkan politraki p.2 - sala 1",
+      "via": {
+        "x": 48,
+        "y": 35
+      }
+    }
+  ],
+  "wulkan politraki p.2 - sala 1": [
+    {
+      "to": "wyspa magradit"
+    },
+    {
+      "to": "wulkan politraki p.2 - sala 2",
+      "via": {
+        "x": 2,
+        "y": 17
+      }
+    }
+  ],
+  "wulkan politraki p.2 - sala 2": [
+    {
+      "to": "wulkan politraki p.2 - sala 1"
+    },
+    {
+      "to": "wulkan politraki p.1 - sala 3",
+      "via": {
+        "x": 9,
+        "y": 35
+      }
+    }
+  ],
+  "wulkan politraki p.1 - sala 3": [
+    {
+      "to": "wulkan politraki p.2 - sala 2"
+    }
   ]
 }
