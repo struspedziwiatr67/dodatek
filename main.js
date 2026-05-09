@@ -4440,13 +4440,27 @@ try{ window.__adi_normTxt = __adi_normTxt; window.getPotionCountByName = getPoti
       __autoBuyGuard = true;
 
       const qtyN = getDesiredQty();
-      const v = getSelectedVendor();
+      // Jeśli "zakup potek tylko u Tuni" jest włączony -> zawsze wybierz domtunii
+      const __toniOnly = localStorage.getItem('adi-bot_tunia_potion_only') === '1';
+      const TUNIA_VENDOR = { key: 'domtunii', map: 'Dom Tunii', npc: 'Tunia Frupotius', stand: { x: 7, y: 10 } };
+      const v = __toniOnly ? TUNIA_VENDOR : getSelectedVendor();
       // utwórz task jak przy ręcznym kliknięciu (freeze vendor to avoid 'auto' switching mid-task)
       try{ localStorage.setItem('adi-bot_buy_task', JSON.stringify({ active:true, name, qty:qtyN, stage:'toMap', createdAt: Date.now(), vendor: { key: v.key, map: v.map, npc: v.npc, stand: v.stand } })); }catch(_){ }
 
       setTempTarget(v.map);
 
       startBuyFlow();
+
+      // Jeśli "zakup potek tylko u Tuni" -> po 1s użyj zwoju TP na Kwieciste Przejście
+      if(__toniOnly){
+        setTimeout(function(){
+          try{
+            if(typeof window.__adiUseTpScrollNow === 'function'){
+              window.__adiUseTpScrollNow();
+            }
+          }catch(_){}
+        }, 1000);
+      }
       try{ const elInfo = document.querySelector('#adi-bot_potion_name'); if(elInfo) { /* apSetInfo should exist in closure scope */ } }catch(_){ }
     }catch(_){
     }finally{
@@ -5588,6 +5602,34 @@ try{
           try{ localStorage.setItem('adi-bot_tunia_tp_autobuy', this.checked ? '1' : '0'); }catch(_){}
         });
 
+        // --- switch: zakup potek tylko u Tuni ---
+        const tpPotOnlyLabel = document.createElement('label');
+        tpPotOnlyLabel.className = 'adi-settings-line';
+        tpPotOnlyLabel.htmlFor = 'adi-bot_tunia_potion_only';
+
+        const tpPotOnlySwitch = document.createElement('span');
+        tpPotOnlySwitch.className = 'adi-switch';
+        const tpPotOnlyChk = document.createElement('input');
+        tpPotOnlyChk.type = 'checkbox';
+        tpPotOnlyChk.id = 'adi-bot_tunia_potion_only';
+        try{ tpPotOnlyChk.checked = localStorage.getItem('adi-bot_tunia_potion_only') === '1'; }catch(_){}
+        const tpPotOnlySlider = document.createElement('span');
+        tpPotOnlySlider.className = 'adi-slider';
+        tpPotOnlySwitch.appendChild(tpPotOnlyChk);
+        tpPotOnlySwitch.appendChild(tpPotOnlySlider);
+
+        const tpPotOnlyLblSpan = document.createElement('span');
+        tpPotOnlyLblSpan.className = 'adi-settings-label';
+        tpPotOnlyLblSpan.textContent = 'zakup potek tylko u Tuni';
+
+        tpPotOnlyLabel.appendChild(tpPotOnlySwitch);
+        tpPotOnlyLabel.appendChild(tpPotOnlyLblSpan);
+        tuniaSec.appendChild(tpPotOnlyLabel);
+
+        tpPotOnlyChk.addEventListener('change', function(){
+          try{ localStorage.setItem('adi-bot_tunia_potion_only', this.checked ? '1' : '0'); }catch(_){}
+        });
+
         // info o stanie (ilosc zwojow)
         const tpAutoInfo = document.createElement('div');
         tpAutoInfo.id = 'adi-bot_tunia_tp_info';
@@ -5831,6 +5873,9 @@ try{
           return true;
         }catch(_){ return false; }
       }
+
+      // expose tpUseNow globalnie dla modulu "zakup potek tylko u Tuni"
+      try{ window.__adiUseTpScrollNow = tpUseNow; }catch(_){}
 
       function triggerTeleport(reason){
         try{
