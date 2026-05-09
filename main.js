@@ -1340,6 +1340,9 @@ if (typeof g == "undefined" && document.location.href.indexOf("jaruna.margonem.p
   // ===== IFRYT: dialog z Kapitanem Fork la Rush (ID 38389) =====
   const IFRYT_NPC_ID = 38389;
   const IFRYT_NPC_NAME = 'Kapitan Fork la Rush';
+  const IFRYT_NPC_MAP = 'Port Tuzmer';
+  const IFRYT_NPC_POS = { x: 78, y: 48 };   // NPC stoi tutaj
+  const IFRYT_STAND_POS = { x: 79, y: 48 };  // postac staje tutaj (przed NPC)
   const IFRYT_DIALOGS = [
     "talk&id=38389&c=20.1",
     "talk&id=38389&c=305.5",
@@ -2581,17 +2584,43 @@ window.__adiE2AnchorDone = !!__adiE2State.done;
 
         // 1) jeśli nie jesteśmy na mapie E2 -> jedź po grafie/bramkach
         if(cur !== want){
-          // IFRYT: specjalna nawigacja przez Kapitana Fork la Rush
+          // IFRYT: specjalna nawigacja przez Kapitana Fork la Rush w Tuzmer
           try{
             const __ifrytE2 = getE2ByName(localStorage.getItem('adi-bot_e2_sel') || '');
             if(__ifrytE2 && __ifrytE2.customNav === 'ifryt'){
-              const captain = (typeof window.__adiIfrytFindCaptain === 'function') ? window.__adiIfrytFindCaptain() : null;
-              if(captain){
-                // Kapitan jest na tej mapie -> odpal sekwencje dialogu (teleportuje nas dalej)
-                if(typeof window.__adiIfrytRunDialog === 'function') window.__adiIfrytRunDialog();
+              const __ifrytCur = normMapName(map.name);
+              const __ifrytNpcMap = normMapName(IFRYT_NPC_MAP);
+
+              if(__ifrytCur === __ifrytNpcMap){
+                // Jesteśmy w Tuzmer — podejdź na kordy przed NPC (79,48)
+                const sx = IFRYT_STAND_POS.x, sy = IFRYT_STAND_POS.y;
+                if(hero.x === sx && hero.y === sy){
+                  // Stoimy przed kapitanem -> odpal sekwencje dialogu
+                  if(typeof window.__adiIfrytRunDialog === 'function') window.__adiIfrytRunDialog();
+                }else{
+                  // Jeszcze nie doszliśmy -> idź na kordy
+                  if(!bolcka){
+                    a_goTo(sx, sy);
+                    bolcka = true;
+                    setTimeout(()=>bolcka=false, 2000);
+                  }
+                }
+                return ret;
+              }else{
+                // Nie jesteśmy jeszcze w Tuzmer -> jedź grafem do Tuzmer
+                try{ setTempTarget(IFRYT_NPC_MAP); }catch(_){}
+                $map_cords = self.findBestGw();
+                if($map_cords && !bolcka){
+                  if(hero.x == $map_cords.x && hero.y == $map_cords.y){
+                    _g('walk');
+                  }else{
+                    a_goTo($map_cords.x, $map_cords.y);
+                    bolcka = true;
+                    setTimeout(()=>bolcka=false, 2000);
+                  }
+                }
                 return ret;
               }
-              // Kapitan nie jest na tej mapie -> jedź normalnym grafem (on jest gdzies osiagalny)
             }
           }catch(_){}
 
