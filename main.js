@@ -4458,7 +4458,7 @@ try{ window.__adi_normTxt = __adi_normTxt; window.getPotionCountByName = getPoti
   // ===== AUTO ZAKUP TP DO TUNI (Zwój teleportacji na Kwieciste Przejście) =====
   (function(){
     const TP_SCROLL_NAME = 'Zwój teleportacji na Kwieciste Przejście';
-    const TP_SCROLL_QTY  = 8;
+    const TP_SCROLL_QTY  = 20;
     const TP_VENDOR = { key: 'domtunii', map: 'Dom Tunii', npc: 'Tunia Frupotius', stand: { x: 7, y: 10 } };
 
     let __tpBuyGuard = false;
@@ -4482,7 +4482,7 @@ try{ window.__adi_normTxt = __adi_normTxt; window.getPotionCountByName = getPoti
     setInterval(function(){
       try{
         const now = Date.now();
-        if((now - __lastTpCheckAt) < 3000) return;
+        if((now - __lastTpCheckAt) < 10000) return;
         __lastTpCheckAt = now;
 
         if(__tpBuyGuard) return;
