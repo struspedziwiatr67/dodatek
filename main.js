@@ -2593,7 +2593,7 @@ window.__adiE2AnchorDone = !!__adiE2State.done;
               const __ifrytNpcMap = normMapName(IFRYT_NPC_MAP);
 
               if(__ifrytCur === __ifrytNpcMap){
-                // Jesteśmy w Tuzmer — podejdź na kordy przed NPC (79,48)
+                // Jesteśmy w Port Tuzmer — podejdź na kordy przed NPC (79,48)
                 const sx = IFRYT_STAND_POS.x, sy = IFRYT_STAND_POS.y;
                 if(hero.x === sx && hero.y === sy){
                   // Stoimy przed kapitanem -> odpal sekwencje dialogu
@@ -2608,19 +2608,27 @@ window.__adiE2AnchorDone = !!__adiE2State.done;
                 }
                 return ret;
               }else{
-                // Nie jesteśmy jeszcze w Tuzmer -> jedź grafem do Tuzmer
-                try{ setTempTarget(IFRYT_NPC_MAP); }catch(_){}
-                $map_cords = self.findBestGw();
-                if($map_cords && !bolcka){
-                  if(hero.x == $map_cords.x && hero.y == $map_cords.y){
-                    _g('walk');
-                  }else{
-                    a_goTo($map_cords.x, $map_cords.y);
-                    bolcka = true;
-                    setTimeout(()=>bolcka=false, 2000);
+                // Sprawdź czy jesteśmy JUŻ ZA Port Tuzmer (po teleporcie przez Kapitana)
+                // Mapy "przed" NPC: Port Tuzmer i Tuzmer — na wszystkich innych puszczamy normalny graf
+                const __ifrytPreMaps = [normMapName('Port Tuzmer'), normMapName('Tuzmer')];
+                if(!__ifrytPreMaps.includes(__ifrytCur)){
+                  // Jesteśmy już za teleportem (np. Wyspa Magradit, Wulkan...) -> normalny graf do celu
+                  // NIE wracaj do Port Tuzmer, po prostu fall-through
+                }else{
+                  // Jesteśmy w Tuzmer (przed Port Tuzmer) -> jedź grafem do Port Tuzmer
+                  try{ setTempTarget(IFRYT_NPC_MAP); }catch(_){}
+                  $map_cords = self.findBestGw();
+                  if($map_cords && !bolcka){
+                    if(hero.x == $map_cords.x && hero.y == $map_cords.y){
+                      _g('walk');
+                    }else{
+                      a_goTo($map_cords.x, $map_cords.y);
+                      bolcka = true;
+                      setTimeout(()=>bolcka=false, 2000);
+                    }
                   }
+                  return ret;
                 }
-                return ret;
               }
             }
           }catch(_){}
