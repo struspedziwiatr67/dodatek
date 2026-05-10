@@ -1391,12 +1391,13 @@ if (typeof g == "undefined" && document.location.href.indexOf("jaruna.margonem.p
       step++;
       setTimeout(nextStep, IFRYT_DIALOG_DELAY_MS);
     }
-    // pierwsze kliknięcie w NPC zanim wystartujemy dialogi
+    // kliknij w NPC, odczekaj 2 sekundy, dopiero potem wklepuj dialogi
     try{
       const npcEl = document.querySelector('[npc="' + IFRYT_NPC_ID + '"], [data-npc="' + IFRYT_NPC_ID + '"]');
       if(npcEl) npcEl.click();
+      else _g('talk&id=' + IFRYT_NPC_ID);
     }catch(_){}
-    setTimeout(nextStep, 500);
+    setTimeout(nextStep, 2000);
   }
 
   window.__adiIfrytRunDialog = ifrytRunDialogSequence;
