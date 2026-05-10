@@ -1329,7 +1329,35 @@ if (typeof g == "undefined" && document.location.href.indexOf("jaruna.margonem.p
     "map": "Wulkan Politraki p.1 - sala 3",
     "x": 22,
     "y": 53,
-    "customNav": "ifryt"
+    "customNav": "kapitan_fork"
+  },
+  {
+    "name": "Krab pustelnik",
+    "map": "Wyspa Rem",
+    "x": 62,
+    "y": 38,
+    "customNav": "kapitan_fork"
+  },
+  {
+    "name": "Morski potwór",
+    "map": "Jama Morskiej Macki p.1 - sala 3",
+    "x": 16,
+    "y": 18,
+    "customNav": "kapitan_fork"
+  },
+  {
+    "name": "Borgoros Garamir III",
+    "map": "Twierdza Rogogłowych - Sala Byka",
+    "x": 16,
+    "y": 19,
+    "customNav": "kapitan_fork"
+  },
+  {
+    "name": "Stworzyciel",
+    "map": "Piaskowa Pułapka - Grota Piaskowej Śmierci",
+    "x": 12,
+    "y": 19,
+    "customNav": "kapitan_fork"
   }
 ];
   function getE2ByName(name){
@@ -1349,6 +1377,38 @@ if (typeof g == "undefined" && document.location.href.indexOf("jaruna.margonem.p
     "talk&id=38389&c=314.1",
     "talk&id=38389&c=392.1"
   ];
+  const KAPITAN_FORK_DIALOGS = {
+    'Ifryt': [
+      "talk&id=38389&c=20.1",
+      "talk&id=38389&c=305.5",
+      "talk&id=38389&c=314.1",
+      "talk&id=38389&c=392.1"
+    ],
+    'Krab pustelnik': [
+      "talk&id=38389&c=20.1",
+      "talk&id=38389&c=305.3",
+      "talk&id=38389&c=314.1",
+      "talk&id=38389&c=392.1"
+    ],
+    'Morski potwór': [
+      "talk&id=38389&c=20.1",
+      "talk&id=38389&c=305.1",
+      "talk&id=38389&c=314.1",
+      "talk&id=38389&c=392.1"
+    ],
+    'Borgoros Garamir III': [
+      "talk&id=38389&c=20.1",
+      "talk&id=38389&c=305.2",
+      "talk&id=38389&c=314.1",
+      "talk&id=38389&c=392.1"
+    ],
+    'Stworzyciel': [
+      "talk&id=38389&c=20.1",
+      "talk&id=38389&c=305.4",
+      "talk&id=38389&c=314.1",
+      "talk&id=38389&c=392.1"
+    ]
+  };
   const IFRYT_DIALOG_DELAY_MS = 2000;
   const IFRYT_DIALOG_COOLDOWN_MS = 20000; // min. przerwa między sekwencjami
   let __ifrytDialogRunning = false;
@@ -1375,19 +1435,22 @@ if (typeof g == "undefined" && document.location.href.indexOf("jaruna.margonem.p
     if(now - __ifrytDialogLastAt < IFRYT_DIALOG_COOLDOWN_MS) return;
     __ifrytDialogRunning = true;
     __ifrytDialogLastAt = now;
-    console.log('[adi-bot] Ifryt: startuje sekwencje dialogu z Kapitanem Fork la Rush');
+    // wybierz dialogi dla aktualnie wybranej E2
+    const __e2sel = localStorage.getItem('adi-bot_e2_sel') || '';
+    const __dialogs = KAPITAN_FORK_DIALOGS[__e2sel] || IFRYT_DIALOGS;
+    console.log('[adi-bot] KapitanFork: startuje sekwencje dialogu dla E2: ' + __e2sel);
     let step = 0;
     function nextStep(){
-      if(step >= IFRYT_DIALOGS.length){
+      if(step >= __dialogs.length){
         __ifrytDialogRunning = false;
-        console.log('[adi-bot] Ifryt: sekwencja dialogu zakonczona, czekam na teleport...');
+        console.log('[adi-bot] KapitanFork: sekwencja dialogu zakonczona, czekam na teleport...');
         return;
       }
       try{
-        const cmd = IFRYT_DIALOGS[step];
-        console.log('[adi-bot] Ifryt dialog step ' + (step+1) + '/' + IFRYT_DIALOGS.length + ': ' + cmd);
+        const cmd = __dialogs[step];
+        console.log('[adi-bot] KapitanFork dialog step ' + (step+1) + '/' + __dialogs.length + ': ' + cmd);
         _g(cmd);
-      }catch(e){ console.warn('[adi-bot] Ifryt dialog step failed', e); }
+      }catch(e){ console.warn('[adi-bot] KapitanFork dialog step failed', e); }
       step++;
       setTimeout(nextStep, IFRYT_DIALOG_DELAY_MS);
     }
@@ -2588,7 +2651,7 @@ window.__adiE2AnchorDone = !!__adiE2State.done;
           // IFRYT: specjalna nawigacja przez Kapitana Fork la Rush w Tuzmer
           try{
             const __ifrytE2 = getE2ByName(localStorage.getItem('adi-bot_e2_sel') || '');
-            if(__ifrytE2 && __ifrytE2.customNav === 'ifryt'){
+            if(__ifrytE2 && __ifrytE2.customNav === 'kapitan_fork'){
               const __ifrytCur = normMapName(map.name);
               const __ifrytNpcMap = normMapName(IFRYT_NPC_MAP);
 
