@@ -5840,14 +5840,25 @@
   ],
   "port tuzmer": [
     {
-      "to": "wyspa magradit",
+      "to": "archipelag bremus an",
       "via": {
-        "x": 94,
-        "y": 43
+        "x": 77,
+        "y": 42
       }
     },
     {
-      "to": "tuzmer"
+      "to": "wyspa rem",
+      "via": {
+        "x": 77,
+        "y": 42
+      }
+    },
+    {
+      "to": "wyspa ingotia",
+      "via": {
+        "x": 77,
+        "y": 42
+      }
     }
   ],
   "wyspa magradit": [
@@ -5889,6 +5900,243 @@
   "wulkan politraki p.1 - sala 3": [
     {
       "to": "wulkan politraki p.2 - sala 2"
+    }
+  ],
+  "archipelag bremus an": [
+    {
+      "to": "port tuzmer"
+    },
+    {
+      "to": "jama morskiej macki p.1 - sala 1",
+      "via": {
+        "x": 55,
+        "y": 40
+      }
+    }
+  ],
+  "jama morskiej macki p.1 - sala 1": [
+    {
+      "to": "archipelag bremus an"
+    },
+    {
+      "to": "jama morskiej macki p.1 - sala 2",
+      "via": {
+        "x": 7,
+        "y": 7
+      }
+    }
+  ],
+  "jama morskiej macki p.1 - sala 2": [
+    {
+      "to": "jama morskiej macki p.1 - sala 1"
+    },
+    {
+      "to": "jama morskiej macki p.1 - sala 3",
+      "via": {
+        "x": 20,
+        "y": 3
+      }
+    },
+    {
+      "to": "jama morskiej macki p.1 - sala 3"
+    }
+  ],
+  "jama morskiej macki p.1 - sala 3": [
+    {
+      "to": "jama morskiej macki p.1 - sala 2"
+    },
+    {
+      "to": "jama morskiej macki p.1 - sala 2",
+      "via": {
+        "x": 17,
+        "y": 30
+      }
+    }
+  ],
+  "wyspa rem": [
+    {
+      "to": "port tuzmer"
+    },
+    {
+      "to": "opuszczony statek - pokład pod rufa",
+      "via": {
+        "x": 30,
+        "y": 43
+      }
+    },
+    {
+      "to": "opuszczony statek - pokład pod rufa"
+    },
+    {
+      "to": "posłaniec smierci",
+      "via": {
+        "x": 30,
+        "y": 43
+      }
+    }
+  ],
+  "opuszczony statek - pokład pod rufa": [
+    {
+      "to": "wyspa rem"
+    },
+    {
+      "to": "wyspa rem",
+      "via": {
+        "x": 5,
+        "y": 14
+      }
+    }
+  ],
+  "posłaniec smierci": [
+    {
+      "to": "wyspa rem"
+    },
+    {
+      "to": "wyspa caneum"
+    }
+  ],
+  "wyspa caneum": [
+    {
+      "to": "posłaniec smierci"
+    },
+    {
+      "to": "piaskowa pułapka p.1 - sala 3"
+    }
+  ],
+  "piaskowa pułapka p.1 - sala 3": [
+    {
+      "to": "wyspa caneum"
+    },
+    {
+      "to": "piaskowa pułapka p.1 - sala 4",
+      "via": {
+        "x": 46,
+        "y": 55
+      }
+    },
+    {
+      "to": "piaskowa pułapka p.1 - sala 2"
+    }
+  ],
+  "piaskowa pułapka p.1 - sala 4": [
+    {
+      "to": "piaskowa pułapka p.1 - sala 3"
+    },
+    {
+      "to": "piaskowa pułapka p.1 - sala 1",
+      "via": {
+        "x": 10,
+        "y": 42
+      }
+    }
+  ],
+  "piaskowa pułapka p.1 - sala 1": [
+    {
+      "to": "piaskowa pułapka p.1 - sala 4"
+    },
+    {
+      "to": "piaskowa pułapka p.1 - sala 2",
+      "via": {
+        "x": 30,
+        "y": 14
+      }
+    }
+  ],
+  "piaskowa pułapka p.1 - sala 2": [
+    {
+      "to": "piaskowa pułapka p.1 - sala 1"
+    },
+    {
+      "to": "piaskowa pułapka - grota piaskowej smierci",
+      "via": {
+        "x": 38,
+        "y": 9
+      }
+    },
+    {
+      "to": "piaskowa pułapka - grota piaskowej smierci"
+    },
+    {
+      "to": "piaskowa pułapka p.1 - sala 3",
+      "via": {
+        "x": 11,
+        "y": 8
+      }
+    }
+  ],
+  "piaskowa pułapka - grota piaskowej smierci": [
+    {
+      "to": "piaskowa pułapka p.1 - sala 2"
+    },
+    {
+      "to": "piaskowa pułapka p.1 - sala 2",
+      "via": {
+        "x": 3,
+        "y": 17
+      }
+    }
+  ],
+  "wyspa ingotia": [
+    {
+      "to": "port tuzmer"
+    },
+    {
+      "to": "korytarze wygnancow p.1 - sala ech",
+      "via": {
+        "x": 46,
+        "y": 50
+      }
+    },
+    {
+      "to": "korytarze wygnancow p.3 - komnata przekletego daru"
+    },
+    {
+      "to": "twierdza rogogłowych - sala byka",
+      "via": {
+        "x": 53,
+        "y": 33
+      }
+    }
+  ],
+  "korytarze wygnancow p.1 - sala ech": [
+    {
+      "to": "wyspa ingotia"
+    },
+    {
+      "to": "korytarze wygnancow p.2 - sala zadzy",
+      "via": {
+        "x": 55,
+        "y": 3
+      }
+    }
+  ],
+  "korytarze wygnancow p.2 - sala zadzy": [
+    {
+      "to": "korytarze wygnancow p.1 - sala ech"
+    },
+    {
+      "to": "korytarze wygnancow p.3 - komnata przekletego daru",
+      "via": {
+        "x": 20,
+        "y": 2
+      }
+    }
+  ],
+  "korytarze wygnancow p.3 - komnata przekletego daru": [
+    {
+      "to": "korytarze wygnancow p.2 - sala zadzy"
+    },
+    {
+      "to": "wyspa ingotia",
+      "via": {
+        "x": 20,
+        "y": 30
+      }
+    }
+  ],
+  "twierdza rogogłowych - sala byka": [
+    {
+      "to": "wyspa ingotia"
     }
   ]
 }
