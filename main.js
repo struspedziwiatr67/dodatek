@@ -4591,7 +4591,7 @@ try{ window.__adi_normTxt = __adi_normTxt; window.getPotionCountByName = getPoti
   function getPotionDetectMs(){
     try{
       const mode = (localStorage.getItem('adi-bot_exp_mode') || 'exp').trim().toLowerCase();
-      return mode === 'e2' ? 30000 : 3000;
+      return mode === 'e2' ? 10000 : 3000;
     }catch(_){
       return 3000;
     }
