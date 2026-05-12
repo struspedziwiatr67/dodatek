@@ -4633,7 +4633,30 @@ try{ window.__adi_normTxt = __adi_normTxt; window.getPotionCountByName = getPoti
       const have = getPotionCountByName(name);
       // POPRAWKA 2: have === -1 oznacza że g.item jest pusty (gra jeszcze ładuje ekwipunek)
       // traktujemy to jako "nie wiadomo" i nie odpalamy zakupu
-      if(have > 0 || have < 0) return; // have = 0 → naprawdę brak mikstur → kup
+      if(have < 0) return; // g.item jeszcze nie załadowany
+      if(have > 0) return; // mamy wybrane mikstury → nie kupuj
+
+      // POPRAWKA 3: jeśli mamy JAKIEKOLWIEK mikstury z listy bota w ekwipunku (innego typu)
+      // nie idź kupować nowych - poczekaj aż się skończą
+      try{
+        if(window.g && g.item && Object.keys(g.item).length > 0){
+          const __ALL_POTIONS = [
+            'Ampułka uzdrawiająca','Fiolka lekkiej regeneracji','Flakonik śmiałka',
+            'Krople na drobne rany','Piramidka odnowy','Mikstura początkującego alchemika',
+            'Łyk Odrodzenia','Remedium na głębokie rany','Magiczne panaceum',
+            'Silny specyfik leczący','Wyciąg wieloziołowy','Antidotum łowcy węży',
+            'Słój ze śliną bazyliszka','Preparat wzmocnionej regeneracji',
+            'Eliksir mistrza alchemii','Płyn w kryształowym więzieniu',
+            'Próbka krwi minotaura','Roztwór Róży Wspomnień',
+            'Wywar z magicznych porostów','Koncentrat zabliźniający'
+          ];
+          for(const potName of __ALL_POTIONS){
+            if(potName === name) continue; // wybraną już sprawdziliśmy wyżej
+            const potCount = getPotionCountByName(potName);
+            if(potCount > 0) return; // mamy inną miksturę z listy - nie kupuj
+          }
+        }
+      }catch(_){}
 
       __autoBuyGuard = true;
 
