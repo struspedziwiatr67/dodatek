@@ -4248,6 +4248,7 @@ vendorRow.appendChild(vendorSel);
     apWrap.appendChild(vendorRow);
 
     const sel = document.createElement('select'); sel.id='adi-bot_potion_name'; sel.className='adi-bot_inputs';
+      o=document.createElement('option'); o.value='auto'; o.textContent='Auto (wg lvl)'; sel.appendChild(o);
       o=document.createElement('option'); o.value='Ampułka uzdrawiająca'; o.textContent='Ampułka uzdrawiająca'; sel.appendChild(o);
       o=document.createElement('option'); o.value='Fiolka lekkiej regeneracji'; o.textContent='Fiolka lekkiej regeneracji'; sel.appendChild(o);
       o=document.createElement('option'); o.value='Flakonik śmiałka'; o.textContent='Flakonik śmiałka'; sel.appendChild(o);
@@ -4567,10 +4568,31 @@ function __adi_canReadGoldAmount(){
 // expose for other parts of the bot (resume after refresh, etc.)
 try{ window.__adi_normTxt = __adi_normTxt; window.getPotionCountByName = getPotionCountByName; }catch(_){}
 
+  const __POTION_AUTO_LEVELS = [
+    { minLvl: 10, maxLvl: 14, name: 'Flakonik śmiałka' },
+    { minLvl: 15, maxLvl: 31, name: 'Krople na drobne rany' },
+    { minLvl: 32, maxLvl: 56, name: 'Piramidka odnowy' },
+    { minLvl: 57, maxLvl: 100, name: 'Mikstura początkującego alchemika' }
+  ];
+
+  function getPotionAutoByLevel(){
+    try{
+      const lvl = Number(window.hero && hero.lvl) || 0;
+      if(!lvl) return '';
+      for(const entry of __POTION_AUTO_LEVELS){
+        if(lvl >= entry.minLvl && lvl <= entry.maxLvl) return entry.name;
+      }
+      // powyżej 100 -> ostatnia z listy
+      if(lvl > 100) return __POTION_AUTO_LEVELS[__POTION_AUTO_LEVELS.length - 1].name;
+    }catch(_){}
+    return '';
+  }
+
   function getSelectedPotion(){
     const el = document.querySelector('#adi-bot_potion_name');
-    if(el && el.value) return el.value;
-    try{ return localStorage.getItem('adi-bot_potion_name_sel') || ''; }catch(_){ return ''; }
+    const val = (el && el.value) ? el.value : (localStorage.getItem('adi-bot_potion_name_sel') || '');
+    if(val === 'auto') return getPotionAutoByLevel();
+    return val;
   }
   function getDesiredQty(){
     try{
