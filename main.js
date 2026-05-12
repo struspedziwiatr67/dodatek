@@ -2925,8 +2925,13 @@ window.__adiE2HoldSpot = (!__e2Present && !__manualOverride && hero.x === tx && 
             setTimeout(()=>{ $m_id=undefined; clearTargetLock();},500);
           }
         } else if(!blokada2 && !blokada){
-          a_goTo(mob.x,mob.y); blokada2=true;
-          lockTarget();
+          // W trybie E2: nie wywołuj a_goTo jeśli właśnie wykonano atak (chroni przed rotacją postaci)
+          const __e2ModeNow = (localStorage.getItem('adi-bot_exp_mode') || 'exp') === 'e2';
+          const __e2AttackRecent = __e2ModeNow && (Date.now() - __e2MouseAttackAt) < E2_MOUSE_ATTACK_COOLDOWN_MS;
+          if(!__e2AttackRecent){
+            a_goTo(mob.x,mob.y); blokada2=true;
+            lockTarget();
+          }
         }
       } else if (document.querySelector(`#adi-bot_maps`) && document.querySelector(`#adi-bot_maps`).value.length>0){
         if(isLostTargetGraceActive()) return ret;
