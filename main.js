@@ -4798,6 +4798,11 @@ try{ window.__adi_normTxt = __adi_normTxt; window.getPotionCountByName = getPoti
     let chkAutoSkills=document.createElement("input"); chkAutoSkills.type="checkbox"; chkAutoSkills.id="adi-bot_auto_skills"; chkAutoSkills.style.marginRight="6px";
     autoSkillsWrap.appendChild(chkAutoSkills); autoSkillsWrap.appendChild(document.createTextNode("Auto umiejętności")); box.appendChild(autoSkillsWrap);
 
+    // --- Auto zakup EQ ---
+    let autoEqWrap=document.createElement("label"); autoEqWrap.style.display="block"; autoEqWrap.style.margin="4px 0 0";
+    let chkAutoEq=document.createElement("input"); chkAutoEq.type="checkbox"; chkAutoEq.id="adi-bot_auto_eq"; chkAutoEq.style.marginRight="6px";
+    autoEqWrap.appendChild(chkAutoEq); autoEqWrap.appendChild(document.createTextNode("Auto zakup EQ")); box.appendChild(autoEqWrap);
+
 
 // AUTOHEAL (mikstury)
 let autoHealRow=document.createElement("div");
@@ -6303,6 +6308,7 @@ try{
     try{ chkRelogAfterE2.checked = localStorage.getItem("adi-bot_relog_after_e2")==="1"; }catch(_){ }
 
     const autoSkillsOn = localStorage.getItem("adi-bot_auto_skills")==="1"; try{ chkAutoSkills.checked = autoSkillsOn; }catch(_){ }
+    try{ chkAutoEq.checked = (localStorage.getItem("adi-bot_auto_eq")||"1")==="1"; }catch(_){ }
 // AUTOHEAL
 try{
   chkAutoHeal.checked = localStorage.getItem("adi-bot_autoheal")==="1";
@@ -6413,6 +6419,7 @@ const have = (window.getPotionCountByName ? window.getPotionCountByName(selName)
 chkElite.addEventListener("change", ()=>{ localStorage.setItem("adi-bot_allow_elite", chkElite.checked?"1":"0"); message(chkElite.checked?"Elity: WŁ":"Elity: WYŁ"); });
     try{ chkRelogAfterE2.addEventListener("change", ()=>{ localStorage.setItem("adi-bot_relog_after_e2", chkRelogAfterE2.checked?"1":"0"); message(chkRelogAfterE2.checked?"Relog po E2: WŁ":"Relog po E2: WYŁ"); }); }catch(_){ }
     try{ chkAutoSkills.addEventListener("change", ()=>{ localStorage.setItem("adi-bot_auto_skills", chkAutoSkills.checked?"1":"0"); message(chkAutoSkills.checked?"Auto umiejętności: WŁ":"Auto umiejętności: WYŁ"); }); }catch(_){ }
+    try{ chkAutoEq.addEventListener("change", ()=>{ localStorage.setItem("adi-bot_auto_eq", chkAutoEq.checked?"1":"0"); message(chkAutoEq.checked?"Auto zakup EQ: WŁ":"Auto zakup EQ: WYŁ"); }); }catch(_){ }
 // AUTOHEAL: zapisz ustawienia
 try{
   chkAutoHeal.addEventListener("change", ()=>{ localStorage.setItem("adi-bot_autoheal", chkAutoHeal.checked?"1":"0"); message(chkAutoHeal.checked?"Autoheal: WŁ":"Autoheal: WYŁ"); });
@@ -7950,6 +7957,10 @@ function __adi_buildEquipTasksFor(level, profession){
       else if(sr && sr.reason==='no-plan') console.log('[adi-bot][auto-skill] brak planu dla', sr.prof, 'na lvl', level);
       else if(sr && sr.reason==='disabled') console.log('[adi-bot][auto-skill] wyłączone (checkbox Auto umiejętności)');
     }catch(e){ console.warn('[adi-bot][auto-skill] błąd', e); }
+
+    // Sprawdź czy Auto zakup EQ jest włączony
+    const __autoEqEnabled = (localStorage.getItem('adi-bot_auto_eq') || '1') === '1';
+    if(!__autoEqEnabled){ console.log('[adi-bot] Auto zakup EQ wyłączony - pomijam zakup na lvl', level); return; }
 
     const prof = __adi_getProfession() || (window.hero ? String(hero.prof) : null) || 'Wojownik';
     const tasks = __adi_buildEquipTasksFor(level, prof);
