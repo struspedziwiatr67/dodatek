@@ -2842,6 +2842,14 @@ window.__adiE2HoldSpot = (!__e2Present && !__manualOverride && hero.x === tx && 
 
         // mob wypadł z widoku (czerwone mapy / FOW) -> goń po ostatniej znanej pozycji
         if(!mob){
+          // Tryb E2: jeśli atak E2 jest w trakcie (cooldown), NIE przełączaj na zwykłego moba
+          const __e2ModeGuard = (localStorage.getItem('adi-bot_exp_mode') || 'exp') === 'e2';
+          const __e2AttackActive = __e2ModeGuard && (Date.now() - __e2MouseAttackAt) < E2_MOUSE_ATTACK_COOLDOWN_MS;
+          if(__e2AttackActive){
+            // boss zniknął z g.npc bo trwa walka - czekaj, nie atakuj zwykłych mobów
+            return ret;
+          }
+
           const visibleCand = getBestVisibleMobCandidate();
           const rememberedCand = getRememberedCandidate($m_id);
           if(shouldSwitchToVisible(visibleCand, rememberedCand)){
