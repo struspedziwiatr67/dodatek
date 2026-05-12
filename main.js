@@ -1192,7 +1192,6 @@ if (typeof g == "undefined" && document.location.href.indexOf("jaruna.margonem.p
     "Wilki Eder": { map: "Warczące Osuwiska, Wilcza Skarpa, Legowisko Wilczej Hordy" },
     "Gobliny1": { map: "Las Goblinów, Podmokła Dolina, Morwowe Przejście" },
     "Puffy+Gobliny": { map: "Pieczara Niepogody p.1, Pieczara Niepogody p.2 - sala 1, Pieczara Niepogody p.3, Pieczara Niepogody p.4, Pieczara Niepogody p.5, Pieczara Niepogody p.4, Pieczara Niepogody p.3, Pieczara Niepogody p.2 - sala 2, Fort Eder, Las Goblinów, Podmokła Dolina, Las Goblinów, Fort Eder" },
-    "Demony1": { map: "Przeklęta Strażnica, Przeklęta Strażnica - podziemia p.1 s.2, Przeklęta Strażnica - podziemia p.2 s.2, Przeklęta Strażnica - podziemia p.1 s.2, Przeklęta Strażnica, Przeklęta Strażnica - podziemia p.1 s.1, Przeklęta Strażnica - podziemia p.2 s.1" },
     "Pagórki Łupieżców": { map: "Pagórki Łupieżców, Skład Grabieżców, Pagórki Łupieżców, Schowek na Łupy" },
     "Ghule": { map: "Ghuli Mogilnik, Polana Ścierwojadów, Ghuli Mogilnik, Zapomniany Grobowiec p.1, Zapomniany Grobowiec p.2, Zapomniany Grobowiec p.3, Zapomniany Grobowiec p.4, Zapomniany Grobowiec p.5" },
     "Zbiry Eder": { map: "Stary Kupiecki Trakt, Stukot Widmowych Kół, Wertepy Rzezimieszków" },
