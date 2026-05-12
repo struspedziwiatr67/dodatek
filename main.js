@@ -7969,10 +7969,22 @@ function __adi_buildEquipTasksFor(level, profession){
     if(!level) return;
 
     // ✅ Guard: obsłuż dany poziom tylko raz (MutationObserver + setInterval mogą odpalić razem)
+    // Ale jeśli task nie został prawidłowo zapisany (np. strona odświeżyła się w połowie),
+    // pozwól ponowić zakup jeśli nie ma aktywnego equip taska
     const KEY = 'adi-bot_last_equip_level_handled';
     let last = 0;
     try{ last = parseInt(localStorage.getItem(KEY) || '0', 10) || 0; }catch(_){}
-    if(level === last) return;
+    if(level === last){
+      // Poziom już obsłużony - sprawdź czy jest aktywny task, jeśli nie - pozwól ponowić
+      try{
+        const eqTask = JSON.parse(localStorage.getItem('adi-bot_equip_task')||'null');
+        const eqQueue = JSON.parse(localStorage.getItem('adi-bot_equip_task_queue')||'[]');
+        if(eqTask && eqTask.stage){ return; } // task jest aktywny - nie ponawia
+        if(eqQueue && eqQueue.length){ return; } // kolejka niepusta
+        // Brak aktywnego taska mimo że poziom był "obsłużony" - pozwól ponowić
+        console.log('[adi-bot][equip] Poziom', level, 'był obsłużony ale brak aktywnego taska - ponawiam zakup');
+      }catch(_){ return; }
+    }
     try{ localStorage.setItem(KEY, String(level)); }catch(_){}
 
 
@@ -8018,7 +8030,18 @@ function __adi_buildEquipTasksFor(level, profession){
   try{
     __adiLastLvlSeen = parseInt(localStorage.getItem('adi-bot_last_lvl_seen')||'0',10) || 0;
   }catch(_){}
-  if(!__adiLastLvlSeen && window.hero && hero.lvl) __adiLastLvlSeen = Number(hero.lvl)||0;
+  // Jeśli last_lvl_seen nie był nigdy zapisany, ustaw na hero.lvl-1
+  // żeby setInterval mógł wykryć bieżący lvl jako "nowy"
+  if(!__adiLastLvlSeen && window.hero && hero.lvl){
+    const __curLvl = Number(hero.lvl)||0;
+    const __handledLvl = parseInt(localStorage.getItem('adi-bot_last_equip_level_handled')||'0',10)||0;
+    // Jeśli bieżący lvl nie był obsłużony ekwipunkowo, ustaw last_seen na lvl-1
+    if(__curLvl && __curLvl !== __handledLvl){
+      __adiLastLvlSeen = __curLvl - 1;
+    } else {
+      __adiLastLvlSeen = __curLvl;
+    }
+  }
 
   setInterval(()=>{
     try{
