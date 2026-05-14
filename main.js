@@ -6233,6 +6233,33 @@ try{
         }catch(_){ return true; }
       }
 
+      // Sprawdza czy gracz ma aktywny tryb nieaktywnosci (stasis).
+      // Widoczne w DOM jako img.emo-stasis wewnatrz div#other<id>.
+      function isPlayerInStasis(playerId){
+        try{
+          const docs = [document];
+          try{
+            const iframes = document.querySelectorAll('iframe');
+            for(const fr of iframes){
+              try{
+                const d = fr.contentDocument || (fr.contentWindow && fr.contentWindow.document);
+                if(d) docs.push(d);
+              }catch(_){}
+            }
+          }catch(_){}
+          for(const doc of docs){
+            try{
+              const playerEl = doc.querySelector('#other' + playerId);
+              if(!playerEl) continue;
+              if(playerEl.querySelector('img.emo-stasis, .emo-stasis, .emo-cointainer img.emo-stasis')){
+                return true;
+              }
+            }catch(_){}
+          }
+        }catch(_){}
+        return false;
+      }
+
       function getThreat(){
         try{
           if(!isBotRunning() || !isEscapeEnabled() || !isRedMap()) return null;
@@ -6240,12 +6267,28 @@ try{
           if(!isOnAllowedMapForTp()) return null; // tepaj tylko z wybranej mapy
           if(!window.g || !g.other) return null;
           const allowClan = shouldEscapeClanFriends();
+
+          // Zbierz wszystkich graczy-zagrozenia
+          const threats = [];
           for(const id in g.other){
             const p = g.other[id];
             if(!p) continue;
             if(!allowClan && (p.relation === 'fr' || p.relation === 'cl')) continue;
-            return p;
+            threats.push(p);
           }
+
+          if(threats.length === 0) return null;
+
+          // Jesli WSZYSCY maja stasis -> nie uciekaj
+          // Jesli choc JEDEN nie ma stasis -> uciekaj
+          for(const p of threats){
+            const pid = String(p.id || '');
+            if(!isPlayerInStasis(pid)){
+              return p; // aktywny gracz -> zagrozenie
+            }
+          }
+          // wszyscy w stasis -> brak zagrozenia
+          return null;
         }catch(_){ }
         return null;
       }
