@@ -5371,10 +5371,36 @@ try{
         tpOnlyMapRow.appendChild(tpOnlyMapLbl);
         // --- /tepaj tylko z tej mapy ---
 
+        // --- Rząd: tepaj gdy inny gracz zrobi krok ---
+        const tpOnStepRow = document.createElement('div');
+        tpOnStepRow.style.display = 'flex';
+        tpOnStepRow.style.alignItems = 'center';
+        tpOnStepRow.style.gap = '6px';
+        tpOnStepRow.style.marginTop = '8px';
+
+        const tpOnStepChk = document.createElement('input');
+        tpOnStepChk.type = 'checkbox';
+        tpOnStepChk.id = 'adi-bot_tp_on_step';
+        try{ tpOnStepChk.checked = localStorage.getItem('adi-bot_tp_on_step') === '1'; }catch(_){}
+        tpOnStepChk.addEventListener('change', ()=>{
+          try{ localStorage.setItem('adi-bot_tp_on_step', tpOnStepChk.checked ? '1' : '0'); }catch(_){}
+        });
+
+        const tpOnStepLbl = document.createElement('label');
+        tpOnStepLbl.htmlFor = 'adi-bot_tp_on_step';
+        tpOnStepLbl.textContent = 'tepaj gdy inny gracz zrobi krok';
+        tpOnStepLbl.style.whiteSpace = 'nowrap';
+        tpOnStepLbl.setAttribute('tip', 'Teleport zostanie użyty gdy pozycja (left/top) dowolnego aktywnego gracza na mapie się zmieni. Stasis zawsze ignorowany. Działa razem z filtrem mapy i włącznikiem uciekania.');
+
+        tpOnStepRow.appendChild(tpOnStepChk);
+        tpOnStepRow.appendChild(tpOnStepLbl);
+        // --- /tepaj gdy inny gracz zrobi krok ---
+
         tpWrap.appendChild(tpIconWrap);
         tpWrap.appendChild(tpClanRow);
         tpWrap.appendChild(tpEscapeRow);
         tpWrap.appendChild(tpOnlyMapRow);
+        tpWrap.appendChild(tpOnStepRow);
         tabTP.appendChild(tpWrap);
       }catch(e){ console.warn('[adi-bot] tab TP ui failed', e); }
 
@@ -6306,6 +6332,165 @@ try{
           triggerTeleport(threat);
         }catch(_){ }
       }, CHECK_MS);
+
+      // ===== OBSERWATOR KROKÓW: tepaj gdy inny gracz zrobi krok =====
+      (function(){
+        // Cache pozycji graczy: { playerId: { left: number, top: number } }
+        const stepPosCache = {};
+        // Cooldown: po teleporcie odczekaj chwilę zanim znów reagujemy
+        const STEP_COOLDOWN_MS = 4000;
+        let stepLastTpAt = 0;
+
+        function isStepModeEnabled(){
+          try{
+            const el = document.querySelector('#adi-bot_tp_on_step');
+            if(el) return !!el.checked;
+          }catch(_){}
+          try{ return localStorage.getItem('adi-bot_tp_on_step') === '1'; }catch(_){ return false; }
+        }
+
+        // Parsuje liczbe pikseli z wartosci CSS np. 160px -> 160
+        function parsePx(val){
+          try{ return parseFloat(String(val||'').replace('px','')) || 0; }catch(_){ return 0; }
+        }
+
+        // Wyciąga ID gracza z id elementu DOM np. other1275563 -> 1275563
+        function extractPlayerId(el){
+          try{
+            const raw = String(el.id || '');
+            if(!raw.startsWith('other')) return null;
+            const pid = raw.slice(5);
+            return pid || null;
+          }catch(_){ return null; }
+        }
+
+        // Pobiera aktualna pozycje left/top z atrybutu style elementu
+        function getElPos(el){
+          try{
+            const style = el.getAttribute('style') || '';
+            const leftM = style.match(/left\s*:\s*([\d.]+)px/);
+            const topM  = style.match(/top\s*:\s*([\d.]+)px/);
+            return {
+              left: leftM ? parseFloat(leftM[1]) : null,
+              top:  topM  ? parseFloat(topM[1])  : null
+            };
+          }catch(_){ return { left: null, top: null }; }
+        }
+
+        function shouldReactToStep(){
+          try{
+            if(!isBotRunning()) return false;
+            if(!isEscapeEnabled()) return false;
+            if(!isStepModeEnabled()) return false;
+            if(!isRedMap()) return false;
+            if(isTpIgnoredMap()) return false;
+            if(!isOnAllowedMapForTp()) return false;
+            if(Date.now() - stepLastTpAt < STEP_COOLDOWN_MS) return false;
+            return true;
+          }catch(_){ return false; }
+        }
+
+        function onPlayerMoved(playerEl, playerId){
+          try{
+            // Zawsze sprawdzaj stasis - bez wyjatku
+            if(isPlayerInStasis(playerId)) return;
+            if(!shouldReactToStep()) return;
+            stepLastTpAt = Date.now();
+            console.log('[adi-bot] krok gracza #' + playerId + ' -> teleport');
+            triggerTeleport({ id: playerId });
+          }catch(_){}
+        }
+
+        // Inicjalizuje cache dla wszystkich widocznych graczy na starcie
+        function initCache(doc){
+          try{
+            const els = doc.querySelectorAll('div[id^="other"]');
+            for(const el of els){
+              const pid = extractPlayerId(el);
+              if(!pid) continue;
+              const pos = getElPos(el);
+              if(pos.left !== null || pos.top !== null){
+                stepPosCache[pid] = pos;
+              }
+            }
+          }catch(_){}
+        }
+
+        // MutationObserver nasłuchuje zmian atrybutu style na elementach graczy
+        function startObserver(doc){
+          try{
+            const container = doc.querySelector('#mapcontainer, #map, #mapbg, body') || doc.body;
+            if(!container) return;
+
+            const obs = new MutationObserver(function(mutations){
+              for(const mut of mutations){
+                try{
+                  if(mut.type !== 'attributes' || mut.attributeName !== 'style') continue;
+                  const el = mut.target;
+                  if(!el || !el.id || !String(el.id).startsWith('other')) continue;
+                  const pid = extractPlayerId(el);
+                  if(!pid) continue;
+
+                  const pos = getElPos(el);
+                  if(pos.left === null && pos.top === null) continue;
+
+                  const cached = stepPosCache[pid];
+                  if(!cached){
+                    // nowy gracz - zapamiętaj pozycję, nie reaguj
+                    stepPosCache[pid] = pos;
+                    continue;
+                  }
+
+                  // Sprawdz czy left lub top sie zmienilo
+                  const leftChanged = pos.left !== null && cached.left !== null && pos.left !== cached.left;
+                  const topChanged  = pos.top  !== null && cached.top  !== null && pos.top  !== cached.top;
+
+                  if(leftChanged || topChanged){
+                    stepPosCache[pid] = pos; // aktualizuj cache
+                    onPlayerMoved(el, pid);
+                  }
+                }catch(_){}
+              }
+            });
+
+            obs.observe(container, {
+              subtree: true,
+              attributes: true,
+              attributeFilter: ['style']
+            });
+          }catch(e){ console.warn('[adi-bot] step observer failed', e); }
+        }
+
+        // Uruchom dla glownego dokumentu i iframow
+        function setupAll(){
+          try{
+            initCache(document);
+            startObserver(document);
+          }catch(_){}
+          try{
+            const iframes = document.querySelectorAll('iframe');
+            for(const fr of iframes){
+              try{
+                const d = fr.contentDocument || (fr.contentWindow && fr.contentWindow.document);
+                if(d && d.body){
+                  initCache(d);
+                  startObserver(d);
+                }
+              }catch(_){}
+            }
+          }catch(_){}
+        }
+
+        // Poczekaj az DOM bedzie gotowy, pozniej uruchom
+        if(document.readyState === 'loading'){
+          document.addEventListener('DOMContentLoaded', setupAll);
+        } else {
+          setTimeout(setupAll, 1500);
+        }
+        // Dodatkowe uruchomienie po 5s (iframe moze sie ladowac pozniej)
+        setTimeout(setupAll, 5000);
+      })();
+      // ===== /OBSERWATOR KROKÓW =====
 
       (function(){
         const hookTimer = setInterval(function(){
