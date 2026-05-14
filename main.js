@@ -5334,9 +5334,47 @@ try{
         tpEscapeRow.appendChild(tpEscapeChk);
         tpEscapeRow.appendChild(tpEscapeLbl);
 
+        // --- Rząd: tepaj tylko z tej mapy ---
+        const tpOnlyMapRow = document.createElement('div');
+        tpOnlyMapRow.style.display = 'flex';
+        tpOnlyMapRow.style.alignItems = 'center';
+        tpOnlyMapRow.style.gap = '6px';
+        tpOnlyMapRow.style.marginTop = '8px';
+
+        const tpOnlyMapInput = document.createElement('input');
+        tpOnlyMapInput.type = 'text';
+        tpOnlyMapInput.id = 'adi-bot_tp_only_map';
+        tpOnlyMapInput.classList.add('adi-bot_inputs');
+        tpOnlyMapInput.placeholder = 'np. Puszcza Arengoth';
+        tpOnlyMapInput.style.width = '150px';
+        tpOnlyMapInput.setAttribute('tip', 'Wpisz nazwę mapy – teleport zostanie użyty TYLKO gdy jesteś na tej mapie. Zostaw puste, żeby działało na każdej mapie.');
+
+        const tpOnlyMapLbl = document.createElement('label');
+        tpOnlyMapLbl.htmlFor = 'adi-bot_tp_only_map';
+        tpOnlyMapLbl.textContent = 'tepaj tylko z tej mapy';
+        tpOnlyMapLbl.style.whiteSpace = 'nowrap';
+
+        try{
+          const savedOnlyMap = (localStorage.getItem('adi-bot_tp_only_map') || '').trim();
+          if(savedOnlyMap) tpOnlyMapInput.value = savedOnlyMap;
+        }catch(_){ }
+
+        tpOnlyMapInput.addEventListener('input', ()=>{
+          try{
+            const raw = String(tpOnlyMapInput.value || '').trim();
+            if(raw) localStorage.setItem('adi-bot_tp_only_map', raw);
+            else localStorage.removeItem('adi-bot_tp_only_map');
+          }catch(_){ }
+        });
+
+        tpOnlyMapRow.appendChild(tpOnlyMapInput);
+        tpOnlyMapRow.appendChild(tpOnlyMapLbl);
+        // --- /tepaj tylko z tej mapy ---
+
         tpWrap.appendChild(tpIconWrap);
         tpWrap.appendChild(tpClanRow);
         tpWrap.appendChild(tpEscapeRow);
+        tpWrap.appendChild(tpOnlyMapRow);
         tabTP.appendChild(tpWrap);
       }catch(e){ console.warn('[adi-bot] tab TP ui failed', e); }
 
@@ -6176,10 +6214,30 @@ try{
         }catch(_){ return false; }
       }
 
+      function getOnlyMapFilter(){
+        try{
+          const el = document.querySelector('#adi-bot_tp_only_map');
+          const val = el ? String(el.value || '').trim() : '';
+          if(val) return val;
+          return (localStorage.getItem('adi-bot_tp_only_map') || '').trim();
+        }catch(_){ return ''; }
+      }
+
+      function isOnAllowedMapForTp(){
+        try{
+          const filterMap = getOnlyMapFilter();
+          if(!filterMap) return true; // puste = dziala na kazdej mapie
+          if(!window.map || !map.name) return false;
+          const normFn = (typeof normMapName === 'function') ? normMapName : function(s){ return String(s||'').replace(/\s+/g,' ').trim().toLowerCase(); };
+          return normFn(map.name) === normFn(filterMap);
+        }catch(_){ return true; }
+      }
+
       function getThreat(){
         try{
           if(!isBotRunning() || !isEscapeEnabled() || !isRedMap()) return null;
           if(isTpIgnoredMap()) return null;
+          if(!isOnAllowedMapForTp()) return null; // tepaj tylko z wybranej mapy
           if(!window.g || !g.other) return null;
           const allowClan = shouldEscapeClanFriends();
           for(const id in g.other){
