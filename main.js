@@ -6319,8 +6319,21 @@ try{
         return null;
       }
 
+      // Wspolna funkcja dostepna dla setInterval i MutationObserver
+      function isStepModeEnabled(){
+        try{
+          const el = document.querySelector('#adi-bot_tp_on_step');
+          if(el) return !!el.checked;
+        }catch(_){}
+        try{ return localStorage.getItem('adi-bot_tp_on_step') === '1'; }catch(_){ return false; }
+      }
+
       setInterval(function(){
         try{
+          // Jesli checkbox "tepaj gdy inny gracz zrobi krok" jest wlaczony
+          // -> normalne wykrywanie jest WYLACZONE, teleport odpala tylko MutationObserver
+          if(isStepModeEnabled()) return;
+
           const threat = getThreat();
           if(!threat){
             lastSeenSig = '';
@@ -6341,13 +6354,7 @@ try{
         const STEP_COOLDOWN_MS = 4000;
         let stepLastTpAt = 0;
 
-        function isStepModeEnabled(){
-          try{
-            const el = document.querySelector('#adi-bot_tp_on_step');
-            if(el) return !!el.checked;
-          }catch(_){}
-          try{ return localStorage.getItem('adi-bot_tp_on_step') === '1'; }catch(_){ return false; }
-        }
+        // isStepModeEnabled zdefiniowana w zewnetrznym scope
 
         // Parsuje liczbe pikseli z wartosci CSS np. 160px -> 160
         function parsePx(val){
