@@ -2898,7 +2898,7 @@ window.__adiE2HoldSpot = (!__e2Present && !__manualOverride && hero.x === tx && 
           blokada=true;
           const __atkE2Mode = (localStorage.getItem('adi-bot_exp_mode') || 'exp') === 'e2';
           if(__atkE2Mode){
-            // ===== Tryb E2: lewy klik, odczekaj 2s, prawy klik =====
+            // ===== Tryb E2: czekaj na emo-frnd (inny gracz w pobliżu), potem po 3s prawy klik =====
             // Cooldown oparty na timestamp - blokuje spam niezależnie od blokada
             const __now = Date.now();
             if(__now - __e2MouseAttackAt >= E2_MOUSE_ATTACK_COOLDOWN_MS){
@@ -2906,15 +2906,65 @@ window.__adiE2HoldSpot = (!__e2Present && !__manualOverride && hero.x === tx && 
               if(checkGrp(mob.id) && (!__adiIsBlacklisted||!__adiIsBlacklisted(mob.id))){
                 const __e2AtkEl = __adi_sv_findNpcElementById(mob.id);
                 if(__e2AtkEl){
-                  // lewy klik
+                  // lewy klik - podejście/zaznaczenie E2
                   __e2AtkEl.dispatchEvent(new MouseEvent('click',{bubbles:true,cancelable:true,view:window,button:0}));
-                  // po 2 sekundach: prawy klik
-                  setTimeout(()=>{
-                    try{
-                      const __e2El2 = __adi_sv_findNpcElementById(mob.id) || __e2AtkEl;
-                      __e2El2.dispatchEvent(new MouseEvent('contextmenu',{bubbles:true,cancelable:true,view:window,button:2}));
-                    }catch(_){}
-                  }, 2000);
+
+                  // Czekaj aż pojawi się img.emo.emo-frnd (inny gracz w pobliżu),
+                  // a dopiero potem po 3 sekundach wykonaj prawy klik (atak).
+                  // Sprawdzamy co 200ms przez max 30s.
+                  (function(){
+                    const __e2MobId = mob.id;
+                    const __e2StartWait = Date.now();
+                    const MAX_WAIT_MS = 30000; // max 30s czekania na gracza
+                    const AFTER_FRND_DELAY_MS = 3000; // 3s po wykryciu emo-frnd
+
+                    function __e2HasFrnd(){
+                      try{
+                        // Szukaj img.emo.emo-frnd w całym dokumencie i iframach
+                        const docs = [document];
+                        try{
+                          const iframes = document.querySelectorAll('iframe');
+                          for(const fr of iframes){
+                            try{
+                              const d = fr.contentDocument || (fr.contentWindow && fr.contentWindow.document);
+                              if(d) docs.push(d);
+                            }catch(_){}
+                          }
+                        }catch(_){}
+                        for(const doc of docs){
+                          // emo-frnd pojawia się pod div#otherXXXX graczy w pobliżu
+                          if(doc.querySelector('img.emo.emo-frnd, img.emo-frnd')) return true;
+                        }
+                      }catch(_){}
+                      return false;
+                    }
+
+                    function __e2WaitAndAttack(){
+                      try{
+                        // Jeśli minęło za dużo czasu - zrezygnuj, nie atakuj
+                        if(Date.now() - __e2StartWait > MAX_WAIT_MS){
+                          console.log('[adi-bot] E2: brak emo-frnd przez ' + (MAX_WAIT_MS/1000) + 's - rezygnuję z ataku');
+                          return;
+                        }
+                        if(__e2HasFrnd()){
+                          // Wykryto emo-frnd! Czekaj 3s i atakuj
+                          console.log('[adi-bot] E2: wykryto emo-frnd, atak za 3s');
+                          setTimeout(()=>{
+                            try{
+                              const __e2El2 = __adi_sv_findNpcElementById(__e2MobId) || __e2AtkEl;
+                              __e2El2.dispatchEvent(new MouseEvent('contextmenu',{bubbles:true,cancelable:true,view:window,button:2}));
+                            }catch(_){}
+                          }, AFTER_FRND_DELAY_MS);
+                        } else {
+                          // Jeszcze nie ma - sprawdź ponownie za 200ms
+                          setTimeout(__e2WaitAndAttack, 200);
+                        }
+                      }catch(_){}
+                    }
+
+                    __e2WaitAndAttack();
+                  })();
+
                 } else {
                   // fallback: element DOM nie znaleziony
                   safeAttack(mob.id);
