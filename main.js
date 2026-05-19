@@ -2939,8 +2939,18 @@ window.__adiE2HoldSpot = (!__e2Present && !__manualOverride && hero.x === tx && 
 
                     function __e2WaitAndAttack(){
                       try{
+                        const __e2Elapsed = Date.now() - __e2StartWait;
+                        // Po 4s bez emo-frnd: atakuj normalnie prawym klikiem bez czekania
+                        if(__e2Elapsed >= 4000 && !__e2HasFrnd()){
+                          console.log('[adi-bot] E2: brak emo-frnd przez 4s - atak normalny');
+                          try{
+                            const __e2El2 = __adi_sv_findNpcElementById(__e2MobId) || __e2AtkEl;
+                            __e2El2.dispatchEvent(new MouseEvent('contextmenu',{bubbles:true,cancelable:true,view:window,button:2}));
+                          }catch(_){}
+                          return;
+                        }
                         // Jeśli minęło za dużo czasu - zrezygnuj, nie atakuj
-                        if(Date.now() - __e2StartWait > MAX_WAIT_MS){
+                        if(__e2Elapsed > MAX_WAIT_MS){
                           console.log('[adi-bot] E2: brak emo-frnd przez ' + (MAX_WAIT_MS/1000) + 's - rezygnuję z ataku');
                           return;
                         }
@@ -2950,7 +2960,7 @@ window.__adiE2HoldSpot = (!__e2Present && !__manualOverride && hero.x === tx && 
                           setTimeout(()=>{
                             try{
                               const __e2El2 = __adi_sv_findNpcElementById(__e2MobId) || __e2AtkEl;
-                              __e2El2.dispatchEvent(new MouseEvent('contextmenu',{bubbles:true,cancelable:true,view:window,button:2}));
+                              __e2El2.dispatchEvent(new MouseEvent('click',{bubbles:true,cancelable:true,view:window,button:0}));
                             }catch(_){}
                           }, AFTER_FRND_DELAY_MS);
                         } else {
