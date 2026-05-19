@@ -2914,7 +2914,7 @@ window.__adiE2HoldSpot = (!__e2Present && !__manualOverride && hero.x === tx && 
                     const __e2MobId = mob.id;
                     const __e2StartWait = Date.now();
                     const MAX_WAIT_MS = 30000; // max 30s czekania na gracza
-                    const AFTER_FRND_DELAY_MS = 3000; // 3s po wykryciu emo-frnd
+                    const AFTER_FRND_DELAY_MS = 2500; // 2.5s po wykryciu emo-frnd
 
                     function __e2HasFrnd(){
                       try{
