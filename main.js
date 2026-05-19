@@ -2906,12 +2906,10 @@ window.__adiE2HoldSpot = (!__e2Present && !__manualOverride && hero.x === tx && 
               if(checkGrp(mob.id) && (!__adiIsBlacklisted||!__adiIsBlacklisted(mob.id))){
                 const __e2AtkEl = __adi_sv_findNpcElementById(mob.id);
                 if(__e2AtkEl){
-                  // lewy klik - podejście/zaznaczenie E2
-                  __e2AtkEl.dispatchEvent(new MouseEvent('click',{bubbles:true,cancelable:true,view:window,button:0}));
-
-                  // Czekaj aż pojawi się img.emo.emo-frnd (inny gracz w pobliżu),
-                  // a dopiero potem po 3 sekundach wykonaj prawy klik (atak).
-                  // Sprawdzamy co 200ms przez max 30s.
+                  // NIE klikamy lewym od razu - lewy klik w margonem już inicjuje walkę.
+                  // Czekamy aż pojawi się img.emo.emo-frnd (inny gracz w pobliżu),
+                  // a dopiero potem po 3 sekundach wykonujemy prawy klik (atak).
+                  // Sprawdzamy co 50ms przez max 30s.
                   (function(){
                     const __e2MobId = mob.id;
                     const __e2StartWait = Date.now();
@@ -2947,7 +2945,7 @@ window.__adiE2HoldSpot = (!__e2Present && !__manualOverride && hero.x === tx && 
                           return;
                         }
                         if(__e2HasFrnd()){
-                          // Wykryto emo-frnd! Czekaj 3s i atakuj
+                          // Wykryto emo-frnd! Czekaj 3s i dopiero wtedy prawy klik = atak
                           console.log('[adi-bot] E2: wykryto emo-frnd, atak za 3s');
                           setTimeout(()=>{
                             try{
@@ -2956,8 +2954,8 @@ window.__adiE2HoldSpot = (!__e2Present && !__manualOverride && hero.x === tx && 
                             }catch(_){}
                           }, AFTER_FRND_DELAY_MS);
                         } else {
-                          // Jeszcze nie ma - sprawdź ponownie za 200ms
-                          setTimeout(__e2WaitAndAttack, 200);
+                          // Jeszcze nie ma - sprawdź ponownie za 50ms
+                          setTimeout(__e2WaitAndAttack, 50);
                         }
                       }catch(_){}
                     }
@@ -2971,8 +2969,8 @@ window.__adiE2HoldSpot = (!__e2Present && !__manualOverride && hero.x === tx && 
                 }
               }
             }
-            // Resetuj blokada po 9s żeby bot mógł znów podejść do E2
-            setTimeout(()=>{ blokada=false; $m_id=undefined; clearTargetLock(); }, E2_MOUSE_ATTACK_COOLDOWN_MS);
+            // Resetuj blokada po 15s żeby bot mógł znów podejść do E2
+            setTimeout(()=>{ blokada=false; $m_id=undefined; clearTargetLock(); }, 15000);
           } else {
             // ===== Tryb Exp: atak bez zmian =====
             if(checkGrp(mob.id) && (!__adiIsBlacklisted||!__adiIsBlacklisted(mob.id))){
