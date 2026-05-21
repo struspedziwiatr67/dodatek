@@ -10367,7 +10367,7 @@ async function setPriceForRarity(rarity){
   input.dispatchEvent(new Event("blur",{bubbles:true}));
 
   document.body.click();
-  await sleep(150);
+  await sleep(50);
 
   return String(input.value || "").trim() === guiPrice;
 }
@@ -10381,7 +10381,7 @@ async function auctionLoop(){
     }
 
     clickEl(picked.el);
-    await sleep(500);
+    await sleep(100);
 
     const ok = await setPriceForRarity(picked.rarity);
     if(!ok){
@@ -10389,7 +10389,7 @@ async function auctionLoop(){
       break;
     }
 
-    await sleep(250);
+    await sleep(50);
 
     const btn = [...document.querySelectorAll("span.gfont")]
       .find(el => el.textContent.trim().toLowerCase() === "wystaw");
@@ -10400,7 +10400,7 @@ async function auctionLoop(){
     }
 
     clickEl(btn);
-    await sleep(900);
+    await sleep(100);
   }
 }
 
